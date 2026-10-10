@@ -5,6 +5,15 @@ import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { getKontenAlle, createKonto, updateKonto, deleteKonto, type Konto } from '../../api/client'
+
+async function ladeOpenIbanDaten(iban: string) {
+  const res = await fetch(`https://openiban.com/validate/${encodeURIComponent(iban)}?getBIC=true`)
+  if (!res.ok) throw new Error('OpenIBAN-Request fehlgeschlagen')
+  return res.json() as Promise<{ valid: boolean; bankData?: { bic?: string; name?: string } }>
+}
+
+const OPEN_IBAN_BANK_FALLBACK = 'Bank konnte nicht automatisch ermittelt werden. Bitte gib sie manuell ein.'
+const OPEN_IBAN_BIC_FALLBACK = 'BIC / SWIFT konnte nicht automatisch ermittelt werden. Bitte gib sie manuell ein.'
 import { useMxAuto } from '../../hooks/useAnsicht'
 
 const KONTOARTEN: Record<Konto['kontoart'], { label: string; cls: string }> = {
@@ -78,11 +87,13 @@ function formatIban(iban: string) {
 
 function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; initialIban?: string; onClose: () => void }) {
   const qc = useQueryClient()
-  const { register, handleSubmit, control, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, control, getValues, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: konto ? defaultValues(konto) : initialIban ? defaultValuesWithIban(initialIban) : defaultValues(null),
   })
   const kontoart = useWatch({ control, name: 'kontoart' })
+  const [bankFehler, setBankFehler] = useState<string | null>(null)
+  const [bicFehler, setBicFehler] = useState<string | null>(null)
 
   const create = useMutation({
     mutationFn: createKonto,
@@ -106,6 +117,28 @@ function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; init
     }
     if (konto) update.mutate(payload as FormValues)
     else create.mutate(payload as FormValues)
+  }
+
+  async function handleOpenIbanLookup() {
+    const iban = getValues('iban')?.replace(/\s/g, '').toUpperCase()
+    if (!iban) return
+
+    setBankFehler(null)
+    setBicFehler(null)
+
+    try {
+      const data = await ladeOpenIbanDaten(iban)
+      if (data.valid) {
+        setValue('bic', data.bankData?.bic ?? '', { shouldDirty: true, shouldValidate: true })
+        setValue('anbieter', data.bankData?.name ?? '', { shouldDirty: true, shouldValidate: true })
+        return
+      }
+    } catch {
+      // bewusst still: lokale Validierung bleibt maßgeblich
+    }
+
+    setBankFehler(OPEN_IBAN_BANK_FALLBACK)
+    setBicFehler(OPEN_IBAN_BIC_FALLBACK)
   }
 
   const inp = 'w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
@@ -169,15 +202,18 @@ function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; init
                 <div className="flex-1">
                   <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">IBAN</label>
                   <input {...register('iban')} placeholder="DE89 3704 0044 ..." className={inp} />
-                  {err((errors as any).iban?.message)}
-                </div>
-                <div className="w-36">
+              {err((errors as any).iban?.message)}
+              {bankFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bankFehler}</p>}
+            </div>
+            <div className="w-36">
                   <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">BIC (optional)</label>
-                  <input {...register('bic')} placeholder="COBADEFF" className={inp} />
-                </div>
-              </div>
+              <input {...register('bic')} placeholder="COBADEFF" className={inp} />
+              {bicFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bicFehler}</p>}
+            </div>
+          </div>
               <button
                 type="button"
+                onClick={handleOpenIbanLookup}
                 className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
               >
                 <span>↗</span>
