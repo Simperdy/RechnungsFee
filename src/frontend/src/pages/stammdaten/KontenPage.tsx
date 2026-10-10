@@ -164,17 +164,26 @@ function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; init
 
           {/* Bankfelder */}
           {kontoart === 'bank' && (
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">IBAN</label>
-                <input {...register('iban')} placeholder="DE89 3704 0044 …" className={inp} />
-                {err((errors as any).iban?.message)}
+            <>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">IBAN</label>
+                  <input {...register('iban')} placeholder="DE89 3704 0044 ..." className={inp} />
+                  {err((errors as any).iban?.message)}
+                </div>
+                <div className="w-36">
+                  <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">BIC (optional)</label>
+                  <input {...register('bic')} placeholder="COBADEFF" className={inp} />
+                </div>
               </div>
-              <div className="w-36">
-                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">BIC (optional)</label>
-                <input {...register('bic')} placeholder="COBADEFF" className={inp} />
-              </div>
-            </div>
+              <button
+                type="button"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+              >
+                <span>↗</span>
+                <span>Bankname und BIC aus IBAN per Web</span>
+              </button>
+            </>
           )}
 
           {/* Kennung für Zahlungsdienstleister */}
