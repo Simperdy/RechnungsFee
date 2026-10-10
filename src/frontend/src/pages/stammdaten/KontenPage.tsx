@@ -252,7 +252,9 @@ function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; init
                   <input
                     {...register('iban', {
                       onChange: (e) => {
-                        const raw = e.target.value.replace(/\s/g, '').toUpperCase()
+                        const el = e.target
+                        const ns = el.value.slice(0, el.selectionStart ?? el.value.length).replace(/\s/g, '').length
+                        const raw = el.value.replace(/\s/g, '').toUpperCase()
                         const formatted = raw.replace(/(.{4})/g, '$1 ').trimEnd()
                         setValue('iban', formatted)
                         if (raw.length > 0) {
@@ -262,6 +264,14 @@ function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; init
                         }
                         setBankFehler(null)
                         setBicFehler(null)
+                        setTimeout(() => {
+                          let p = 0, c = 0
+                          for (let i = 0; i <= formatted.length; i++) {
+                            if (c === ns) { p = i; break }
+                            if (formatted[i] !== ' ') c++
+                          }
+                          el.setSelectionRange(p, p)
+                        }, 0)
                       },
                     })}
                     placeholder="DE89 3704 0044 ..."

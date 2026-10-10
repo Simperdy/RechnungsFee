@@ -487,12 +487,22 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
               type="text"
               value={(form.iban as string) ?? ''}
               onChange={ev => {
-                const raw = ev.target.value.replace(/\s/g, '').toUpperCase()
+                const el = ev.target
+                const ns = el.value.slice(0, el.selectionStart ?? el.value.length).replace(/\s/g, '').length
+                const raw = el.value.replace(/\s/g, '').toUpperCase()
                 const formatted = raw.replace(/(.{4})/g, '$1 ').trimEnd()
                 set('iban', formatted)
                 setFehler(null)
                 setBankFehler(null)
                 setBicFehler(null)
+                setTimeout(() => {
+                  let p = 0, c = 0
+                  for (let i = 0; i <= formatted.length; i++) {
+                    if (c === ns) { p = i; break }
+                    if (formatted[i] !== ' ') c++
+                  }
+                  el.setSelectionRange(p, p)
+                }, 0)
               }}
               placeholder="DE89 3704 0044 0532 0130 00"
               className={inputCls}
