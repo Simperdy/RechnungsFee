@@ -37,24 +37,31 @@ const schema = z.object({
     .min(1, 'IBAN ist erforderlich')
     .transform((v) => v.replace(/\s/g, '').toUpperCase())
     .superRefine((v, ctx) => {
-      if (v.length < 15) {
-        ctx.addIssue({ code: 'custom', message: 'Zu wenig Zeichen' })
-        return
-      }
-
-      if (v.length > 34) {
-        ctx.addIssue({ code: 'custom', message: 'Zu viele Zeichen' })
-        return
-      }
-
       if (v.startsWith('DE')) {
-        if (v.length !== 22) {
-          ctx.addIssue({ code: 'custom', message: v.length < 22 ? 'Zu wenig Zeichen' : 'Zu viele Zeichen' })
+        if (v.length < 22) {
+          ctx.addIssue({ code: 'custom', message: 'Zu wenig Zeichen' })
           return
         }
-
+        if (v.length > 22) {
+          ctx.addIssue({ code: 'custom', message: 'Zu viele Zeichen' })
+          return
+        }
         if (!pruefeDeIbanChecksum(v)) {
           ctx.addIssue({ code: 'custom', message: 'Bitte gib eine gültige IBAN ein.' })
+          return
+        }
+      } else {
+        if (v.length < 15) {
+          ctx.addIssue({ code: 'custom', message: 'Zu wenig Zeichen' })
+          return
+        }
+        if (v.length > 34) {
+          ctx.addIssue({ code: 'custom', message: 'Zu viele Zeichen' })
+          return
+        }
+        if (!/^[A-Z]{2}[0-9A-Z]+$/.test(v)) {
+          ctx.addIssue({ code: 'custom', message: 'Bitte gib eine gültige IBAN ein.' })
+          return
         }
       }
     }),
@@ -71,7 +78,7 @@ type Props = {
 }
 
 export function StepKonto({ onNext, onBack, isLoading }: Props) {
-  const { register, handleSubmit, setValue, getValues, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, getValues, trigger, clearErrors, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { kontoart: 'bank', kontotyp: 'geschaeftlich' },
   })
@@ -123,16 +130,32 @@ export function StepKonto({ onNext, onBack, isLoading }: Props) {
         <input {...register('anbieter')} placeholder="z.B. Sparkasse Berlin"
           className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400" />
         {errors.anbieter && <p className="text-red-500 text-xs mt-1">{errors.anbieter.message}</p>}
-        {bankFehler && <p className="text-red-500 text-xs mt-1">{bankFehler}</p>}
+        {bankFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bankFehler}</p>}
       </div>
 
       <div>
         <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
           IBAN <span className="text-red-500">*</span>
         </label>
-        <input {...register('iban')} placeholder="DE44 2004 0060 0526 0120 00"
-          className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400" />
-        {errors.iban && <p className="text-red-500 text-xs mt-1">{errors.iban.message}</p>}
+        <input
+          {...register('iban', {
+            onChange: (e) => {
+              const raw = e.target.value.replace(/\s/g, '').toUpperCase()
+              const formatted = raw.replace(/(.{4})/g, '$1 ').trimEnd()
+              setValue('iban', formatted)
+              if (raw.length > 0) {
+                trigger('iban')
+              } else {
+                clearErrors('iban')
+              }
+              setBankFehler(null)
+              setBicFehler(null)
+            },
+          })}
+          placeholder="DE89 3704 0044 0532 0130 00"
+          className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
+        />
+        {errors.iban && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{errors.iban.message}</p>}
       </div>
 
       <button type="button" onClick={handleBankLookup}
@@ -145,7 +168,7 @@ export function StepKonto({ onNext, onBack, isLoading }: Props) {
         <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">BIC / SWIFT</label>
         <input {...register('bic')} placeholder="COBADEFFXXX"
           className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400" />
-        {bicFehler && <p className="text-red-500 text-xs mt-1">{bicFehler}</p>}
+        {bicFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bicFehler}</p>}
       </div>
 
       <div>

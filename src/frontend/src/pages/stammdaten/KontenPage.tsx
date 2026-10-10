@@ -27,12 +27,60 @@ const KONTOTYPEN: Record<Konto['kontotyp'], string> = {
   privat:        'Privat',
 }
 
+function pruefeDeIbanChecksum(iban: string) {
+  const moved = iban.slice(4) + iban.slice(0, 4)
+  let digits = ''
+
+  for (const ch of moved) {
+    digits += /[A-Z]/.test(ch) ? String(ch.charCodeAt(0) - 55) : ch
+  }
+
+  let rest = 0
+  for (const ch of digits) {
+    rest = (rest * 10 + Number(ch)) % 97
+  }
+
+  return rest === 1
+}
+
 const schema = z.discriminatedUnion('kontoart', [
   z.object({
     kontoart:          z.literal('bank'),
     name:              z.string().min(1, 'Name erforderlich'),
     anbieter:          z.string().min(1, 'Bank erforderlich'),
-    iban:              z.string().min(15, 'IBAN zu kurz').max(34, 'IBAN zu lang'),
+    iban: z
+      .string()
+      .min(1, 'IBAN erforderlich')
+      .transform((v) => v.replace(/\s/g, '').toUpperCase())
+      .superRefine((v, ctx) => {
+        if (v.startsWith('DE')) {
+          if (v.length < 22) {
+            ctx.addIssue({ code: 'custom', message: 'Zu wenig Zeichen' })
+            return
+          }
+          if (v.length > 22) {
+            ctx.addIssue({ code: 'custom', message: 'Zu viele Zeichen' })
+            return
+          }
+          if (!pruefeDeIbanChecksum(v)) {
+            ctx.addIssue({ code: 'custom', message: 'Bitte gib eine gültige IBAN ein.' })
+            return
+          }
+        } else {
+          if (v.length < 15) {
+            ctx.addIssue({ code: 'custom', message: 'Zu wenig Zeichen' })
+            return
+          }
+          if (v.length > 34) {
+            ctx.addIssue({ code: 'custom', message: 'Zu viele Zeichen' })
+            return
+          }
+          if (!/^[A-Z]{2}[0-9A-Z]+$/.test(v)) {
+            ctx.addIssue({ code: 'custom', message: 'Bitte gib eine gültige IBAN ein.' })
+            return
+          }
+        }
+      }),
     bic:               z.string().optional().or(z.literal('')),
     kennung:           z.string().optional(),
     kontotyp:          z.enum(['geschaeftlich', 'mischkonto', 'privat']),
@@ -87,7 +135,7 @@ function formatIban(iban: string) {
 
 function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; initialIban?: string; onClose: () => void }) {
   const qc = useQueryClient()
-  const { register, handleSubmit, control, getValues, setValue, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, control, getValues, setValue, trigger, clearErrors, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: konto ? defaultValues(konto) : initialIban ? defaultValuesWithIban(initialIban) : defaultValues(null),
   })
@@ -201,10 +249,27 @@ function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; init
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">IBAN</label>
-                  <input {...register('iban')} placeholder="DE89 3704 0044 ..." className={inp} />
-              {err((errors as any).iban?.message)}
-              {bankFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bankFehler}</p>}
-            </div>
+                  <input
+                    {...register('iban', {
+                      onChange: (e) => {
+                        const raw = e.target.value.replace(/\s/g, '').toUpperCase()
+                        const formatted = raw.replace(/(.{4})/g, '$1 ').trimEnd()
+                        setValue('iban', formatted)
+                        if (raw.length > 0) {
+                          trigger('iban')
+                        } else {
+                          clearErrors('iban')
+                        }
+                        setBankFehler(null)
+                        setBicFehler(null)
+                      },
+                    })}
+                    placeholder="DE89 3704 0044 ..."
+                    className={inp}
+                  />
+                  {err((errors as any).iban?.message)}
+                  {bankFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bankFehler}</p>}
+                </div>
             <div className="w-36">
                   <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">BIC (optional)</label>
               <input {...register('bic')} placeholder="COBADEFF" className={inp} />

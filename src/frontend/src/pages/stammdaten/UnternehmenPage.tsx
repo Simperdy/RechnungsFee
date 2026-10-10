@@ -76,6 +76,22 @@ async function ladeOpenIbanDaten(iban: string) {
 const OPEN_IBAN_BANK_FALLBACK = 'Bank konnte nicht automatisch ermittelt werden. Bitte gib sie manuell ein.'
 const OPEN_IBAN_BIC_FALLBACK = 'BIC / SWIFT konnte nicht automatisch ermittelt werden. Bitte gib sie manuell ein.'
 
+function pruefeDeIbanChecksum(iban: string) {
+  const moved = iban.slice(4) + iban.slice(0, 4)
+  let digits = ''
+
+  for (const ch of moved) {
+    digits += /[A-Z]/.test(ch) ? String(ch.charCodeAt(0) - 55) : ch
+  }
+
+  let rest = 0
+  for (const ch of digits) {
+    rest = (rest * 10 + Number(ch)) % 97
+  }
+
+  return rest === 1
+}
+
 function LogoSektion({
   logoVorhanden,
   onUploaded,
@@ -341,8 +357,26 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
 
     const iban = (form.iban ?? '').replace(/\s/g, '').toUpperCase()
     if (!iban) { setFehler('IBAN ist erforderlich.'); return }
-    if (iban.length < 15 || iban.length > 34 || !/^[A-Z]{2}[0-9A-Z]+$/.test(iban)) {
-      setFehler('IBAN hat ein ungültiges Format (z.B. DE89 3704 0044 0532 0130 00).'); return
+    if (iban.startsWith('DE')) {
+      if (iban.length < 22) {
+        setFehler('Zu wenig Zeichen'); return
+      }
+      if (iban.length > 22) {
+        setFehler('Zu viele Zeichen'); return
+      }
+      if (!pruefeDeIbanChecksum(iban)) {
+        setFehler('Bitte gib eine gültige IBAN ein.'); return
+      }
+    } else {
+      if (iban.length < 15) {
+        setFehler('Zu wenig Zeichen'); return
+      }
+      if (iban.length > 34) {
+        setFehler('Zu viele Zeichen'); return
+      }
+      if (!/^[A-Z]{2}[0-9A-Z]+$/.test(iban)) {
+        setFehler('Bitte gib eine gültige IBAN ein.'); return
+      }
     }
 
     setFehler(null)
