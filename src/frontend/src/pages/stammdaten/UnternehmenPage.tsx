@@ -10,6 +10,7 @@ import { DateInput } from '../../components/DateInput'
 import { KONTORAHMEN_LS_KEY, type KontorahmenModus } from '../../utils/kontorahmen'
 import { LandCombobox } from '../../components/LandCombobox'
 import { useMxAuto } from '../../hooks/useAnsicht'
+import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK } from '../../utils/iban'
 
 // ---------------------------------------------------------------------------
 // Hilfskomponenten
@@ -66,31 +67,6 @@ function TabNav({ active, onChange }: { active: TabId; onChange: (t: TabId) => v
 // ---------------------------------------------------------------------------
 // Logo-Sektion
 // ---------------------------------------------------------------------------
-
-async function ladeOpenIbanDaten(iban: string) {
-  const res = await fetch(`https://openiban.com/validate/${encodeURIComponent(iban)}?getBIC=true`)
-  if (!res.ok) throw new Error('OpenIBAN-Request fehlgeschlagen')
-  return res.json() as Promise<{ valid: boolean; bankData?: { bic?: string; name?: string } }>
-}
-
-const OPEN_IBAN_BANK_FALLBACK = 'Bank konnte nicht automatisch ermittelt werden. Bitte gib sie manuell ein.'
-const OPEN_IBAN_BIC_FALLBACK = 'BIC / SWIFT konnte nicht automatisch ermittelt werden. Bitte gib sie manuell ein.'
-
-function pruefeDeIbanChecksum(iban: string) {
-  const moved = iban.slice(4) + iban.slice(0, 4)
-  let digits = ''
-
-  for (const ch of moved) {
-    digits += /[A-Z]/.test(ch) ? String(ch.charCodeAt(0) - 55) : ch
-  }
-
-  let rest = 0
-  for (const ch of digits) {
-    rest = (rest * 10 + Number(ch)) % 97
-  }
-
-  return rest === 1
-}
 
 function LogoSektion({
   logoVorhanden,
@@ -357,27 +333,8 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
 
     const iban = (form.iban ?? '').replace(/\s/g, '').toUpperCase()
     if (!iban) { setFehler('IBAN ist erforderlich.'); return }
-    if (iban.startsWith('DE')) {
-      if (iban.length < 22) {
-        setFehler('Zu wenig Zeichen'); return
-      }
-      if (iban.length > 22) {
-        setFehler('Zu viele Zeichen'); return
-      }
-      if (!pruefeDeIbanChecksum(iban)) {
-        setFehler('Bitte gib eine gültige IBAN ein.'); return
-      }
-    } else {
-      if (iban.length < 15) {
-        setFehler('Zu wenig Zeichen'); return
-      }
-      if (iban.length > 34) {
-        setFehler('Zu viele Zeichen'); return
-      }
-      if (!/^[A-Z]{2}[0-9A-Z]+$/.test(iban)) {
-        setFehler('Bitte gib eine gültige IBAN ein.'); return
-      }
-    }
+    const ibanFehler = validiereIban(iban)
+    if (ibanFehler) { setFehler(ibanFehler); return }
 
     setFehler(null)
     mut.mutate(form)

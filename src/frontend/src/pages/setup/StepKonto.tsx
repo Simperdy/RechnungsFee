@@ -2,31 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-
-function pruefeDeIbanChecksum(iban: string) {
-  const moved = iban.slice(4) + iban.slice(0, 4)
-  let digits = ''
-
-  for (const ch of moved) {
-    digits += /[A-Z]/.test(ch) ? String(ch.charCodeAt(0) - 55) : ch
-  }
-
-  let rest = 0
-  for (const ch of digits) {
-    rest = (rest * 10 + Number(ch)) % 97
-  }
-
-  return rest === 1
-}
-
-async function ladeOpenIbanDaten(iban: string) {
-  const res = await fetch(`https://openiban.com/validate/${encodeURIComponent(iban)}?getBIC=true`)
-  if (!res.ok) throw new Error('OpenIBAN-Request fehlgeschlagen')
-  return res.json() as Promise<{ valid: boolean; bankData?: { bic?: string; name?: string } }>
-}
-
-const OPEN_IBAN_BANK_FALLBACK = 'Bank konnte nicht automatisch ermittelt werden. Bitte gib sie manuell ein.'
-const OPEN_IBAN_BIC_FALLBACK = 'BIC / SWIFT konnte nicht automatisch ermittelt werden. Bitte gib sie manuell ein.'
+import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK } from '../../utils/iban'
 
 const schema = z.object({
   name:     z.string().min(1, 'Name ist erforderlich'),
@@ -37,33 +13,8 @@ const schema = z.object({
     .min(1, 'IBAN ist erforderlich')
     .transform((v) => v.replace(/\s/g, '').toUpperCase())
     .superRefine((v, ctx) => {
-      if (v.startsWith('DE')) {
-        if (v.length < 22) {
-          ctx.addIssue({ code: 'custom', message: 'Zu wenig Zeichen' })
-          return
-        }
-        if (v.length > 22) {
-          ctx.addIssue({ code: 'custom', message: 'Zu viele Zeichen' })
-          return
-        }
-        if (!pruefeDeIbanChecksum(v)) {
-          ctx.addIssue({ code: 'custom', message: 'Bitte gib eine gültige IBAN ein.' })
-          return
-        }
-      } else {
-        if (v.length < 15) {
-          ctx.addIssue({ code: 'custom', message: 'Zu wenig Zeichen' })
-          return
-        }
-        if (v.length > 34) {
-          ctx.addIssue({ code: 'custom', message: 'Zu viele Zeichen' })
-          return
-        }
-        if (!/^[A-Z]{2}[0-9A-Z]+$/.test(v)) {
-          ctx.addIssue({ code: 'custom', message: 'Bitte gib eine gültige IBAN ein.' })
-          return
-        }
-      }
+      const fehler = validiereIban(v)
+      if (fehler) ctx.addIssue({ code: 'custom', message: fehler })
     }),
   bic:      z.string().optional(),
   kontotyp: z.enum(['geschaeftlich', 'mischkonto']),
