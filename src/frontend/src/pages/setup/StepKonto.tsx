@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK } from '../../utils/iban'
+import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK, openIbanBankdatenFehlgeschlagen } from '../../utils/iban'
 
 const schema = z.object({
   name:     z.string().min(1, 'Name ist erforderlich'),
@@ -47,8 +47,15 @@ export function StepKonto({ onNext, onBack, isLoading }: Props) {
     try {
       const data = await ladeOpenIbanDaten(iban)
       if (data.valid) {
-        setValue('bic', data.bankData?.bic ?? '', { shouldDirty: true, shouldValidate: true })
-        setValue('anbieter', data.bankData?.name ?? '', { shouldDirty: true, shouldValidate: true })
+        const bic = data.bankData?.bic ?? ''
+        const name = data.bankData?.name ?? ''
+        if (!bic || !name) {
+          const msg = openIbanBankdatenFehlgeschlagen(iban)
+          setBankFehler(msg)
+          setBicFehler(msg)
+        }
+        if (bic) setValue('bic', bic, { shouldDirty: true, shouldValidate: true })
+        if (name) setValue('anbieter', name, { shouldDirty: true, shouldValidate: true })
         return
       }
     } catch {

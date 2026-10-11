@@ -10,7 +10,7 @@ import { DateInput } from '../../components/DateInput'
 import { KONTORAHMEN_LS_KEY, type KontorahmenModus } from '../../utils/kontorahmen'
 import { LandCombobox } from '../../components/LandCombobox'
 import { useMxAuto } from '../../hooks/useAnsicht'
-import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK } from '../../utils/iban'
+import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK, openIbanBankdatenFehlgeschlagen } from '../../utils/iban'
 
 // ---------------------------------------------------------------------------
 // Hilfskomponenten
@@ -225,8 +225,15 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
     try {
       const data = await ladeOpenIbanDaten(iban)
       if (data.valid) {
-        set('bank_name', data.bankData?.name ?? '')
-        set('bic', data.bankData?.bic ?? '')
+        const bic = data.bankData?.bic ?? ''
+        const name = data.bankData?.name ?? ''
+        if (!bic || !name) {
+          const msg = openIbanBankdatenFehlgeschlagen(iban)
+          setBankFehler(msg)
+          setBicFehler(msg)
+        }
+        if (bic) set('bic', bic)
+        if (name) set('bank_name', name)
         return
       }
     } catch {
