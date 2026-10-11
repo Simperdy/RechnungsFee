@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK } from '../../utils/iban'
+import { InfoTooltip } from '../../components/InfoTooltip'
+import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK, openIbanBankdatenFehlgeschlagen, OPEN_IBAN_LAND_TOOLTIP } from '../../utils/iban'
 
 const schema = z.object({
   name:     z.string().min(1, 'Name ist erforderlich'),
@@ -47,8 +48,15 @@ export function StepKonto({ onNext, onBack, isLoading }: Props) {
     try {
       const data = await ladeOpenIbanDaten(iban)
       if (data.valid) {
-        setValue('bic', data.bankData?.bic ?? '', { shouldDirty: true, shouldValidate: true })
-        setValue('anbieter', data.bankData?.name ?? '', { shouldDirty: true, shouldValidate: true })
+        const bic = data.bankData?.bic ?? ''
+        const name = data.bankData?.name ?? ''
+        if (!bic || !name) {
+          const msg = openIbanBankdatenFehlgeschlagen(iban)
+          setBankFehler(msg)
+          setBicFehler(msg)
+        }
+        if (bic) setValue('bic', bic, { shouldDirty: true, shouldValidate: true })
+        if (name) setValue('anbieter', name, { shouldDirty: true, shouldValidate: true })
         return
       }
     } catch {
@@ -81,7 +89,7 @@ export function StepKonto({ onNext, onBack, isLoading }: Props) {
         <input {...register('anbieter')} placeholder="z.B. Sparkasse Berlin"
           className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400" />
         {errors.anbieter && <p className="text-red-500 text-xs mt-1">{errors.anbieter.message}</p>}
-        {bankFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bankFehler}</p>}
+        {bankFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 inline-flex items-center gap-1">{bankFehler}{bankFehler.startsWith('Für IBANs') && <InfoTooltip text={OPEN_IBAN_LAND_TOOLTIP} />}</p>}
       </div>
 
       <div>
@@ -130,7 +138,7 @@ export function StepKonto({ onNext, onBack, isLoading }: Props) {
         <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">BIC / SWIFT</label>
         <input {...register('bic')} placeholder="COBADEFFXXX"
           className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400" />
-        {bicFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bicFehler}</p>}
+        {bicFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 inline-flex items-center gap-1">{bicFehler}{bicFehler.startsWith('Für IBANs') && <InfoTooltip text={OPEN_IBAN_LAND_TOOLTIP} />}</p>}
       </div>
 
       <div>

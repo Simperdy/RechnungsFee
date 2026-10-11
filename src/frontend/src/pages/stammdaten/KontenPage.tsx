@@ -6,7 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { getKontenAlle, createKonto, updateKonto, deleteKonto, type Konto } from '../../api/client'
 import { useMxAuto } from '../../hooks/useAnsicht'
-import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK } from '../../utils/iban'
+import { InfoTooltip } from '../../components/InfoTooltip'
+import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK, openIbanBankdatenFehlgeschlagen, OPEN_IBAN_LAND_TOOLTIP } from '../../utils/iban'
 
 const KONTOARTEN: Record<Konto['kontoart'], { label: string; cls: string }> = {
   bank:                  { label: 'Bankkonto',             cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' },
@@ -128,8 +129,15 @@ function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; init
     try {
       const data = await ladeOpenIbanDaten(iban)
       if (data.valid) {
-        setValue('bic', data.bankData?.bic ?? '', { shouldDirty: true, shouldValidate: true })
-        setValue('anbieter', data.bankData?.name ?? '', { shouldDirty: true, shouldValidate: true })
+        const bic = data.bankData?.bic ?? ''
+        const name = data.bankData?.name ?? ''
+        if (!bic || !name) {
+          const msg = openIbanBankdatenFehlgeschlagen(iban)
+          setBankFehler(msg)
+          setBicFehler(msg)
+        }
+        if (bic) setValue('bic', bic, { shouldDirty: true, shouldValidate: true })
+        if (name) setValue('anbieter', name, { shouldDirty: true, shouldValidate: true })
         return
       }
     } catch {
@@ -229,12 +237,12 @@ function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; init
                     className={inp}
                   />
                   {err((errors as any).iban?.message)}
-                  {bankFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bankFehler}</p>}
+                  {bankFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 inline-flex items-center gap-1">{bankFehler}{bankFehler.startsWith('Für IBANs') && <InfoTooltip text={OPEN_IBAN_LAND_TOOLTIP} />}</p>}
                 </div>
             <div className="w-36">
                   <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">BIC (optional)</label>
               <input {...register('bic')} placeholder="COBADEFF" className={inp} />
-              {bicFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bicFehler}</p>}
+              {bicFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 inline-flex items-center gap-1">{bicFehler}{bicFehler.startsWith('Für IBANs') && <InfoTooltip text={OPEN_IBAN_LAND_TOOLTIP} />}</p>}
             </div>
           </div>
               <button
