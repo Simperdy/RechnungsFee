@@ -23,6 +23,13 @@ export type ChangelogVersion = {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: 'v0.7.2',
+    datum: 'Oktober 2026',
+    eintraege: [
+      { typ: 'fix', text: 'Journal zeigte bei einer Ausgabe ohne Vorsteuerabzug (z. B. als Kleinunternehmer §19 UStG) weiterhin den Split „Netto + Vorsteuer X %“ an, als würde tatsächlich Vorsteuer abgezogen – obwohl Dashboard, EÜR und GuV den vollen Bruttobetrag bereits korrekt zeigten (siehe v0.7.1). Die Ausgabe erscheint jetzt konsistent mit einem Betrag. Danke an Peter1061 für den präzisen Folgefund (Issue #424).' },
+    ],
+  },
+  {
     version: 'v0.7.1',
     datum: 'Oktober 2026',
     eintraege: [

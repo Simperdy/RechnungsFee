@@ -501,7 +501,18 @@ export function JournalPage() {
                 const istAktiv = aktiverEintragId === e.id
                 const bereitsStorniert = !!e.storniert
                 const istStorno = !!e.ist_storno
-                const hatUst = parseFloat(e.ust_betrag) > 0
+                // Issue #424 Folgefund: eine Ausgabe ohne Vorsteuerabzug (Kleinunternehmer §19,
+                // oder jede sonstige nicht abzugsfähige USt) zeigte trotzdem den irreführenden
+                // Split "Netto + Vorsteuer X%" - als würde tatsächlich Vorsteuer abgezogen. Die
+                // nicht erstattungsfähige USt ist für die Buchführung schlicht Teil der Ausgabe
+                // (siehe EÜR/Dashboard-Fix), nicht separat ausgewiesen. Einnahme-Seite und
+                // Storno-einer-Einnahme (konto_ust 1776/1771, art dabei "Ausgabe") bleiben
+                // unverändert nach ust_betrag, da dort immer eine echte USt-Buchung vorliegt.
+                const istAusgabeAufEinnahmeKonto = e.art === 'Ausgabe'
+                  && (e.konto_ust_skr03 === '1776' || e.konto_ust_skr03 === '1771')
+                const hatUst = (e.art === 'Einnahme' || istAusgabeAufEinnahmeKonto)
+                  ? parseFloat(e.ust_betrag) > 0
+                  : e.vorsteuerabzug && parseFloat(e.ust_betrag) > 0
                 const rowClass = `border-b border-slate-100 dark:border-slate-700 cursor-pointer select-none transition-colors ${
                   istAktiv ? 'bg-blue-50 dark:bg-blue-950' : istStorno ? 'hover:bg-slate-50 dark:hover:bg-slate-700 opacity-60' : 'hover:bg-slate-50 dark:hover:bg-slate-700'
                 }`
