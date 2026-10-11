@@ -43,3 +43,10 @@ export async function ladeOpenIbanDaten(iban: string) {
 
 export const OPEN_IBAN_BANK_FALLBACK = 'Bank konnte nicht automatisch ermittelt werden. Bitte gib sie manuell ein.'
 export const OPEN_IBAN_BIC_FALLBACK = 'BIC / SWIFT konnte nicht automatisch ermittelt werden. Bitte gib sie manuell ein.'
+
+export function openIbanBankdatenFehlgeschlagen(iban: string): string {
+  const cc = iban.slice(0, 2)
+  return `Für IBANs mit ${cc} bietet openiban.com keine Bankdaten an.`
+}
+
+export const OPEN_IBAN_LAND_TOOLTIP = 'Offiziell unterstützt: Belgien, Deutschland, Niederlande, Luxemburg, Schweiz, Österreich, Liechtenstein.'
