@@ -105,7 +105,7 @@ Pfad nutzen, den das Frontend auch nimmt. GoBD-Integrität bleibt dadurch automa
   kein neuer Code in der Kernlogik, nur dünne Wrapper.
 - **Phase 2 (Draft Creation):** `erstelle_rechnungsentwurf(...)`, `erstelle_kunde(...)`.
 
-### Technischer Vorschlag
+### Technischer Vorschlag (ursprünglich, 2026-10-11)
 
 Schlanker, eigenständiger Python-Prozess mit `fastmcp`, spricht per HTTP nur mit dem bereits
 laufenden Backend (`localhost:8002`) – kein Eingriff in die Kernlogik, keine
@@ -113,15 +113,80 @@ Datenbankänderungen an der Anwendung vorbei.
 
 ---
 
+## Martins Antwort auf die Rückfragen, 2026-10-11
+
+Verfeinert den obigen Vorschlag – **direkte Einbettung statt separates Paket**:
+
+- MCP läuft **im selben Backend-Prozess** wie RechnungsFee selbst (startet/stoppt mit der App),
+  kein eigener Hintergrundprozess für die erste Version. Ein eigenständiger Dienst wäre erst
+  nötig, falls RechnungsFee irgendwann als dauerhaft laufende Webanwendung betrieben wird –
+  dann könnte MCP vom selben Server mitlaufen.
+- **Standardmäßig deaktiviert**, Toggle + abgestufte Berechtigungen (zunächst nur Lesezugriff
+  auf Rechnungen/Kunden/offene Posten/Auswertungen, später optional Entwürfe/Schreibaktionen)
+  in den Einstellungen.
+- **Sicherheit:** Ist der Schalter aus, darf der Endpunkt technisch nicht erreichbar sein.
+  Zugriffe müssen authentifiziert sein – RechnungsFee hat aktuell **keinerlei Auth** (reine
+  lokale Desktop-App ohne Login), das wäre also ein neues Konzept. Ein einmalig generiertes,
+  lokales Shared-Secret-Token (angezeigt in den Einstellungen, in die MCP-Client-Config
+  eingetragen) reicht für den rein lokalen Kontext – keine volle OAuth-Infrastruktur nötig.
+- **Mehrprofil:** Zielprofil sollte konfigurierbar sein; nutzt es das aktuell aktive Profil,
+  muss ein Profilwechsel zuverlässig korrekt durchgereicht werden (keine stille
+  Verbindung zur falschen DB).
+- **Nachfrage:** Martin räumt offen ein, keine validierte Nachfrage über sich selbst hinaus zu
+  kennen – reine Zukunftswette auf KI-gestützte Software-Bedienung, kein dringender Bedarf.
+  Schlägt selbst einen kleinen, optionalen ersten Schritt vor, um das echte Interesse später
+  besser einschätzen zu können.
+
+**Einschätzung:** Die Einbettung direkt ins laufende Backend (statt separates Zusatzpaket) ist
+architektonisch sauberer als der ursprüngliche Vorschlag – einfachere Lebenszyklus-Verwaltung,
+kein zusätzlicher Installationsschritt für Nutzer. Wirft aber die Auth-Frage neu auf (siehe
+oben), die bisher nirgends in RechnungsFee existiert.
+
+---
+
+## Größen-/Ressourcen-Analyse, 2026-10-11
+
+Reale Messung (nicht geschätzt): `pip install` in einer Scratch-venv, abgeglichen gegen das,
+was RechnungsFee über FastAPI ohnehin schon bündelt (`pydantic`, `starlette`, `anyio`,
+`uvicorn`, `cryptography`, `python-multipart` sind bereits Pflicht-Abhängigkeiten).
+
+| Variante | Neue Paketgröße (unkomprimiert) | Installer-Zuwachs (komprimiert, geschätzt) |
+|---|---|---|
+| Schlankes, offizielles `mcp`-SDK | ~9–11 MB | ~3–6 MB |
+| `fastmcp`-Wrapper (Komfort-Framework) | ~30–50+ MB | entsprechend mehr |
+
+`fastmcp` bringt viel CLI-/Dev-Tooling mit, das im eingebetteten Betrieb nie gebraucht wird
+(`rich`, `pygments`, `cyclopts`, `beartype`, `watchfiles`, voller OAuth-Stack) – für eine
+Einbettung ist das schlanke `mcp`-SDK die richtige Wahl, nicht `fastmcp`. Zum Vergleich:
+`cryptography` allein (schon heute Pflicht-Abhängigkeit) wiegt mit 16 MB mehr als das
+komplette zusätzliche `mcp`-SDK.
+
+**Laufzeit-Ressourcen (wichtiger als Downloadgröße für schwache Laptops):**
+- **Deaktiviert:** Pflichtanforderung an die Umsetzung, nicht nur Nice-to-have – das
+  MCP-Modul darf beim Start gar nicht importiert/geladen werden, wenn der Schalter aus ist.
+  Dann buchstäblich 0 zusätzlicher RAM-/CPU-Verbrauch.
+- **Aktiviert:** Kein lokales KI-Modell läuft in RechnungsFee selbst, das läuft extern (Claude
+  Desktop o. ä.) – RechnungsFee liefert nur Daten auf Anfrage. Mehrverbrauch vergleichbar mit
+  ein paar zusätzlichen HTTP-Routen, niedriger einstelliger MB-RAM-Bereich, keine spürbare
+  CPU-Last im Leerlauf.
+
+---
+
 ## Offene Fragen (vor einer Umsetzungsentscheidung zu klären)
 
-- **Mehrprofil:** Gegen welches Profil/welche DB spricht der MCP-Server, wenn mehrere
-  existieren?
-- **Lebenszyklus:** Läuft der MCP-Server nur, wenn RechnungsFee (Backend) sowieso offen ist,
-  oder als eigener Hintergrundprozess? Bestimmt, ob Nutzer die App parallel geöffnet haben
-  müssen.
-- **Verpackung:** Eigenständiges, separat zu installierendes Zusatzpaket (nicht Teil des
-  Haupt-Installers) bevorzugt – vermeidet Bundle-Aufblähung, bleibt opt-in.
-- **Zielgruppe/Nachfrage:** Vermutlich eine kleine, aber committed Nutzergruppe (technisch
-  versierte Freelancer mit Claude Desktop o. ä.) – vor größerer Investition im Issue grob
-  abklopfen, ob über Martin hinaus Interesse besteht.
+- **Auth-Konzept:** RechnungsFee hat aktuell keinerlei Authentifizierung – ein lokales
+  Shared-Secret-Token (Martins Vorschlag) wäre der erste Auth-Mechanismus überhaupt in der App.
+- **Mehrprofil:** Zielprofil konfigurierbar machen, oder aktives Profil mit zuverlässiger
+  Wechsel-Erkennung nutzen?
+- **Tool-Scope Phase 1:** Nur Lesen (Auswertungen, offene Rechnungen, Kundenhistorie) als
+  erster, risikoärmerer Schritt – Entwürfe/Schreibaktionen explizit erst später.
+- **Zielgruppe/Nachfrage:** Beide Beteiligten (Martin, Peter1061 implizit über #428s
+  Detailgrad) sind technisch versierte Einzelnutzer – keine validierte breitere Nachfrage.
+  Bleibt vorerst in der Roadmap-Ideenliste ohne festen Zeitplan, bis sich das ändert.
+
+**Querverweis (Nutzerin, 2026-10-11):** Die bereits auf der Roadmap stehende "Docker-Version"
+(containerisiertes Deployment für Selbst-Hoster, Backend+Frontend als Docker-Image) ist genau
+das Szenario, das Martin mit "falls RechnungsFee mal als Webanwendung läuft" meint – dort gäbe
+es bereits einen dauerhaft laufenden Server-Prozess, auf dem MCP ohne jeden zusätzlichen
+Hintergrunddienst mitlaufen könnte. Beide Ideen passen architektonisch zusammen, auch wenn
+keine von beiden aktuell terminiert ist.
