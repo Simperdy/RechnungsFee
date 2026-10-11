@@ -10,7 +10,7 @@ import { DateInput } from '../../components/DateInput'
 import { KONTORAHMEN_LS_KEY, type KontorahmenModus } from '../../utils/kontorahmen'
 import { LandCombobox } from '../../components/LandCombobox'
 import { useMxAuto } from '../../hooks/useAnsicht'
-import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK, openIbanBankdatenFehlgeschlagen } from '../../utils/iban'
+import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK, openIbanBankdatenFehlgeschlagen, OPEN_IBAN_LAND_TOOLTIP } from '../../utils/iban'
 
 // ---------------------------------------------------------------------------
 // Hilfskomponenten
@@ -484,11 +484,11 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
           <div className="grid grid-cols-2 gap-4">
             <Field label="BIC">
               {inp('bic', 'COBADEFFXXX')}
-              {bicFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bicFehler}</p>}
+              {bicFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 inline-flex items-center gap-1">{bicFehler}{bicFehler.startsWith('Für IBANs') && <InfoTooltip text={OPEN_IBAN_LAND_TOOLTIP} />}</p>}
             </Field>
             <Field label="Bank">
               {inp('bank_name', 'Deutsche Bank')}
-              {bankFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bankFehler}</p>}
+              {bankFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 inline-flex items-center gap-1">{bankFehler}{bankFehler.startsWith('Für IBANs') && <InfoTooltip text={OPEN_IBAN_LAND_TOOLTIP} />}</p>}
             </Field>
           </div>
         </div>
