@@ -27,6 +27,7 @@ export const CHANGELOG: ChangelogVersion[] = [
     datum: 'Oktober 2026',
     eintraege: [
       { typ: 'fix', text: 'Journal zeigte bei einer Ausgabe ohne Vorsteuerabzug (z. B. als Kleinunternehmer §19 UStG) weiterhin den Split „Netto + Vorsteuer X %“ an, als würde tatsächlich Vorsteuer abgezogen – obwohl Dashboard, EÜR und GuV den vollen Bruttobetrag bereits korrekt zeigten (siehe v0.7.1). Die Ausgabe erscheint jetzt konsistent mit einem Betrag. Danke an Peter1061 für den präzisen Folgefund (Issue #424).' },
+      { typ: 'fix', text: 'Wiederkehrende Rechnungen: ein per "jetzt erstellen" oder beim automatischen Start-Check erzeugter Entwurf bekam als Rechnungsdatum den geplanten Termin der Vorlage statt des tatsächlichen Erstellungstages – war dieser Termin veraltet (App länger nicht geöffnet) oder wurde der Entwurf vorzeitig manuell ausgelöst, entstand eine heute erstellte Rechnung mit einem stark abweichenden, teils Jahre alten Datum. Verstößt gegen §14 Abs. 4 UStG (Ausstellungsdatum muss dem tatsächlichen Tag der Rechnungsstellung entsprechen) und konnte eine Rechnung in einen bereits abgeschlossenen Steuerzeitraum zurückdatieren. Das Rechnungsdatum ist jetzt immer das tatsächliche Erstellungsdatum. Danke an gitmacer für den Bug-Report inklusive Screenshot (Issue #432).' },
     ],
   },
   {

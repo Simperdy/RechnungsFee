@@ -236,7 +236,13 @@ def _erstelle_entwurf(vorlage: Rechnungsvorlage, db: Session) -> tuple[int, str,
     if zt is None and unt:
         zt = int(getattr(unt, "standard_zahlungsziel", 14) or 14)
 
-    rechnungsdatum = vorlage.naechstes_datum
+    # Issue #432: Rechnungsdatum ist das tatsächliche Ausstellungsdatum (§14 Abs. 4 UStG), nicht
+    # der geplante Termin der Vorlage. Bei normalem Betrieb liegen beide nah beieinander (der
+    # automatische Check läuft rund um naechstes_datum) - war die App aber länger nicht offen
+    # (naechstes_datum liegt deutlich in der Vergangenheit) oder wird manuell per "jetzt
+    # erstellen" vorzeitig ausgelöst (naechstes_datum könnte sogar noch in der Zukunft liegen),
+    # bekäme die heute erstellte Rechnung sonst ein falsches, beliebig weit abweichendes Datum.
+    rechnungsdatum = date.today()
     rechnungsnummer = _naechste_rechnungsnr(rechnungsdatum, db)
 
     rechnung = Rechnung(
