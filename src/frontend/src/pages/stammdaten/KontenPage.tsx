@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { getKontenAlle, createKonto, updateKonto, deleteKonto, type Konto } from '../../api/client'
 import { useMxAuto } from '../../hooks/useAnsicht'
+import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK } from '../../utils/iban'
 
 const KONTOARTEN: Record<Konto['kontoart'], { label: string; cls: string }> = {
   bank:                  { label: 'Bankkonto',             cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' },
@@ -23,7 +24,14 @@ const schema = z.discriminatedUnion('kontoart', [
     kontoart:          z.literal('bank'),
     name:              z.string().min(1, 'Name erforderlich'),
     anbieter:          z.string().min(1, 'Bank erforderlich'),
-    iban:              z.string().min(15, 'IBAN zu kurz').max(34, 'IBAN zu lang'),
+    iban: z
+      .string()
+      .min(1, 'IBAN erforderlich')
+      .transform((v) => v.replace(/\s/g, '').toUpperCase())
+      .superRefine((v, ctx) => {
+        const fehler = validiereIban(v)
+        if (fehler) ctx.addIssue({ code: 'custom', message: fehler })
+      }),
     bic:               z.string().optional().or(z.literal('')),
     kennung:           z.string().optional(),
     kontotyp:          z.enum(['geschaeftlich', 'mischkonto', 'privat']),
@@ -78,11 +86,13 @@ function formatIban(iban: string) {
 
 function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; initialIban?: string; onClose: () => void }) {
   const qc = useQueryClient()
-  const { register, handleSubmit, control, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, control, getValues, setValue, trigger, clearErrors, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: konto ? defaultValues(konto) : initialIban ? defaultValuesWithIban(initialIban) : defaultValues(null),
   })
   const kontoart = useWatch({ control, name: 'kontoart' })
+  const [bankFehler, setBankFehler] = useState<string | null>(null)
+  const [bicFehler, setBicFehler] = useState<string | null>(null)
 
   const create = useMutation({
     mutationFn: createKonto,
@@ -106,6 +116,28 @@ function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; init
     }
     if (konto) update.mutate(payload as FormValues)
     else create.mutate(payload as FormValues)
+  }
+
+  async function handleOpenIbanLookup() {
+    const iban = getValues('iban')?.replace(/\s/g, '').toUpperCase()
+    if (!iban) return
+
+    setBankFehler(null)
+    setBicFehler(null)
+
+    try {
+      const data = await ladeOpenIbanDaten(iban)
+      if (data.valid) {
+        setValue('bic', data.bankData?.bic ?? '', { shouldDirty: true, shouldValidate: true })
+        setValue('anbieter', data.bankData?.name ?? '', { shouldDirty: true, shouldValidate: true })
+        return
+      }
+    } catch {
+      // bewusst still: lokale Validierung bleibt maßgeblich
+    }
+
+    setBankFehler(OPEN_IBAN_BANK_FALLBACK)
+    setBicFehler(OPEN_IBAN_BIC_FALLBACK)
   }
 
   const inp = 'w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
@@ -164,17 +196,57 @@ function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; init
 
           {/* Bankfelder */}
           {kontoart === 'bank' && (
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">IBAN</label>
-                <input {...register('iban')} placeholder="DE89 3704 0044 …" className={inp} />
-                {err((errors as any).iban?.message)}
-              </div>
-              <div className="w-36">
-                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">BIC (optional)</label>
-                <input {...register('bic')} placeholder="COBADEFF" className={inp} />
-              </div>
+            <>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">IBAN</label>
+                  <input
+                    {...register('iban', {
+                      onChange: (e) => {
+                        const el = e.target
+                        const ns = el.value.slice(0, el.selectionStart ?? el.value.length).replace(/\s/g, '').length
+                        const raw = el.value.replace(/\s/g, '').toUpperCase()
+                        const formatted = raw.replace(/(.{4})/g, '$1 ').trimEnd()
+                        setValue('iban', formatted)
+                        if (raw.length > 0) {
+                          trigger('iban')
+                        } else {
+                          clearErrors('iban')
+                        }
+                        setBankFehler(null)
+                        setBicFehler(null)
+                        setTimeout(() => {
+                          let p = 0, c = 0
+                          for (let i = 0; i <= formatted.length; i++) {
+                            if (c === ns) { p = i; break }
+                            if (formatted[i] !== ' ') c++
+                          }
+                          el.setSelectionRange(p, p)
+                        }, 0)
+                      },
+                    })}
+                    placeholder="DE89 3704 0044 ..."
+                    className={inp}
+                  />
+                  {err((errors as any).iban?.message)}
+                  {bankFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bankFehler}</p>}
+                </div>
+            <div className="w-36">
+                  <label className="block text-xs text-slate-500 dark:text-slate-400 mb-0.5">BIC (optional)</label>
+              <input {...register('bic')} placeholder="COBADEFF" className={inp} />
+              {bicFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bicFehler}</p>}
             </div>
+          </div>
+              <button
+                type="button"
+                onClick={handleOpenIbanLookup}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+              >
+                <span>↗</span>
+                <span>Bankname und BIC aus IBAN per Web</span>
+              </button>
+              <p className="text-xs text-slate-400 dark:text-slate-500 text-center">Sendet deine IBAN an openiban.com (Fremdanbieter) zur Abfrage</p>
+            </>
           )}
 
           {/* Kennung für Zahlungsdienstleister */}

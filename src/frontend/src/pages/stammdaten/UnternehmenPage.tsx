@@ -10,6 +10,7 @@ import { DateInput } from '../../components/DateInput'
 import { KONTORAHMEN_LS_KEY, type KontorahmenModus } from '../../utils/kontorahmen'
 import { LandCombobox } from '../../components/LandCombobox'
 import { useMxAuto } from '../../hooks/useAnsicht'
+import { validiereIban, ladeOpenIbanDaten, OPEN_IBAN_BANK_FALLBACK, OPEN_IBAN_BIC_FALLBACK } from '../../utils/iban'
 
 // ---------------------------------------------------------------------------
 // Hilfskomponenten
@@ -185,6 +186,8 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
   })
   const [gespeichert, setGespeichert] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
+  const [bankFehler, setBankFehler] = useState<string | null>(null)
+  const [bicFehler, setBicFehler] = useState<string | null>(null)
   const [kontorahmenModus, setKontorahmenModus] = useState<KontorahmenModus>(
     () => (localStorage.getItem(KONTORAHMEN_LS_KEY) ?? '') as KontorahmenModus
   )
@@ -207,6 +210,32 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
     },
     onError: (e: Error) => setFehler(e.message),
   })
+
+  async function handleBankLookup() {
+    const iban = (form.iban ?? '').replace(/\s/g, '').toUpperCase()
+    if (!iban) {
+      setBankFehler('IBAN ist erforderlich.')
+      setBicFehler('IBAN ist erforderlich.')
+      return
+    }
+
+    setBankFehler(null)
+    setBicFehler(null)
+
+    try {
+      const data = await ladeOpenIbanDaten(iban)
+      if (data.valid) {
+        set('bank_name', data.bankData?.name ?? '')
+        set('bic', data.bankData?.bic ?? '')
+        return
+      }
+    } catch {
+      // bewusst still: lokale Validierung bleibt maßgeblich
+    }
+
+    setBankFehler(OPEN_IBAN_BANK_FALLBACK)
+    setBicFehler(OPEN_IBAN_BIC_FALLBACK)
+  }
 
   function set(key: keyof Unternehmen, value: string | boolean | number | null) {
     setForm(f => ({ ...f, [key]: value }))
@@ -304,9 +333,8 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
 
     const iban = (form.iban ?? '').replace(/\s/g, '').toUpperCase()
     if (!iban) { setFehler('IBAN ist erforderlich.'); return }
-    if (iban.length < 15 || iban.length > 34 || !/^[A-Z]{2}[0-9A-Z]+$/.test(iban)) {
-      setFehler('IBAN hat ein ungültiges Format (z.B. DE89 3704 0044 0532 0130 00).'); return
-    }
+    const ibanFehler = validiereIban(iban)
+    if (ibanFehler) { setFehler(ibanFehler); return }
 
     setFehler(null)
     mut.mutate(form)
@@ -416,17 +444,45 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
               type="text"
               value={(form.iban as string) ?? ''}
               onChange={ev => {
-                const raw = ev.target.value.replace(/\s/g, '').toUpperCase()
+                const el = ev.target
+                const ns = el.value.slice(0, el.selectionStart ?? el.value.length).replace(/\s/g, '').length
+                const raw = el.value.replace(/\s/g, '').toUpperCase()
                 const formatted = raw.replace(/(.{4})/g, '$1 ').trimEnd()
                 set('iban', formatted)
+                setFehler(null)
+                setBankFehler(null)
+                setBicFehler(null)
+                setTimeout(() => {
+                  let p = 0, c = 0
+                  for (let i = 0; i <= formatted.length; i++) {
+                    if (c === ns) { p = i; break }
+                    if (formatted[i] !== ' ') c++
+                  }
+                  el.setSelectionRange(p, p)
+                }, 0)
               }}
               placeholder="DE89 3704 0044 0532 0130 00"
               className={inputCls}
             />
           </Field>
+          <button
+            type="button"
+            onClick={handleBankLookup}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+          >
+            <span>↗</span>
+            <span>Bankname und BIC aus IBAN per Web</span>
+          </button>
+          <p className="text-xs text-slate-400 dark:text-slate-500 text-center">Sendet deine IBAN an openiban.com (Fremdanbieter) zur Abfrage</p>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="BIC">{inp('bic', 'COBADEFFXXX')}</Field>
-            <Field label="Bank">{inp('bank_name', 'Deutsche Bank')}</Field>
+            <Field label="BIC">
+              {inp('bic', 'COBADEFFXXX')}
+              {bicFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bicFehler}</p>}
+            </Field>
+            <Field label="Bank">
+              {inp('bank_name', 'Deutsche Bank')}
+              {bankFehler && <p className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{bankFehler}</p>}
+            </Field>
           </div>
         </div>
       </div>
