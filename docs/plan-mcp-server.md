@@ -1,9 +1,9 @@
 # Brainstorming: MCP-Server für RechnungsFee
 
 **Issue:** #429
-**Status:** Reines Brainstorming, keine Umsetzungsentscheidung. Melder sehr knapp ("volle
-Automation via KI-Agenten"), Rückfrage nach konkretem Anwendungsfall im Issue gestellt, noch
-unbeantwortet.
+**Status:** Reines Brainstorming, keine Umsetzungsentscheidung. Melder (duczz/Martin) hat auf
+Rückfrage einen konkreten, durchdachten Vorschlag nachgeliefert (siehe unten) – noch keine
+Entscheidung, ob/wann umgesetzt wird.
 
 ---
 
@@ -73,8 +73,55 @@ ist.
 
 ---
 
-## Offene Fragen
+## Konkreter Vorschlag von Martin (duczz), Issue #429, 2026-10-11
 
-- Konkreter Anwendungsfall von duczz (Issue #429) steht noch aus.
-- Tool-Scope: nur Lesen (Auswertungen) als erster, risikoärmerer Schritt? Schreibaktionen später?
-- Mehrprofil-Frage: welches Profil/welche DB spricht der MCP-Server an, wenn mehrere existieren?
+### Human-in-the-Loop als Grundprinzip
+
+Kein MCP-Tool finalisiert jemals direkt – Schreibaktionen legen immer nur einen **Entwurf**
+an (`ist_entwurf=True`), die eigentliche Finalisierung bleibt ein expliziter Klick in der App.
+Wichtige Erkenntnis: das ist **kein neuer Sicherheitsmechanismus**, den wir bauen müssten –
+`ist_entwurf` existiert bereits als zentrales Konzept (Angebot, Rechnung, etc.) und
+Finalisieren ist schon heute ein separater UI-Schritt. Ein MCP-Tool würde einfach denselben
+Pfad nutzen, den das Frontend auch nimmt. GoBD-Integrität bleibt dadurch automatisch gewahrt.
+
+### Anwendungsfälle
+
+**A. Read-Only / Auswertungen (Zero-Risk, passt zu kleinen lokalen Modellen):**
+- "Welche Rechnungen sind überfällig, wer muss gemahnt werden?"
+- "Zeig mir Kontaktdaten und letzte 3 Rechnungen von Kunde XY."
+- "Wie viel Umsatz in Q1, wie nah an der Kleinunternehmergrenze (§19)?"
+
+**B. Entwürfe (Human-in-the-Loop):**
+- Rechnungsentwurf per Prompt erstellen lassen.
+- Eingangsrechnung/Beleg-PDF der KI geben → sie liest Rechnungsnummer/Lieferant/Betrag aus →
+  legt den Beleg als Entwurf an.
+- Kunde anlegen/abfragen.
+
+### Vorgeschlagener Stufenplan
+
+- **Phase 1 (MVP, Read-Only):** `liste_offene_rechnungen(status, faellig_filter)`,
+  `suche_kunde(query)`/`zeige_kundenhistorie(kunde_id)`, `finanz_uebersicht(zeitraum)`. Mappt
+  direkt auf bestehende Endpunkte (`get_offene_rechnungen`, Kundensuche, `api/cockpit.py`) –
+  kein neuer Code in der Kernlogik, nur dünne Wrapper.
+- **Phase 2 (Draft Creation):** `erstelle_rechnungsentwurf(...)`, `erstelle_kunde(...)`.
+
+### Technischer Vorschlag
+
+Schlanker, eigenständiger Python-Prozess mit `fastmcp`, spricht per HTTP nur mit dem bereits
+laufenden Backend (`localhost:8002`) – kein Eingriff in die Kernlogik, keine
+Datenbankänderungen an der Anwendung vorbei.
+
+---
+
+## Offene Fragen (vor einer Umsetzungsentscheidung zu klären)
+
+- **Mehrprofil:** Gegen welches Profil/welche DB spricht der MCP-Server, wenn mehrere
+  existieren?
+- **Lebenszyklus:** Läuft der MCP-Server nur, wenn RechnungsFee (Backend) sowieso offen ist,
+  oder als eigener Hintergrundprozess? Bestimmt, ob Nutzer die App parallel geöffnet haben
+  müssen.
+- **Verpackung:** Eigenständiges, separat zu installierendes Zusatzpaket (nicht Teil des
+  Haupt-Installers) bevorzugt – vermeidet Bundle-Aufblähung, bleibt opt-in.
+- **Zielgruppe/Nachfrage:** Vermutlich eine kleine, aber committed Nutzergruppe (technisch
+  versierte Freelancer mit Claude Desktop o. ä.) – vor größerer Investition im Issue grob
+  abklopfen, ob über Martin hinaus Interesse besteht.
