@@ -229,20 +229,40 @@ def _revert_auftrag_status(auftrag_id: int, db: Session, ziel_status: str = "in_
 
 
 def _erstelle_entwurf(vorlage: Rechnungsvorlage, db: Session) -> tuple[int, str, list[dict]]:
-    """Erstellt Rechnungs-Entwurf aus Vorlage. Gibt (id, nummer, preisaenderungen) zurück."""
+    """Erstellt EINEN Rechnungs-Entwurf aus der Vorlage - bündelt dabei alle fälligen, noch
+    nicht abgerechneten Perioden in dieser einen Rechnung (Issue #432-Folgefund: war die App
+    länger nicht offen, soll nicht jede verpasste Periode einen eigenen Entwurf über mehrere
+    künftige App-Starts verteilt nachholen, sondern eine einzige Sammelrechnung entstehen).
+    Jede Periode trägt die Positionen der Vorlage einmal; ab der zweiten Periode wird der
+    jeweilige Zeitraum an die Beschreibung angehängt, damit nachvollziehbar bleibt wofür
+    abgerechnet wird. vorlage.naechstes_datum wird dabei komplett bis zur nächsten
+    ZUKÜNFTIGEN Periode vorgerückt (nicht nur um einen Schritt) - der Aufrufer muss es danach
+    nicht mehr selbst anpassen. Gibt (id, nummer, preisaenderungen) zurück."""
     unt = db.query(Unternehmen).first()
     ist_kleinunternehmer = unt.ist_kleinunternehmer if unt else False
     zt = vorlage.zahlungsziel_tage
     if zt is None and unt:
         zt = int(getattr(unt, "standard_zahlungsziel", 14) or 14)
 
+    # Alle fälligen Perioden sammeln. "jetzt erstellen" kann auch vorzeitig ausgelöst werden
+    # (naechstes_datum liegt dann noch in der Zukunft) - in dem Fall trotzdem genau eine
+    # (die kommende) Periode abrechnen statt gar keine.
+    heute = date.today()
+    perioden: list[date] = []
+    d = vorlage.naechstes_datum
+    while d <= heute:
+        perioden.append(d)
+        d = _naechstes_datum(d, vorlage.intervall)
+    if not perioden:
+        perioden = [vorlage.naechstes_datum]
+        d = _naechstes_datum(vorlage.naechstes_datum, vorlage.intervall)
+    vorlage.naechstes_datum = d
+    mehrere_perioden = len(perioden) > 1
+
     # Issue #432: Rechnungsdatum ist das tatsächliche Ausstellungsdatum (§14 Abs. 4 UStG), nicht
-    # der geplante Termin der Vorlage. Bei normalem Betrieb liegen beide nah beieinander (der
-    # automatische Check läuft rund um naechstes_datum) - war die App aber länger nicht offen
-    # (naechstes_datum liegt deutlich in der Vergangenheit) oder wird manuell per "jetzt
-    # erstellen" vorzeitig ausgelöst (naechstes_datum könnte sogar noch in der Zukunft liegen),
-    # bekäme die heute erstellte Rechnung sonst ein falsches, beliebig weit abweichendes Datum.
-    rechnungsdatum = date.today()
+    # einer der (ggf. vergangenen) Periodentermine - die erscheinen stattdessen je Position als
+    # Periodenhinweis, sobald mehrere Perioden gebündelt werden.
+    rechnungsdatum = heute
     rechnungsnummer = _naechste_rechnungsnr(rechnungsdatum, db)
 
     rechnung = Rechnung(
@@ -267,51 +287,61 @@ def _erstelle_entwurf(vorlage: Rechnungsvorlage, db: Session) -> tuple[int, str,
 
     positionen_raw: list[dict] = json.loads(vorlage.positionen_json or "[]")
     preisaenderungen: list[dict] = []
+    gemeldete_artikel: set[int] = set()
     netto_sum = Decimal("0.00")
     ust_sum = Decimal("0.00")
+    pos_nr = 0
 
-    for i, p in enumerate(positionen_raw, start=1):
-        netto = Decimal(str(p.get("netto", "0"))).quantize(Q, ROUND_HALF_UP)
-        ust_satz = Decimal(str(p.get("ust_satz", "0")))
-        artikel_id = p.get("artikel_id")
+    for periode in perioden:
+        for p in positionen_raw:
+            pos_nr += 1
+            netto = Decimal(str(p.get("netto", "0"))).quantize(Q, ROUND_HALF_UP)
+            ust_satz = Decimal(str(p.get("ust_satz", "0")))
+            artikel_id = p.get("artikel_id")
+            beschreibung = p.get("beschreibung", "")
 
-        # Preisabgleich mit aktuellem Artikelstamm
-        if artikel_id:
-            art = db.query(Artikel).filter(Artikel.id == artikel_id).first()
-            if art and art.vk_netto.quantize(Q) != netto:
-                preisaenderungen.append({
-                    "beschreibung": p.get("beschreibung", ""),
-                    "artikel_id": artikel_id,
-                    "preis_vorlage": str(netto),
-                    "preis_aktuell": str(art.vk_netto),
-                })
-                netto = art.vk_netto.quantize(Q, ROUND_HALF_UP)
-                ust_satz = art.steuersatz
+            # Preisabgleich mit aktuellem Artikelstamm - Hinweis nur einmal je Artikel melden,
+            # nicht einmal pro gebündelter Periode.
+            if artikel_id:
+                art = db.query(Artikel).filter(Artikel.id == artikel_id).first()
+                if art and art.vk_netto.quantize(Q) != netto:
+                    if artikel_id not in gemeldete_artikel:
+                        preisaenderungen.append({
+                            "beschreibung": beschreibung,
+                            "artikel_id": artikel_id,
+                            "preis_vorlage": str(netto),
+                            "preis_aktuell": str(art.vk_netto),
+                        })
+                        gemeldete_artikel.add(artikel_id)
+                    netto = art.vk_netto.quantize(Q, ROUND_HALF_UP)
+                    ust_satz = art.steuersatz
 
-        if ist_kleinunternehmer or ust_satz == 0:
-            ust_betrag = Decimal("0.00")
-            brutto = netto
-            ust_satz = Decimal("0")
-        else:
-            ust_betrag = (netto * ust_satz / 100).quantize(Q, ROUND_HALF_UP)
-            brutto = netto + ust_betrag
+            if ist_kleinunternehmer or ust_satz == 0:
+                ust_betrag = Decimal("0.00")
+                brutto = netto
+                ust_satz = Decimal("0")
+            else:
+                ust_betrag = (netto * ust_satz / 100).quantize(Q, ROUND_HALF_UP)
+                brutto = netto + ust_betrag
 
-        menge = Decimal(str(p.get("menge", "1"))).quantize(Decimal("0.001"), ROUND_HALF_UP)
-        db.add(Rechnungsposition(
-            rechnung_id=rechnung.id,
-            artikel_id=artikel_id,
-            kategorie_id=p.get("kategorie_id"),
-            position_nr=i,
-            beschreibung=p.get("beschreibung", ""),
-            menge=menge,
-            einheit=p.get("einheit", "Stück"),
-            netto=netto,
-            ust_satz=ust_satz,
-            ust_betrag=ust_betrag,
-            brutto=brutto,
-        ))
-        netto_sum += netto * menge
-        ust_sum += ust_betrag * menge
+            menge = Decimal(str(p.get("menge", "1"))).quantize(Decimal("0.001"), ROUND_HALF_UP)
+            if mehrere_perioden:
+                beschreibung = f"{beschreibung} (Periode {periode.strftime('%d.%m.%Y')})"
+            db.add(Rechnungsposition(
+                rechnung_id=rechnung.id,
+                artikel_id=artikel_id,
+                kategorie_id=p.get("kategorie_id"),
+                position_nr=pos_nr,
+                beschreibung=beschreibung,
+                menge=menge,
+                einheit=p.get("einheit", "Stück"),
+                netto=netto,
+                ust_satz=ust_satz,
+                ust_betrag=ust_betrag,
+                brutto=brutto,
+            ))
+            netto_sum += netto * menge
+            ust_sum += ust_betrag * menge
 
     rechnung.netto_gesamt = netto_sum.quantize(Q, ROUND_HALF_UP)
     rechnung.ust_gesamt = ust_sum.quantize(Q, ROUND_HALF_UP)
@@ -339,8 +369,7 @@ def pruefen_intern(db: Session) -> list[dict]:
     )
     ergebnisse = []
     for v in vorlagen:
-        rid, rnr, pa = _erstelle_entwurf(v, db)
-        v.naechstes_datum = _naechstes_datum(v.naechstes_datum, v.intervall)
+        rid, rnr, pa = _erstelle_entwurf(v, db)  # rückt v.naechstes_datum bereits selbst vor
         v.letzte_erstellung = heute
         db.commit()
         ergebnisse.append({
@@ -533,8 +562,7 @@ def entwurf_jetzt(vorlage_id: int, db: Session = Depends(get_db)):
     v = db.query(Rechnungsvorlage).filter(Rechnungsvorlage.id == vorlage_id).first()
     if not v:
         raise HTTPException(404, "Vorlage nicht gefunden.")
-    rid, rnr, pa = _erstelle_entwurf(v, db)
-    v.naechstes_datum = _naechstes_datum(v.naechstes_datum, v.intervall)
+    rid, rnr, pa = _erstelle_entwurf(v, db)  # rückt v.naechstes_datum bereits selbst vor
     v.letzte_erstellung = date.today()
     db.commit()
     return EntwurfErgebnis(
