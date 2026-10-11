@@ -173,6 +173,7 @@ export function StepKonto({ onNext, onBack, isLoading }: Props) {
         <span>↗</span>
         <span>Bankname und BIC aus IBAN per Web</span>
       </button>
+      <p className="text-xs text-slate-400 dark:text-slate-500 text-center">Sendet deine IBAN an openiban.com (Fremdanbieter) zur Abfrage</p>
 
       <div>
         <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">BIC / SWIFT</label>

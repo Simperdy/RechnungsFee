@@ -516,6 +516,7 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
             <span>↗</span>
             <span>Bankname und BIC aus IBAN per Web</span>
           </button>
+          <p className="text-xs text-slate-400 dark:text-slate-500 text-center">Sendet deine IBAN an openiban.com (Fremdanbieter) zur Abfrage</p>
           <div className="grid grid-cols-2 gap-4">
             <Field label="BIC">
               {inp('bic', 'COBADEFFXXX')}

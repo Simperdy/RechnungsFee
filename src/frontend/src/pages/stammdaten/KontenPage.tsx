@@ -294,6 +294,7 @@ function KontoModal({ konto, initialIban, onClose }: { konto: Konto | null; init
                 <span>↗</span>
                 <span>Bankname und BIC aus IBAN per Web</span>
               </button>
+              <p className="text-xs text-slate-400 dark:text-slate-500 text-center">Sendet deine IBAN an openiban.com (Fremdanbieter) zur Abfrage</p>
             </>
           )}
 
