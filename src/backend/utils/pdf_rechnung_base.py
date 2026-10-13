@@ -745,7 +745,6 @@ class RechnungPDFBase(FPDF):
         _dt = getattr(self._r, "dokument_typ", "Rechnung") or "Rechnung"
         ist_lieferschein = _dt == "Lieferschein"
         ist_angebot      = _dt == "Angebot"
-        ist_proforma     = _dt == "Proforma"
         ist_auftrag      = _dt == "Auftrag"
         ist_storno_rnd   = getattr(self._r, "storniert", False) and _dt == "Rechnung"
         if not ist_lieferschein:
@@ -758,7 +757,7 @@ class RechnungPDFBase(FPDF):
         self._render_notizen()
         if ist_lieferschein:
             self._render_empfangsbestaetigung()
-        elif not ist_angebot and not ist_proforma and not ist_auftrag and not ist_storno_rnd:
+        elif not ist_storno_rnd:
             embed_unterschrift(self, self._unt, L_MARGIN)
         self.set_text_color(0, 0, 0)
         return bytes(self.output())
