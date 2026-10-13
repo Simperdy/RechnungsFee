@@ -32,6 +32,7 @@ export const CHANGELOG: ChangelogVersion[] = [
       { typ: 'verbesserung', text: 'Überall wo ein Brutto- oder Nettobetrag angezeigt wird, erklärt jetzt ein Hover-Tooltip „mit MwSt" bzw. „ohne MwSt" – bei umschaltbaren Eingabefeldern passt sich der Hinweis automatisch an den gewählten Modus an. Danke an gitmacer/Tim für die Contribution (PR #433).' },
       { typ: 'neu', text: 'Neues Bankkonto (Setup und Stammdaten): Button „Bankname und BIC aus IBAN per Web" ermittelt Bank und BIC automatisch über openiban.com, inklusive Hinweis, dass dafür die IBAN an einen Fremdanbieter gesendet wird. Danke an gitmacer/Tim für die Contribution (PR #431).' },
       { typ: 'fix', text: 'Der Web-Lookup für Bank und BIC aus der IBAN (siehe oben) setzte bei IBANs aus Ländern, die openiban.com nicht unterstützt (nur DE/AT/CH/BE/NL/LU/LI), die Felder Bank und BIC stillschweigend auf leer zurück, statt bereits eingegebene Werte unverändert zu lassen. Zeigt jetzt stattdessen einen Hinweis mit den unterstützten Ländern. Danke an gitmacer/Tim für den Folgefix (PR #434).' },
+      { typ: 'fix', text: 'Die unter Einstellungen → Unternehmen → Unterschrift konfigurierte Unterschrift erschien im PDF nur bei Rechnung, Gutschrift und Abschlagsrechnung – bei Angebot, Proforma und Auftrag fehlte sie. Erscheint jetzt einheitlich in allen vertragsrelevanten Dokumenten; Lieferschein (eigene Empfangsbestätigung) und Stornorechnung bleiben bewusst ohne Unterschrift. Danke an ludgerknorps für den Bug-Report (Issue #435).' },
     ],
   },
   {
