@@ -103,12 +103,14 @@ function CollapsibleSection({
   aktiv,
   items,
   badge,
+  akzent,
 }: {
   label: string
   icon: string
   aktiv: boolean
   items: { to: string; label: string; icon: string; badge?: boolean }[]
   badge?: boolean
+  akzent?: string
 }) {
   const storageKey = `sidebar_open_${label}`
 
@@ -150,7 +152,7 @@ function CollapsibleSection({
     }`
 
   return (
-    <div className={`mt-1 mx-2 rounded-lg transition-colors ${offen ? 'bg-slate-50 dark:bg-slate-800/50' : ''}`}>
+    <div className={`mt-1 mx-2 rounded-lg transition-colors ${offen ? 'bg-slate-50 dark:bg-slate-800/50' : ''} ${akzent ? `border-l-2 ${akzent}` : ''}`}>
       <button
         onClick={toggle}
         className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium transition-colors rounded-lg ${
@@ -185,10 +187,18 @@ function CollapsibleSection({
 // AppLayout
 // ---------------------------------------------------------------------------
 
+const AKZENT_FARBEN = {
+  fakturierung: 'border-blue-500 dark:border-blue-400',
+  buchhaltung:  'border-violet-500 dark:border-violet-400',
+  auswertung:   'border-teal-500 dark:border-teal-400',
+  stammdaten:   'border-fuchsia-500 dark:border-fuchsia-400',
+  einstellungen: 'border-slate-400 dark:border-slate-500',
+}
+
 export function AppLayout() {
   const location = useLocation()
   const navigate = useNavigate()
-  useAnsicht()
+  const { einstellungen } = useAnsicht()
   const qc = useQueryClient()
   const [bannerDismissed, setBannerDismissed] = useState(false)
 
@@ -409,20 +419,28 @@ export function AppLayout() {
           </NavLink>
 
           {/* Fakturierung – immer sichtbar */}
-          <SectionLabel label="Fakturierung" />
-          {fakturierungNav.map(({ to, label, icon, bald }) =>
-            bald ? (
-              <div key={to} className="flex items-center gap-3 mx-2 px-3 py-2 text-sm text-slate-300 dark:text-slate-600 cursor-not-allowed select-none rounded-md">
-                <span className="opacity-40"><NavIcon name={icon} /></span>
-                <span>{label}</span>
-                <span className="ml-auto text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded px-1.5 py-0.5">bald</span>
-              </div>
-            ) : (
-              <NavLink key={to} to={to} className={navLinkClass}>
-                <NavIcon name={icon} /><span>{label}</span>
-              </NavLink>
-            )
-          )}
+          <div className={`mx-2 rounded-lg ${einstellungen.menueFarben ? `border-l-2 ${AKZENT_FARBEN.fakturierung}` : ''}`}>
+            <SectionLabel label="Fakturierung" />
+            {fakturierungNav.map(({ to, label, icon, bald }) =>
+              bald ? (
+                <div key={to} className="flex items-center gap-3 px-3 py-2 text-sm text-slate-300 dark:text-slate-600 cursor-not-allowed select-none rounded-md">
+                  <span className="opacity-40"><NavIcon name={icon} /></span>
+                  <span>{label}</span>
+                  <span className="ml-auto text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded px-1.5 py-0.5">bald</span>
+                </div>
+              ) : (
+                <NavLink key={to} to={to} className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors rounded-md ${
+                    isActive
+                      ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100'
+                  }`
+                }>
+                  <NavIcon name={icon} /><span>{label}</span>
+                </NavLink>
+              )
+            )}
+          </div>
 
           {/* Buchhaltung */}
           <CollapsibleSection
@@ -430,6 +448,7 @@ export function AppLayout() {
             icon="menu_book"
             aktiv={buchhaltungAktiv}
             badge={faelligBadge}
+            akzent={einstellungen.menueFarben ? AKZENT_FARBEN.buchhaltung : undefined}
             items={buchhaltungNav.map(n => ({
               ...n,
               badge: n.to === '/buchungsvorlagen' && faelligBadge,
@@ -441,6 +460,7 @@ export function AppLayout() {
             label="Auswertung"
             icon="trending_up"
             aktiv={auswertungAktiv}
+            akzent={einstellungen.menueFarben ? AKZENT_FARBEN.auswertung : undefined}
             items={auswertungNav}
           />
 
@@ -449,6 +469,7 @@ export function AppLayout() {
             label="Stammdaten"
             icon="contacts"
             aktiv={stammdatenAktiv}
+            akzent={einstellungen.menueFarben ? AKZENT_FARBEN.stammdaten : undefined}
             items={stammdatenNav}
           />
 
@@ -457,6 +478,7 @@ export function AppLayout() {
             label="Einstellungen"
             icon="settings"
             aktiv={einstellungenAktiv}
+            akzent={einstellungen.menueFarben ? AKZENT_FARBEN.einstellungen : undefined}
             items={einstellungenNav}
           />
 

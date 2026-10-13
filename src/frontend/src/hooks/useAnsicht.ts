@@ -4,10 +4,11 @@ export interface AnsichtEinstellungen {
   ausrichtung: 'links' | 'zentriert'
   splitter: 'auto' | 'manuell'
   farbschema: 'system' | 'hell' | 'dunkel'
+  menueFarben: boolean
 }
 
 const STORAGE_KEY = 'ansicht_einstellungen'
-const DEFAULTS: AnsichtEinstellungen = { ausrichtung: 'links', splitter: 'auto', farbschema: 'system' }
+const DEFAULTS: AnsichtEinstellungen = { ausrichtung: 'links', splitter: 'auto', farbschema: 'system', menueFarben: false }
 
 export function applyTheme(farbschema: 'system' | 'hell' | 'dunkel') {
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches

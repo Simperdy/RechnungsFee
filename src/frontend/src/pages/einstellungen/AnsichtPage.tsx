@@ -95,6 +95,25 @@ export function AnsichtPage() {
         </div>
       </section>
 
+      {/* Menü-Akzentfarben */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Menü-Akzentfarben</h2>
+        <div className="space-y-2">
+          <OptionCard
+            aktiv={!einstellungen.menueFarben}
+            onClick={() => set({ menueFarben: false })}
+            titel="Aus (Standard)"
+            beschreibung="Die Menübereiche in der Seitenleiste sind einheitlich grau."
+          />
+          <OptionCard
+            aktiv={einstellungen.menueFarben}
+            onClick={() => set({ menueFarben: true })}
+            titel="An"
+            beschreibung="Jeder Menübereich (Fakturierung, Buchhaltung, Auswertung, Stammdaten, Einstellungen) bekommt einen farbigen Rand zur schnelleren Orientierung."
+          />
+        </div>
+      </section>
+
       {/* Spaltenbreite */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Spaltenbreite (Listen mit Detail-Panel)</h2>
