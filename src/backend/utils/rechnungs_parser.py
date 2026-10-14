@@ -958,6 +958,48 @@ def _normalisiere_text(text: str) -> str:
     return text
 
 
+# Issue #438: Lieferantenadresse aus PDF-Text (nur Heuristik, Ergebnis landet editierbar im Formular)
+# "40839 Ratingen" / "40839Ratingen" (pdfplumber ohne Leerzeichen) / "D-40839 Ratingen"
+_PLZ_ORT_RE = re.compile(r"^(?:D\s*-\s*)?(\d{5})\s*([A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß .\-/()]{1,40})$")
+# "Musterstraße 12a" / "Am Markt 3-5" / "Musterstraße12" / "Postfach 10 10 52"
+_STRASSE_RE = re.compile(
+    r"^(?:Postfach\s*[\d ]{2,12}"
+    r"|[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß .\-]{1,60}?\s*\d{1,4}\s*[a-zA-Z]?(?:\s*[-/]\s*\d{1,4}\s*[a-zA-Z]?)?)$"
+)
+_ADRESS_TRENNER_RE = re.compile(r"\s*[,·•|]\s*|\s+[-–]\s+")
+
+
+def _extrahiere_lieferant_adresse(lines: list[str], name_zeile: int, name: str) -> dict:
+    """Straße/PLZ/Ort des Lieferanten suchen – im Rest der Namenszeile
+    ("Vodafone GmbH, Postfach 10 10 52, 40839 Ratingen") oder in den direkt folgenden Zeilen.
+
+    Nur wenn eine PLZ+Ort gefunden wird; die Straße zählt nur, wenn sie unmittelbar davor steht.
+    Bewusst eng gefasst: lieber keine Adresse als die des Rechnungsempfängers.
+    """
+    zeile = lines[name_zeile]
+    if zeile.startswith(name) and zeile != name:
+        rest = zeile[len(name):]
+        kandidaten = [s.strip() for s in _ADRESS_TRENNER_RE.split(rest) if s.strip()]
+    else:
+        # Name umfasst die ganze Zeile ("Firma GmbH · Weg 12 · 50667 Köln" – die Namenserkennung
+        # trennt nur am Komma): Zeile selbst zerlegen, erstes Segment ist der Name
+        kandidaten = [s.strip() for s in _ADRESS_TRENNER_RE.split(zeile) if s.strip()][1:]
+    kandidaten += lines[name_zeile + 1:name_zeile + 4]
+
+    for i, segment in enumerate(kandidaten):
+        m = _PLZ_ORT_RE.match(segment)
+        if not m:
+            continue
+        adresse = {"lieferant_plz": m.group(1), "lieferant_ort": m.group(2).strip()}
+        if i > 0 and _STRASSE_RE.match(kandidaten[i - 1]):
+            strasse = re.sub(r"\s+", " ", kandidaten[i - 1]).strip()
+            # pdfplumber ohne Leerzeichen: "Musterstraße12" → "Musterstraße 12"
+            strasse = re.sub(r"(?<=[A-Za-zäöüß.])(?=\d)", " ", strasse, count=1)
+            adresse["lieferant_strasse"] = strasse
+        return adresse
+    return {}
+
+
 # ---------------------------------------------------------------------------
 # Basisklasse + Spezialisierungen
 # ---------------------------------------------------------------------------
@@ -1233,7 +1275,8 @@ class BelegParser:
             r"|e\.?V\.?|\bSE\b|\bLtd\b|\bInc\b|Co\.",
             re.IGNORECASE,
         )
-        for line in lines[:25]:
+        name_zeile: int | None = None  # Issue #438: Fundzeile für die Adresserkennung
+        for i, line in enumerate(lines[:25]):
             if _rechtsform_re.search(line):
                 # Adressteil nach dem ersten Komma entfernen
                 # "VodafoneGmbH,Postfach101052,40839Ratingen" → "VodafoneGmbH"
@@ -1243,6 +1286,7 @@ class BelegParser:
                 if re.search(r"Bankverbindung|IBAN|BIC|HRB|USt-Nr|Sitz\s+der", name, re.IGNORECASE):
                     continue
                 felder["lieferant_name"] = name
+                name_zeile = i
                 break
         if not felder.get("lieferant_name") and lines:
             m_str = re.match(
@@ -1253,6 +1297,7 @@ class BelegParser:
                 k = m_str.group(1).strip()
                 if 2 <= len(k) <= 80 and not re.search(r"@|www\.|https?://|tel\b|fax\b", k, re.IGNORECASE):
                     felder["lieferant_name"] = k
+                    name_zeile = 0
         if not felder.get("lieferant_name") and len(lines) >= 2:
             first, second = lines[0], lines[1]
             if (3 <= len(first) <= 80
@@ -1260,6 +1305,10 @@ class BelegParser:
                     and not re.match(r"^\d", first)
                     and re.search(r"\d+[a-zA-Z]?\s*$", second)):
                 felder["lieferant_name"] = first
+                name_zeile = 0
+
+        if name_zeile is not None:
+            felder.update(_extrahiere_lieferant_adresse(lines, name_zeile, felder["lieferant_name"]))
 
         return felder
 

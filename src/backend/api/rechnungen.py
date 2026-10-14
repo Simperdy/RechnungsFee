@@ -663,11 +663,38 @@ def _temp_dateiendung(dateiname: str, content_type: str | None) -> str | None:
     return None
 
 
+def _entferne_eigene_adresse(ergebnis, db: Session) -> None:
+    """Issue #438: Die PDF-Text-Heuristik kann statt der Lieferanten- die eigene Empfängeradresse
+    treffen – stimmt die erkannte Adresse mit den Stammdaten überein, verwerfen.
+    E-Rechnungen (ZUGFeRD/XRechnung) bleiben unangetastet, dort ist der Verkäufer eindeutig."""
+    felder = ergebnis.felder
+    plz = felder.get("lieferant_plz")
+    if ergebnis.format != "pdf" or not plz:
+        return
+    unt = db.query(Unternehmen).first()
+    if not unt or plz != (unt.plz or "").strip():
+        return
+    def _norm(s: str | None) -> str:
+        return re.sub(r"[\s.\-]", "", (s or "").lower()).replace("straße", "str")
+    erkannte_strasse = felder.get("lieferant_strasse")
+    eigene_strasse = f"{unt.strasse or ''}{unt.hausnummer or ''}"
+    # Ohne erkannte Straße reicht PLZ+Ort, mit Straße muss auch die übereinstimmen
+    # (sonst würde ein Lieferant aus demselben Ort fälschlich verworfen)
+    if erkannte_strasse:
+        gleich = _norm(erkannte_strasse) == _norm(eigene_strasse)
+    else:
+        gleich = _norm(felder.get("lieferant_ort")) == _norm(unt.ort)
+    if gleich:
+        for k in ("lieferant_strasse", "lieferant_plz", "lieferant_ort"):
+            felder.pop(k, None)
+
+
 @router.post("/analysieren", response_model=AnalyseResponse)
 async def analysiere_rechnung(datei: UploadFile = File(...), db: Session = Depends(get_db)):
     """ZUGFeRD / XRechnung aus PDF oder XML extrahieren (keine DB-Änderung)."""
     inhalt = await datei.read()
     ergebnis = analysiere_datei(datei.filename or "", inhalt)
+    _entferne_eigene_adresse(ergebnis, db)
 
     temp_url = None
     temp_path = None
@@ -745,6 +772,7 @@ def analysiere_rechnung_pfad(body: AnalysierePfadRequest, db: Session = Depends(
     inhalt = pfad.read_bytes()
     dateiname = pfad.name
     ergebnis = analysiere_datei(dateiname, inhalt)
+    _entferne_eigene_adresse(ergebnis, db)
 
     temp_url = None
     temp_path = None

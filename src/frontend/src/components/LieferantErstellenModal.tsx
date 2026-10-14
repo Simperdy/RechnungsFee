@@ -32,16 +32,23 @@ const EMPTY: FormValues = {
 
 const inp = 'w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100'
 
+export type LieferantVorbelegung = Partial<FormValues>
+
 interface Props {
   onSave: (neuLieferant: Lieferant) => void
   onClose: () => void
+  /** Issue #438: z. B. aus dem PDF-Import erkannte Daten */
+  initial?: LieferantVorbelegung
 }
 
-export function LieferantErstellenModal({ onSave, onClose }: Props) {
+export function LieferantErstellenModal({ onSave, onClose, initial }: Props) {
   const qc = useQueryClient()
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: EMPTY,
+    defaultValues: {
+      ...EMPTY,
+      ...Object.fromEntries(Object.entries(initial ?? {}).filter(([, v]) => v)),
+    },
   })
 
   const mut = useMutation({

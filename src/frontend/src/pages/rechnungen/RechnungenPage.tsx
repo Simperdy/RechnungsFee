@@ -2652,10 +2652,16 @@ function RechnungForm({
   const [partnerFreitext, setPartnerFreitext] = useState(
     pf?.lieferant_name ?? initial?.partner_freitext ?? ''
   )
-  const [partnerStrasse, setPartnerStrasse] = useState(initial?.partner_strasse ?? '')
-  const [partnerHausnummer, setPartnerHausnummer] = useState(initial?.partner_hausnummer ?? '')
-  const [partnerPlz, setPartnerPlz] = useState(initial?.partner_plz ?? '')
-  const [partnerOrt, setPartnerOrt] = useState(initial?.partner_ort ?? '')
+  // Issue #438: erkannte Lieferantenadresse aus dem Import vorbelegen ("Musterweg 12a" → Straße + Nr.)
+  const pfStrasse = (() => {
+    const s = pf?.lieferant_strasse?.trim() ?? ''
+    const m = s.match(/^(.*?\D)\s*(\d+\s*[a-zA-Z]?(?:\s*[-/]\s*\d+\s*[a-zA-Z]?)?)$/)
+    return m && !/^postfach/i.test(s) ? [m[1].trim(), m[2].replace(/\s+/g, '')] : [s, '']
+  })()
+  const [partnerStrasse, setPartnerStrasse] = useState(initial?.partner_strasse ?? pfStrasse[0])
+  const [partnerHausnummer, setPartnerHausnummer] = useState(initial?.partner_hausnummer ?? pfStrasse[1])
+  const [partnerPlz, setPartnerPlz] = useState(initial?.partner_plz ?? pf?.lieferant_plz ?? '')
+  const [partnerOrt, setPartnerOrt] = useState(initial?.partner_ort ?? pf?.lieferant_ort ?? '')
   const [partnerLand, setPartnerLand] = useState(initial?.partner_land ?? '')
   const [kategorieId, setKategorieId] = useState<string>(String(initial?.kategorie_id ?? ''))
   const [showNeuKategorieForm, setShowNeuKategorieForm] = useState(false)
@@ -3580,6 +3586,18 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
         )}
         {showNeuLieferant && (
           <LieferantErstellenModal
+            // Issue #438: Daten aus dem Formular übernehmen (dort ggf. aus dem PDF-Import vorbelegt
+            // und vom Nutzer bereits korrigiert) – nur wenn noch kein Stammdatensatz gewählt ist
+            initial={partnerId ? undefined : {
+              firmenname: partnerFreitext.trim(),
+              strasse: partnerStrasse,
+              hausnummer: partnerHausnummer,
+              plz: partnerPlz,
+              ort: partnerOrt,
+              land: partnerLand,
+              ust_idnr: pf?.lieferant_ust_id,
+              email: pf?.lieferant_email,
+            }}
             onClose={() => setShowNeuLieferant(false)}
             onSave={(neu) => {
               setShowNeuLieferant(false)
