@@ -78,7 +78,7 @@ Seit v0.6.0 zeigt `APP_DATA_DIR` nicht mehr direkt auf den Basisordner, sondern 
 
 ## DB-Schema-Versionierung (`src/backend/main.py`)
 
-`SCHEMA_VERSION = 166` – zentrale Konstante (wird in `main.py` gepflegt).
+`SCHEMA_VERSION = 167` – zentrale Konstante (wird in `main.py` gepflegt).
 
 ### Ablauf beim App-Start
 ```
@@ -307,6 +307,7 @@ Jede Änderung an Kategorien muss an **drei Stellen** gleichzeitig erfolgen:
 | 164 | Issue #419 Phase 1: unternehmen.abschlagsrechnungen_aktiv BOOLEAN DEFAULT 0 – Opt-in-Schalter (Default aus, kein Auftritt im Setup-Wizard) für Abschlagsrechnungen (Anzahlungs-/Teilrechnungen) als eigener dokument_typ, analog zu wiederkehrend_aktiv; vollwertiger Dokumenttyp (Zahlung, Mahnwesen, Storno, Kontokorrent, ZUGFeRD wie eine normale Rechnung), noch ohne Verrechnung in einer Schlussrechnung |
 | 165 | Issue #419 Phase 2: rechnungen.verrechnet_in_rechnung_id (sitzt auf der Abschlagsrechnung, zeigt auf die Schlussrechnung – bewusst umgekehrte Richtung zum sonst üblichen `<ziel>_zu_<quelle>`-Muster, da die Quelle hier zeitlich vor dem Ziel entsteht) + rechnungspositionen.abschlag_rechnung_id (markiert automatisch generierte Abzugszeilen, damit der generische Positions-Editor sie nicht unbemerkt löschen/ändern kann) – Verrechnung von Abschlagsrechnungen in der Schlussrechnung: Abzug = tatsächlich gezahlter Betrag (inkl. Über-/Unterzahlung), negative Schlussrechnung bei Überdeckung erlaubt |
 | 166 | Datenfix Issue #426: `naechste_nummer()` (api/nummernkreise.py) erkannte einen Jahreswechsel bisher über `letztes_jahr != bezug.year` – griff auch rückwärts, wenn eine ältere Eingangsrechnung erst nachträglich erfasst wurde (Papierbelege werden selten chronologisch nach Rechnungsdatum eingegeben), setzte dadurch naechste_nr fälschlich auf 1 zurück und vergab eine bereits verwendete Nummer doppelt (vier Lieferanten mit „ER-260009", UweKoslowski); Zählerlogik an 10 Fundstellen auf vorwärts-only + Kollisions-Skip (im Kern-Helper) korrigiert. Dieser Migrationsblock disambiguiert bereits entstandene Bestands-Dubletten: pro (typ, rechnungsnummer)-Dublette behält die älteste Zeile (kleinste id) ihre Nummer, alle weiteren bekommen einen angehängten „-2"/„-3"/... Suffix, protokolliert je Zeile im Änderungsprotokoll |
+| 167 | Issue #436: unternehmen.zahlungshinweis_text TEXT – eigener Zahlungshinweis-Satz mit Platzhaltern ({rechnungsnummer}, {betrag}, {faellig_am}, {iban}, {bic}, {kunde}, {firmenname}); leer = bisheriger Standardsatz; Ersetzung per str.replace (unbekannte Platzhalter bleiben stehen statt KeyError); im absender_snapshot eingefroren (GoBD); nur Vorlage 0 (Fließtext), Vorlage 1 zeigt Bankdaten tabellarisch |
 
 ### `_backup_datenbank()`
 - `sqlite3.connect().backup()` – WAL-sicher, konsistentes Snapshot

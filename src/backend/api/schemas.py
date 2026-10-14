@@ -58,6 +58,7 @@ class UnternehmenBase(BaseModel):
     bezeichnung_des_gewerbes: Optional[str] = None
     kammer_mitgliedschaft: Optional[str] = None
     zahlungshinweis_aktiv: bool = True
+    zahlungshinweis_text: Optional[str] = None
     pdf_vorlage: int = 0
     einleitungstext: Optional[str] = None
     schlusstext: Optional[str] = None

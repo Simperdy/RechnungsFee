@@ -20,6 +20,14 @@ from utils.pdf_rechnung_base import (
 from utils.pdf_shared import epc_qr_bytes
 
 
+def _kunden_name(r) -> str:
+    """Kundenname für den {kunde}-Platzhalter: erste Adresszeile, sonst Einmalkunden-Freitext."""
+    zeilen = _adresszeilen(getattr(r, "kunde", None))
+    if zeilen:
+        return zeilen[0]
+    return (getattr(r, "partner_freitext", None) or "").strip()
+
+
 class RechnungPDF(RechnungPDFBase):
     """Vorlage 0: DIN 5008, graue Tabelle, Zahlungshinweis als Fließtext."""
 
@@ -235,14 +243,33 @@ class RechnungPDF(RechnungPDFBase):
                 if iban and r.typ == "ausgang":
                     bic    = unt.get("bic") or ""
                     faellig = _iso_zu_de(str(r.faellig_am)) if r.faellig_am else "sofort"
-                    hinweis = (
-                        f"Bitte überweisen Sie {_fmt_euro(r.brutto_gesamt)} bis {faellig} "
-                        f"unter Angabe der Rechnungsnummer {r.rechnungsnummer or ''} "
-                        f"auf IBAN {iban}"
-                    )
-                    if bic:
-                        hinweis += f"  ·  BIC {bic}"
-                    hinweis += "."
+                    eigener_text = (unt.get("zahlungshinweis_text") or "").strip()
+                    if eigener_text:
+                        # Issue #436: eigener Satz mit Platzhaltern. Bewusst str.replace statt
+                        # str.format – unbekannte/fehlerhafte {…} bleiben einfach stehen statt
+                        # die PDF-Erzeugung mit KeyError abzubrechen.
+                        hinweis = eigener_text
+                        for platzhalter, wert in {
+                            "{rechnungsnummer}": r.rechnungsnummer or "",
+                            "{betrag}":          _fmt_euro(r.brutto_gesamt),
+                            "{faellig_am}":      faellig,
+                            "{iban}":            iban,
+                            "{bic}":             bic,
+                            "{kunde}":           _kunden_name(r),
+                            "{firmenname}":      unt.get("firmenname") or " ".join(
+                                p for p in [unt.get("vorname"), unt.get("nachname")] if p
+                            ),
+                        }.items():
+                            hinweis = hinweis.replace(platzhalter, wert)
+                    else:
+                        hinweis = (
+                            f"Bitte überweisen Sie {_fmt_euro(r.brutto_gesamt)} bis {faellig} "
+                            f"unter Angabe der Rechnungsnummer {r.rechnungsnummer or ''} "
+                            f"auf IBAN {iban}"
+                        )
+                        if bic:
+                            hinweis += f"  ·  BIC {bic}"
+                        hinweis += "."
 
                     qr_aktiv = unt.get("qr_zahlung_aktiv", False)
                     if qr_aktiv:

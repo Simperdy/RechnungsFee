@@ -217,6 +217,7 @@ export type Unternehmen = {
   bezeichnung_des_gewerbes?: string | null
   kammer_mitgliedschaft?: string | null
   zahlungshinweis_aktiv?: boolean
+  zahlungshinweis_text?: string | null
   pdf_vorlage?: number
   logo_pfad?: string | null
   mail_betreff_vorlage?: string | null

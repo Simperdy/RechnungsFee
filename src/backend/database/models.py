@@ -101,6 +101,8 @@ class Unternehmen(Base):
     kammer_mitgliedschaft: Mapped[str | None] = mapped_column(String(200))   # z.B. "Rechtsanwaltskammer Berlin"
     # Rechnungs-PDF-Einstellungen
     zahlungshinweis_aktiv: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Issue #436: eigener Zahlungshinweis-Satz mit Platzhaltern; leer = Standardsatz
+    zahlungshinweis_text: Mapped[str | None] = mapped_column(Text)
     pdf_vorlage: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     einleitungstext: Mapped[str | None] = mapped_column(Text)
     schlusstext: Mapped[str | None] = mapped_column(Text)

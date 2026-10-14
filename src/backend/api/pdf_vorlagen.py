@@ -124,6 +124,7 @@ def _unt_dict(unternehmen: Unternehmen | None) -> dict:
         "rechtsform":              getattr(unternehmen, "rechtsform", "") or "",
         "ist_kleinunternehmer":    unternehmen.ist_kleinunternehmer or False,
         "zahlungshinweis_aktiv":   unternehmen.zahlungshinweis_aktiv,
+        "zahlungshinweis_text":    unternehmen.zahlungshinweis_text or "",
         "qr_zahlung_aktiv":        unternehmen.qr_zahlung_aktiv or False,
         "unterschrift_bild":       unternehmen.unterschrift_bild or "",
         "unterschrift_auf_rechnung": unternehmen.unterschrift_auf_rechnung or False,
