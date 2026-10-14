@@ -812,8 +812,9 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
             <div>
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Zahlungshinweis anzeigen</span>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Fügt automatisch „Bitte überweisen Sie … auf IBAN …" unter dem Rechnungsbetrag ein.
-                Deaktivieren wenn du einen eigenen Text im Notizfeld der Rechnung hinterlegen möchtest.
+                Fügt unter dem Rechnungsbetrag einen Satz mit Betrag, Fälligkeit und Bankverbindung ein –
+                den Standardsatz „Bitte überweisen Sie … auf IBAN …" oder deinen eigenen Text (siehe unten).
+                Deaktivieren, wenn gar kein Zahlungshinweis auf der Rechnung erscheinen soll.
               </p>
             </div>
           </label>
@@ -871,7 +872,7 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Platzhalter: <code>{'{rechnungsnummer}'}</code>, <code>{'{betrag}'}</code>, <code>{'{faellig_am}'}</code>,{' '}
               <code>{'{iban}'}</code>, <code>{'{bic}'}</code>, <code>{'{kunde}'}</code>, <code>{'{firmenname}'}</code>.
-              Leer lassen für den Standardsatz. Nur aktiv wenn „Zahlungshinweis anzeigen" eingeschaltet ist.
+              Leer lassen für den Standardsatz. Wird nur verwendet, wenn „Zahlungshinweis anzeigen" eingeschaltet ist.
               Gilt nur für die Rechnungsvorlage mit Fließtext – die tabellarische Vorlage zeigt Bankdaten
               und Zahlungsziel als feste Zeilen.
             </p>
