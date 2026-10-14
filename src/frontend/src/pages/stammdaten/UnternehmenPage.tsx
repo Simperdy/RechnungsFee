@@ -818,25 +818,6 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
             </div>
           </label>
 
-          {form.zahlungshinweis_aktiv !== false && (
-            <div className="space-y-1.5 pl-7">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Eigener Zahlungshinweis (optional)</label>
-              <textarea
-                value={form.zahlungshinweis_text ?? ''}
-                onChange={ev => set('zahlungshinweis_text', ev.target.value || null)}
-                rows={3}
-                placeholder="Bitte begleiche den Betrag von {betrag} bis spätestens {faellig_am} unter Angabe von {rechnungsnummer}."
-                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 resize-y"
-              />
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Platzhalter: <code>{'{rechnungsnummer}'}</code>, <code>{'{betrag}'}</code>, <code>{'{faellig_am}'}</code>,{' '}
-                <code>{'{iban}'}</code>, <code>{'{bic}'}</code>, <code>{'{kunde}'}</code>, <code>{'{firmenname}'}</code>.
-                Leer lassen für den Standardsatz. Gilt nur für die Rechnungsvorlage mit Fließtext –
-                die tabellarische Vorlage zeigt Bankdaten und Zahlungsziel als feste Zeilen.
-              </p>
-            </div>
-          )}
-
           <div className="flex items-center gap-3">
             <label className="text-sm font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">Standard-Zahlungsziel</label>
             <input
@@ -874,6 +855,26 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
               className="w-20 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
             />
             <span className="text-sm text-slate-500 dark:text-slate-400">Tagen (leer = kein Skonto)</span>
+          </div>
+
+          {/* Immer sichtbar (nur ausgegraut), damit das Layout beim Umschalten nicht springt */}
+          <div className={`space-y-1.5 ${form.zahlungshinweis_aktiv !== false ? '' : 'opacity-50'}`}>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Eigener Zahlungshinweis (optional)</label>
+            <textarea
+              value={form.zahlungshinweis_text ?? ''}
+              onChange={ev => set('zahlungshinweis_text', ev.target.value || null)}
+              disabled={form.zahlungshinweis_aktiv === false}
+              rows={3}
+              placeholder="Bitte begleiche den Betrag von {betrag} bis spätestens {faellig_am} unter Angabe von {rechnungsnummer}."
+              className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 resize-y disabled:cursor-not-allowed"
+            />
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Platzhalter: <code>{'{rechnungsnummer}'}</code>, <code>{'{betrag}'}</code>, <code>{'{faellig_am}'}</code>,{' '}
+              <code>{'{iban}'}</code>, <code>{'{bic}'}</code>, <code>{'{kunde}'}</code>, <code>{'{firmenname}'}</code>.
+              Leer lassen für den Standardsatz. Nur aktiv wenn „Zahlungshinweis anzeigen" eingeschaltet ist.
+              Gilt nur für die Rechnungsvorlage mit Fließtext – die tabellarische Vorlage zeigt Bankdaten
+              und Zahlungsziel als feste Zeilen.
+            </p>
           </div>
 
           {textfeldPaar('Rechnung', 'einleitungstext', 'schlusstext')}
