@@ -28,6 +28,9 @@ function Field({ label, children }: { label: React.ReactNode; children: React.Re
 const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-400"
 const selectCls = `${inputCls} bg-white dark:bg-slate-700`
 
+// Entspricht dem Standardsatz in utils/pdf_rechnung.py (BIC-Teil entfällt dort, wenn keine BIC hinterlegt ist)
+const ZAHLUNGSHINWEIS_STANDARD = "Bitte überweisen Sie {betrag} bis {faellig_am} unter Angabe der Rechnungsnummer {rechnungsnummer} auf IBAN {iban}  ·  BIC {bic}."
+
 // ---------------------------------------------------------------------------
 // Tab-Navigation
 // ---------------------------------------------------------------------------
@@ -812,8 +815,7 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
             <div>
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Zahlungshinweis anzeigen</span>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Fügt unter dem Rechnungsbetrag einen Satz mit Betrag, Fälligkeit und Bankverbindung ein –
-                den Standardsatz „Bitte überweisen Sie … auf IBAN …" oder deinen eigenen Text (siehe unten).
+                Fügt unter dem Rechnungsbetrag einen Satz mit Betrag, Fälligkeit und Bankverbindung ein.
                 Deaktivieren, wenn gar kein Zahlungshinweis auf der Rechnung erscheinen soll.
               </p>
             </div>
@@ -866,13 +868,26 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
               onChange={ev => set('zahlungshinweis_text', ev.target.value || null)}
               disabled={form.zahlungshinweis_aktiv === false}
               rows={3}
-              placeholder="Bitte begleiche den Betrag von {betrag} bis spätestens {faellig_am} unter Angabe von {rechnungsnummer}."
+              placeholder={ZAHLUNGSHINWEIS_STANDARD}
               className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 resize-y disabled:cursor-not-allowed"
             />
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Platzhalter: <code>{'{rechnungsnummer}'}</code>, <code>{'{betrag}'}</code>, <code>{'{faellig_am}'}</code>,{' '}
               <code>{'{iban}'}</code>, <code>{'{bic}'}</code>, <code>{'{kunde}'}</code>, <code>{'{firmenname}'}</code>.
-              Leer lassen für den Standardsatz. Wird nur verwendet, wenn „Zahlungshinweis anzeigen" eingeschaltet ist.
+              Leer lassen für den Standardsatz (grau im Feld angezeigt).
+              {!form.zahlungshinweis_text && form.zahlungshinweis_aktiv !== false && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    onClick={() => set('zahlungshinweis_text', ZAHLUNGSHINWEIS_STANDARD)}
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Standardsatz als Vorlage übernehmen
+                  </button>
+                </>
+              )}
+              {' '}Wird nur verwendet, wenn „Zahlungshinweis anzeigen" eingeschaltet ist.
               Gilt nur für die Rechnungsvorlage mit Fließtext – die tabellarische Vorlage zeigt Bankdaten
               und Zahlungsziel als feste Zeilen.
             </p>
