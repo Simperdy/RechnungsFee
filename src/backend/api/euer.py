@@ -115,8 +115,12 @@ def _berechne_euer(jahr: int, db: Session) -> dict:
         ust_konto = e.konto_ust_skr03 or e.konto_ust_skr04 or ""
 
         # Anlage-Buchungen (KFZ-Kauf, EDV etc.) → AVEÜR-Hinweis
+        # Issue #439: Vorzeichen nach art – die Storno-Gegenbuchung eines Kaufs ist eine Einnahme
+        # mit positivem Betrag und wurde bisher mitaddiert statt abgezogen (jeder Storno erhöhte
+        # die Summe). Stornovariante mit gleicher art und negiertem Betrag hebt sich ebenso auf.
         if kat and kat.kontenart == "Anlage":
-            anlage_summe += (e.brutto_betrag or ZERO)
+            vz = Decimal("1") if e.art == "Ausgabe" else Decimal("-1")
+            anlage_summe += vz * (e.brutto_betrag or ZERO)
             continue
 
         if euer_zeile is not None:
