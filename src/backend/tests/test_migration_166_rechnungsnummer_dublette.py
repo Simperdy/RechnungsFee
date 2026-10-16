@@ -68,4 +68,5 @@ def test_doppelte_rechnungsnummern_werden_disambiguiert(tmp_path, monkeypatch):
     assert len(set(nummern)) == 5  # inkl. der unangetasteten r5
     assert nummern[4] == "ER-260001"  # unangetastet
     assert protokoll_count == 3  # nur die drei disambiguierten Zeilen, nicht die aelteste
-    assert user_version == 166
+    # _run_migrations() laeuft bis zur aktuellen SCHEMA_VERSION durch, nicht nur bis 166.
+    assert user_version == main.SCHEMA_VERSION
