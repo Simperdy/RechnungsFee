@@ -115,6 +115,7 @@ class UnternehmenBase(BaseModel):
     backup_smb_passwort:    Optional[str] = None
     backup_extern_pfad_1_lokal_ok: bool = False
     backup_extern_pfad_2_lokal_ok: bool = False
+    backup_extern_anzahl:   int = 5
     datev_beraternummer:    Optional[str] = None
     datev_mandantennummer:  Optional[str] = None
     datev_konto_bar:        Optional[str] = None
@@ -156,6 +157,13 @@ class UnternehmenBase(BaseModel):
     def check_geschaeftsjahr(cls, v: int) -> int:
         if not 1 <= v <= 12:
             raise ValueError("geschaeftsjahr_beginn muss zwischen 1 und 12 liegen")
+        return v
+
+    @field_validator("backup_extern_anzahl")
+    @classmethod
+    def check_backup_extern_anzahl(cls, v: int) -> int:
+        if not 1 <= v <= 999:
+            raise ValueError("Anzahl externer Backups muss zwischen 1 und 999 liegen")
         return v
 
     @model_validator(mode="after")

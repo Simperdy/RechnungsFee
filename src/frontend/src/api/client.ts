@@ -260,6 +260,7 @@ export type Unternehmen = {
   backup_extern_pfad_1?: string | null
   backup_extern_pfad_2?: string | null
   backup_extern_passwort?: string | null
+  backup_extern_anzahl?: number
   backup_smb_benutzer?: string | null
   backup_smb_passwort?: string | null
   backup_extern_pfad_1_lokal_ok?: boolean

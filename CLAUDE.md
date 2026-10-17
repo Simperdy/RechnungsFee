@@ -78,7 +78,7 @@ Seit v0.6.0 zeigt `APP_DATA_DIR` nicht mehr direkt auf den Basisordner, sondern 
 
 ## DB-Schema-Versionierung (`src/backend/main.py`)
 
-`SCHEMA_VERSION = 168` – zentrale Konstante (wird in `main.py` gepflegt).
+`SCHEMA_VERSION = 169` – zentrale Konstante (wird in `main.py` gepflegt).
 
 ### Ablauf beim App-Start
 ```
@@ -309,6 +309,7 @@ Jede Änderung an Kategorien muss an **drei Stellen** gleichzeitig erfolgen:
 | 166 | Datenfix Issue #426: `naechste_nummer()` (api/nummernkreise.py) erkannte einen Jahreswechsel bisher über `letztes_jahr != bezug.year` – griff auch rückwärts, wenn eine ältere Eingangsrechnung erst nachträglich erfasst wurde (Papierbelege werden selten chronologisch nach Rechnungsdatum eingegeben), setzte dadurch naechste_nr fälschlich auf 1 zurück und vergab eine bereits verwendete Nummer doppelt (vier Lieferanten mit „ER-260009", UweKoslowski); Zählerlogik an 10 Fundstellen auf vorwärts-only + Kollisions-Skip (im Kern-Helper) korrigiert. Dieser Migrationsblock disambiguiert bereits entstandene Bestands-Dubletten: pro (typ, rechnungsnummer)-Dublette behält die älteste Zeile (kleinste id) ihre Nummer, alle weiteren bekommen einen angehängten „-2"/„-3"/... Suffix, protokolliert je Zeile im Änderungsprotokoll |
 | 167 | Issue #436: unternehmen.zahlungshinweis_text TEXT – eigener Zahlungshinweis-Satz mit Platzhaltern ({rechnungsnummer}, {betrag}, {faellig_am}, {iban}, {bic}, {kunde}, {firmenname}); leer = bisheriger Standardsatz; Ersetzung per str.replace (unbekannte Platzhalter bleiben stehen statt KeyError); im absender_snapshot eingefroren (GoBD); nur Vorlage 0 (Fließtext), Vorlage 1 zeigt Bankdaten tabellarisch |
 | 168 | Issue #440: anpassbare Anrede – unternehmen.anrede_text + anrede_fallback TEXT (globaler Satz/Ersatzanrede, im absender_snapshot eingefroren), kunden.anrede VARCHAR(10) (herr\|frau\|divers\|NULL) + kunden.anrede_individuell VARCHAR(200) (überschreibt den globalen Satz); Platzhalter {vorname} {nachname} {firma} {anrede} {sehr_geehrte}, Logik in `utils/pdf_rechnung_base.py::anrede_zeile()`; Standard jetzt „Hallo {vorname} {nachname}," (vorher fest „Hallo {vorname},"); Vorlage 1 immer, Vorlage 0 nur wenn konfiguriert; Snapshots ohne `anrede_text`-Schlüssel (vor #440 finalisiert) behalten die alte Anrede |
+| 169 | Issue #442: unternehmen.backup_extern_anzahl INTEGER NOT NULL DEFAULT 5 (1–999) – Rotation externer Backups je Zielordner nach erfolgreichem Schreiben (lokal + SMB), nur Dateien `rechnungsfee_JJJJMMTT_HHMMSS.zip.enc` (`_EXTERN_BACKUP_RE` in main.py); vorher wuchsen externe Ziele unbegrenzt; lokale Snapshots bleiben fest bei 5 |
 
 ### `_backup_datenbank()`
 - `sqlite3.connect().backup()` – WAL-sicher, konsistentes Snapshot

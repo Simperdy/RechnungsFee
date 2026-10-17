@@ -71,6 +71,7 @@ function ExterneBackupEinstellungen() {
   const [smbBenutzer, setSmbBenutzer] = useState<string>('')
   const [smbPasswort, setSmbPasswort] = useState<string>('')
   const [zeigSmbPasswort, setZeigSmbPasswort] = useState(false)
+  const [anzahl, setAnzahl] = useState<string>('5')
   const [status, setStatus] = useState<'idle' | 'saving' | 'ok' | 'err'>('idle')
 
   useEffect(() => {
@@ -82,6 +83,7 @@ function ExterneBackupEinstellungen() {
     setPasswort(data.backup_extern_passwort ?? '')
     setSmbBenutzer(data.backup_smb_benutzer ?? '')
     setSmbPasswort(data.backup_smb_passwort ?? '')
+    setAnzahl(String(data.backup_extern_anzahl ?? 5))
   }, [data])
 
   const mutation = useMutation({
@@ -105,7 +107,9 @@ function ExterneBackupEinstellungen() {
 
   const hatZiel = !!(pfad1 || pfad2)
   const passwortFehlt = hatZiel && !passwort
-  const kannSpeichern = !passwortFehlt && !!data && status !== 'saving'
+  const anzahlZahl = Number(anzahl)
+  const anzahlUngueltig = !Number.isInteger(anzahlZahl) || anzahlZahl < 1 || anzahlZahl > 999
+  const kannSpeichern = !passwortFehlt && !anzahlUngueltig && !!data && status !== 'saving'
 
   function speichern() {
     if (!kannSpeichern) return
@@ -115,6 +119,7 @@ function ExterneBackupEinstellungen() {
       backup_extern_pfad_1: pfad1 || null, backup_extern_pfad_2: pfad2 || null,
       backup_extern_pfad_1_lokal_ok: pfad1LokalOk, backup_extern_pfad_2_lokal_ok: pfad2LokalOk,
       backup_extern_passwort: passwort || null, backup_smb_benutzer: smbBenutzer || null, backup_smb_passwort: smbPasswort || null,
+      backup_extern_anzahl: anzahlZahl,
     })
   }
 
@@ -186,6 +191,23 @@ function ExterneBackupEinstellungen() {
                   <span>Dieser Ordner wird extern gesichert (z. B. per Sync-Client) – trotzdem verwenden</span>
                 </label>
               </div>
+            )}
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">Backups behalten</label>
+              <input type="number" min={1} max={999} value={anzahl}
+                onChange={e => setAnzahl(e.target.value)}
+                className={`${inputCls} w-24 ${anzahlUngueltig ? 'border-red-400 focus:ring-red-400' : ''}`} />
+              <span className="text-sm text-slate-500 dark:text-slate-400">je Ziel</span>
+            </div>
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              Nach jedem erfolgreichen Backup werden in jedem Zielordner nur die neuesten {anzahlUngueltig ? 'N' : anzahlZahl} RechnungsFee-Backups
+              behalten, ältere werden gelöscht. Andere Dateien im Ordner bleiben unberührt.
+              Die lokalen Backups im Programmordner sind fest auf die letzten 5 begrenzt.
+            </p>
+            {anzahlUngueltig && (
+              <p className="text-xs text-red-600 dark:text-red-400">Bitte eine Zahl zwischen 1 und 999 eingeben.</p>
             )}
           </div>
         </div>

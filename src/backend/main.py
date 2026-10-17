@@ -1,6 +1,7 @@
 import logging
 import logging.handlers
 import os
+import re
 import sqlite3
 import threading
 from datetime import datetime
@@ -33,7 +34,7 @@ logging.root.addHandler(_log_handler)
 from database.seed import run_all_seeds
 from api import unternehmen, konten, kategorien, setup, journal, kunden, lieferanten, tagesabschluss, nummernkreise, export, rechnungen, backup, artikel, artikel_gruppen, ust_saetze, pdf_vorlagen, eks, system, ustva, zm, euer, dokumentenpakete, mail, wiederkehrend, buchungsvorlagen, anlageverzeichnis, datev, anlage_s, anlage_g, fristen_api, guv, bank_templates, bank_import, auto_filter, forderungen, cockpit, datenmigration, kontenuebersicht, schnellbuchungen, mahnwesen, profile, kontokorrent, inventurliste
 
-SCHEMA_VERSION = 168
+SCHEMA_VERSION = 169
 
 app = FastAPI(title="RechnungsFee API", version="0.1.0")
 
@@ -169,8 +170,20 @@ def _erstelle_vollbackup_zip() -> bytes:
     return buf.getvalue()
 
 
+# Issue #442: nur von RechnungsFee selbst geschriebene externe Backups rotieren - fremde Dateien
+# im selben Zielordner (z.B. ein NAS-Sammelordner) bleiben unangetastet
+_EXTERN_BACKUP_RE = re.compile(r"^rechnungsfee_\d{8}_\d{6}\.zip\.enc$")
+
+
+def _zu_loeschende_backups(namen: list[str], behalten: int) -> list[str]:
+    """Älteste eigene Backup-Dateinamen jenseits der neuesten `behalten` (Zeitstempel im Namen
+    sortiert chronologisch)."""
+    eigene = sorted(n for n in namen if _EXTERN_BACKUP_RE.match(n))
+    return eigene[:-behalten] if behalten > 0 else []
+
+
 def _backup_smb(smb_url: str, dateiname: str, daten: bytes,
-                benutzer: str | None, passwort: str | None) -> None:
+                benutzer: str | None, passwort: str | None, behalten: int = 0) -> None:
     """Schreibt Backup-Bytes direkt per SMB-Protokoll auf eine Netzwerkfreigabe.
 
     smb_url-Format: smb://server/share/optionaler/pfad
@@ -216,6 +229,14 @@ def _backup_smb(smb_url: str, dateiname: str, daten: bytes,
     with smbclient.open_file(unc_datei, mode="wb") as f:
         f.write(daten)
 
+    # Rotation erst nach erfolgreichem Schreiben (Issue #442)
+    unc_ordner = f"\\\\{server}\\{share}" + (
+        "\\" + unterordner.strip("/").replace("/", "\\") if unterordner.strip("/") else ""
+    )
+    for alt in _zu_loeschende_backups(list(smbclient.listdir(unc_ordner)), behalten):
+        smbclient.remove(f"{unc_ordner}\\{alt}")
+        print(f"[Backup] Altes externes Backup gelöscht: {smb_url}/{alt}")
+
 
 @app.post("/api/backup/erstellen")
 def backup_erstellen():
@@ -236,7 +257,7 @@ def backup_erstellen():
             row = conn.execute(text(
                 "SELECT backup_extern_pfad_1, backup_extern_pfad_2, backup_extern_passwort, "
                 "backup_smb_benutzer, backup_smb_passwort, "
-                "backup_extern_pfad_1_lokal_ok, backup_extern_pfad_2_lokal_ok "
+                "backup_extern_pfad_1_lokal_ok, backup_extern_pfad_2_lokal_ok, backup_extern_anzahl "
                 "FROM unternehmen WHERE id=1"
             )).fetchone()
     except Exception:
@@ -245,7 +266,8 @@ def backup_erstellen():
     if not row:
         return {"ok": True}
 
-    pfad1, pfad2, passwort, smb_benutzer, smb_passwort, pfad1_lokal_ok, pfad2_lokal_ok = row
+    pfad1, pfad2, passwort, smb_benutzer, smb_passwort, pfad1_lokal_ok, pfad2_lokal_ok, behalten = row
+    behalten = int(behalten or 5)
     extern_konfiguriert = bool(passwort and (pfad1 or pfad2))
     if not extern_konfiguriert:
         print("[Backup] Externe Ziele übersprungen: kein Verschlüsselungs-Passwort gesetzt")
@@ -273,11 +295,15 @@ def backup_erstellen():
             continue
         try:
             if pfad.startswith("smb://"):
-                _backup_smb(pfad, dateiname, enc_bytes, smb_benutzer, smb_passwort)
+                _backup_smb(pfad, dateiname, enc_bytes, smb_benutzer, smb_passwort, behalten)
             else:
                 ziel_dir = Path(pfad)
                 ziel_dir.mkdir(parents=True, exist_ok=True)
                 (ziel_dir / dateiname).write_bytes(enc_bytes)
+                # Rotation erst nach erfolgreichem Schreiben (Issue #442)
+                for alt in _zu_loeschende_backups([p.name for p in ziel_dir.iterdir() if p.is_file()], behalten):
+                    (ziel_dir / alt).unlink()
+                    print(f"[Backup] Altes externes Backup gelöscht: {pfad}/{alt}")
             print(f"[Backup] Extern gesichert: {pfad}/{dateiname}")
         except Exception as e:
             fehler.append(f"{pfad}: {e}")
@@ -3730,6 +3756,14 @@ def _run_migrations() -> None:
             conn.execute(text("PRAGMA user_version = 168"))
             conn.commit()
             print("[Migration] Schema auf Version 168 (Issue #440: anpassbare Anrede – unternehmen.anrede_text/_fallback, kunden.anrede/_individuell)")
+
+        if version < 169:
+            cols169 = {r[1] for r in conn.execute(text("PRAGMA table_info(unternehmen)")).fetchall()}
+            if "backup_extern_anzahl" not in cols169:
+                conn.execute(text("ALTER TABLE unternehmen ADD COLUMN backup_extern_anzahl INTEGER NOT NULL DEFAULT 5"))
+            conn.execute(text("PRAGMA user_version = 169"))
+            conn.commit()
+            print("[Migration] Schema auf Version 169 (Issue #442: unternehmen.backup_extern_anzahl – Rotation externer Backups)")
 
 
 def _migrate_kategorien() -> None:

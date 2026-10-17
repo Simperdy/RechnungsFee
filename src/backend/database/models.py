@@ -169,6 +169,9 @@ class Unternehmen(Base):
     # Bestätigung blockt _ist_systemlaufwerk() den Pfad beim Backup weiterhin (Issue #348).
     backup_extern_pfad_1_lokal_ok: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     backup_extern_pfad_2_lokal_ok: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Issue #442: so viele externe Backups je Zielordner behalten, ältere werden nach einem
+    # erfolgreichen Backup gelöscht (lokal bleibt fest bei 5, siehe _backup_datenbank())
+    backup_extern_anzahl: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     # DATEV-Konfiguration
     datev_beraternummer:   Mapped[str | None] = mapped_column(String(10))
     datev_mandantennummer: Mapped[str | None] = mapped_column(String(10))
