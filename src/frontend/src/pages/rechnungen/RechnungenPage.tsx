@@ -3157,7 +3157,23 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
   const pfN = prefillFromAnalyse?.felder?.gesamt_netto
   const pfU = prefillFromAnalyse?.felder?.gesamt_ust
   const pfB = prefillFromAnalyse?.felder?.gesamt_brutto
-  const overridePasst = pfB != null && Math.abs(summenAusBackend.brutto - Number(pfB)) <= 0.01
+  // Issue #450: nicht nur Brutto vergleichen - nach dem Löschen einer Position konnte Brutto
+  // weiter passen, während Netto/USt aus dem PDF (z.B. Zwischensumme vor Rabatt → USt −40 €)
+  // nicht mehr zu den Positionen passten und trotzdem als Kopfsummen gespeichert wurden.
+  // Netto/USt mit 1 Cent Toleranz je Position (Rundung des Lieferanten auf Rechnungsebene),
+  // dazu muss der PDF-Kopf in sich stimmig sein (Netto + USt = Brutto, USt nicht gegenläufig).
+  // Gleiche Regel serverseitig in rechnungen.py::_overrides_plausibel().
+  const overridePasst = (() => {
+    if (pfN == null || pfU == null || pfB == null) return false
+    const n = Number(pfN), u = Number(pfU), b = Number(pfB)
+    if ([n, u, b].some(isNaN)) return false
+    if (Math.abs(n + u - b) > 0.01) return false
+    if (u !== 0 && Math.sign(u) !== Math.sign(b)) return false
+    const toleranz = Math.max(0.02, 0.01 * positionen.length)
+    return Math.abs(summenAusBackend.brutto - b) <= 0.01
+      && Math.abs(summenAusBackend.netto - n) <= toleranz
+      && Math.abs(summenAusBackend.ust - u) <= toleranz
+  })()
   const anzeigeSummen = (pfN && pfU && pfB && overridePasst)
     ? { netto: parseFloat(String(pfN)), ust: parseFloat(String(pfU)), brutto: parseFloat(String(pfB)) }
     : summenAusBackend

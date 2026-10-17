@@ -286,10 +286,23 @@ def _berechne_fehlende_summen(felder: dict) -> None:
             felder["gesamt_brutto"] = str(b)
         elif n and b and not u:
             u = (b - n).quantize(q)
-            felder["gesamt_ust"] = str(u)
+            if (u < 0) != (b < 0) and u != 0:
+                # Issue #450: Netto > Brutto bei positiver Rechnung - typischerweise wurde eine
+                # Zwischensumme VOR einem Rabatt als Netto gelesen (100 − 40 Rabatt = 60 Brutto
+                # ergab USt −40). Eine USt mit falschem Vorzeichen ist nie plausibel: das Netto
+                # verwerfen statt eine negative USt abzuleiten - Brutto bleibt maßgeblich.
+                felder.pop("gesamt_netto", None)
+                n = u = None
+            else:
+                felder["gesamt_ust"] = str(u)
         elif u and b and not n:
             n = (b - u).quantize(q)
-            felder["gesamt_netto"] = str(n)
+            if (n < 0) != (b < 0) and n != 0:
+                # analog: USt > Brutto ist ebenso unplausibel (Issue #450)
+                felder.pop("gesamt_ust", None)
+                n = u = None
+            else:
+                felder["gesamt_netto"] = str(n)
 
         # ust_satz aus USt/Netto-Verhältnis ableiten wenn er fehlt
         if not felder.get("ust_satz") and n and n > 0:

@@ -6,6 +6,7 @@ import difflib
 import hashlib
 import html
 import json
+import logging
 import re
 import shutil
 import uuid
@@ -442,6 +443,29 @@ class RechnungSummen:
         self.netto_gesamt = netto_gesamt
         self.ust_gesamt = ust_gesamt
         self.brutto_gesamt = brutto_gesamt
+
+
+def _overrides_plausibel(data, summen: "RechnungSummen") -> bool:
+    """Issue #450: Kopfsummen aus PDF/XML (netto/ust/brutto_gesamt_override) nur übernehmen,
+    wenn sie in sich stimmig sind und zu den Positionen passen - sonst konnten z.B. nach dem
+    Löschen einer Position Netto 100 / USt −40 / Brutto 60 gespeichert werden, nur weil Brutto
+    noch passte. Toleranz für Netto/USt: 1 Cent je Position (Rundung des Lieferanten auf
+    Rechnungsebene statt je Position), mind. 2 Cent; Brutto wie bisher 1 Cent.
+    Gleiche Regel im Frontend (RechnungenPage.tsx: overridePasst)."""
+    n, u, b = data.netto_gesamt_override, data.ust_gesamt_override, data.brutto_gesamt_override
+    if n is None or u is None or b is None:
+        return False
+    cent = Decimal("0.01")
+    if abs(n + u - b) > cent:
+        return False
+    if u != 0 and (u < 0) != (b < 0):
+        return False
+    toleranz = max(Decimal("0.02"), cent * len(data.positionen))
+    return (
+        abs(summen.brutto_gesamt - b) <= cent
+        and abs(summen.netto_gesamt - n) <= toleranz
+        and abs(summen.ust_gesamt - u) <= toleranz
+    )
 
 
 def _berechne_rechnung(
@@ -1485,26 +1509,37 @@ def create_rechnung(data: RechnungCreate, db: Session = Depends(get_db)):
     rechnung.rabatt_prozent = getattr(data, "rabatt_prozent", Decimal("0")) or Decimal("0")
     rechnung.rabatt_betrag  = getattr(data, "rabatt_betrag", None) or None
 
+    ist_steuerfrei_ausland = (
+        data.ist_reverse_charge or data.ist_eu_lieferung
+        or data.ist_drittland_leistung or data.ist_ausfuhrlieferung
+    )
+    override_summen = None
     if data.netto_gesamt_override is not None:
-        # XML-Import: Positionswerte trotzdem über die gemeinsame Berechnung ermitteln (für
-        # konsistente Positions-/PDF-Darstellung), nur die Kopfsummen werden überschrieben.
-        Q = Decimal("0.01")
-        ist_steuerfrei_ausland = (
-            data.ist_reverse_charge or data.ist_eu_lieferung
-            or data.ist_drittland_leistung or data.ist_ausfuhrlieferung
-        )
-        summen = _berechne_rechnung(
+        override_summen = _berechne_rechnung(
             data.positionen, data.eingabemodus, Decimal("0"), None,
             ist_kleinunternehmer, ist_steuerfrei_ausland,
         )
+        if not _overrides_plausibel(data, override_summen):
+            # Issue #450: widersprüchliche PDF-Kopfsummen nicht still übernehmen - dann gelten
+            # die Positionen (normaler Rechenweg unten), statt den Nutzer beim Speichern zu blockieren.
+            logging.getLogger(__name__).warning(
+                "Rechnung %s: PDF-Gesamtbeträge (netto %s / USt %s / brutto %s) passen nicht zu den "
+                "Positionen (netto %s / USt %s / brutto %s) - Positionen sind maßgeblich",
+                rechnung.id, data.netto_gesamt_override, data.ust_gesamt_override,
+                data.brutto_gesamt_override, override_summen.netto_gesamt,
+                override_summen.ust_gesamt, override_summen.brutto_gesamt,
+            )
+            override_summen = None
+
+    if override_summen is not None:
+        # XML-Import: Positionswerte trotzdem über die gemeinsame Berechnung ermitteln (für
+        # konsistente Positions-/PDF-Darstellung), nur die Kopfsummen werden überschrieben.
+        Q = Decimal("0.01")
+        summen = override_summen
         rechnung.netto_gesamt  = data.netto_gesamt_override.quantize(Q, ROUND_HALF_UP)
         rechnung.ust_gesamt    = (data.ust_gesamt_override or Decimal("0")).quantize(Q, ROUND_HALF_UP)
         rechnung.brutto_gesamt = (data.brutto_gesamt_override or rechnung.netto_gesamt + rechnung.ust_gesamt).quantize(Q, ROUND_HALF_UP)
     else:
-        ist_steuerfrei_ausland = (
-            data.ist_reverse_charge or data.ist_eu_lieferung
-            or data.ist_drittland_leistung or data.ist_ausfuhrlieferung
-        )
         summen = _berechne_rechnung(
             data.positionen, data.eingabemodus, rechnung.rabatt_prozent, rechnung.rabatt_betrag,
             ist_kleinunternehmer, ist_steuerfrei_ausland,
