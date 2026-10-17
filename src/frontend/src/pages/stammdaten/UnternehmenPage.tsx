@@ -29,7 +29,10 @@ const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm fo
 const selectCls = `${inputCls} bg-white dark:bg-slate-700`
 
 // Entspricht dem Standardsatz in utils/pdf_rechnung.py (BIC-Teil entfällt dort, wenn keine BIC hinterlegt ist)
-const ZAHLUNGSHINWEIS_STANDARD = "Bitte überweisen Sie {betrag} bis {faellig_am} unter Angabe der Rechnungsnummer {rechnungsnummer} auf IBAN {iban}  ·  BIC {bic}."
+// Issue #440 – identisch mit ANREDE_STANDARD/ANREDE_FALLBACK_STANDARD in utils/pdf_rechnung_base.py
+const ANREDE_STANDARD = 'Hallo {vorname} {nachname},'
+const ANREDE_FALLBACK_STANDARD = 'Hallo,'
+const ZAHLUNGSHINWEIS_STANDARD ="Bitte überweisen Sie {betrag} bis {faellig_am} unter Angabe der Rechnungsnummer {rechnungsnummer} auf IBAN {iban}  ·  BIC {bic}."
 
 // ---------------------------------------------------------------------------
 // Tab-Navigation
@@ -204,7 +207,8 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
 
   const mut = useMutation({
     mutationFn: (d: Partial<Unternehmen>) => updateUnternehmen(d),
-    onSuccess: () => {
+    onSuccess: (_res, gesendet) => {
+      gespeicherterStand.current = gesendet
       qc.invalidateQueries({ queryKey: ['unternehmen'] })
       qc.invalidateQueries({ queryKey: ['fristen'] })
       setGespeichert(true)
@@ -288,25 +292,32 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
     )
   }
 
-  function handleSpeichern(e: React.FormEvent) {
-    e.preventDefault()
+  // Stand beim letzten Laden/Speichern - damit Pflichtprüfungen eines anderen Tabs nur dann
+  // greifen, wenn dort tatsächlich etwas geändert wurde (Issue #440-Folgefund)
+  const gespeicherterStand = useRef(form)
 
+  function geaendert(keys: (keyof Unternehmen)[]) {
+    return keys.some(k => (form[k] ?? '') !== (gespeicherterStand.current[k] ?? ''))
+  }
+
+  // Firma-Tab: Name, Anschrift, IBAN. Gibt eine Fehlermeldung zurück oder null.
+  function pruefeFirma(): string | null {
     const steuerzeichen = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/
 
     const hatFirma = !!(form.firmenname?.trim())
     const hatName  = !!(form.vorname?.trim() || form.nachname?.trim())
-    if (!hatFirma && !hatName) { setFehler('Firmenname oder Vor- und Nachname ist erforderlich.'); return }
-    if (hatFirma && steuerzeichen.test(form.firmenname!)) { setFehler('Firmenname enthält ungültige Zeichen.'); return }
-    if ((form.firmenname ?? '').length > 200) { setFehler('Firmenname: maximal 200 Zeichen.'); return }
+    if (!hatFirma && !hatName) return 'Firmenname oder Vor- und Nachname ist erforderlich.'
+    if (hatFirma && steuerzeichen.test(form.firmenname!)) return 'Firmenname enthält ungültige Zeichen.'
+    if ((form.firmenname ?? '').length > 200) return 'Firmenname: maximal 200 Zeichen.'
 
-    if (!form.strasse?.trim()) { setFehler('Straße ist erforderlich.'); return }
-    if (steuerzeichen.test(form.strasse)) { setFehler('Straße enthält ungültige Zeichen.'); return }
-    if ((form.strasse ?? '').length > 200) { setFehler('Straße: maximal 200 Zeichen.'); return }
+    if (!form.strasse?.trim()) return 'Straße ist erforderlich.'
+    if (steuerzeichen.test(form.strasse)) return 'Straße enthält ungültige Zeichen.'
+    if ((form.strasse ?? '').length > 200) return 'Straße: maximal 200 Zeichen.'
 
-    if (!form.hausnummer?.trim()) { setFehler('Hausnummer ist erforderlich.'); return }
-    if ((form.hausnummer ?? '').length > 10) { setFehler('Hausnummer: maximal 10 Zeichen.'); return }
+    if (!form.hausnummer?.trim()) return 'Hausnummer ist erforderlich.'
+    if ((form.hausnummer ?? '').length > 10) return 'Hausnummer: maximal 10 Zeichen.'
 
-    if (!form.plz?.trim()) { setFehler('PLZ ist erforderlich.'); return }
+    if (!form.plz?.trim()) return 'PLZ ist erforderlich.'
     const land = (form.land ?? 'DE').toUpperCase()
     const plzRegeln: Record<string, { re: RegExp; hint: string }> = {
       DE: { re: /^[0-9]{5}$/,              hint: '5 Ziffern (z.B. 10115)' },
@@ -317,34 +328,58 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
     }
     const plzRegel = plzRegeln[land]
     if (plzRegel && !plzRegel.re.test(form.plz.trim())) {
-      setFehler(`PLZ für ${land} hat ein ungültiges Format – erwartet: ${plzRegel.hint}.`); return
+      return `PLZ für ${land} hat ein ungültiges Format – erwartet: ${plzRegel.hint}.`
     }
     if (!plzRegel && !/^[0-9A-Za-z\s-]{4,10}$/.test(form.plz.trim())) {
-      setFehler('PLZ hat ein ungültiges Format (4–10 alphanumerische Zeichen).'); return
+      return 'PLZ hat ein ungültiges Format (4–10 alphanumerische Zeichen).'
     }
 
-    if (!form.ort?.trim()) { setFehler('Ort ist erforderlich.'); return }
-    if (steuerzeichen.test(form.ort)) { setFehler('Ort enthält ungültige Zeichen.'); return }
-    if ((form.ort ?? '').length > 200) { setFehler('Ort: maximal 200 Zeichen.'); return }
-
-    const stNr = (form.steuernummer ?? '').trim()
-    const ustId = (form.ust_idnr ?? '').trim()
-    if (!stNr && !ustId) {
-      setFehler('Steuernummer oder USt-IdNr. ist erforderlich (§14 UStG).'); return
-    }
-    if (ustId) {
-      if (!/^[A-Z]{2}[A-Z0-9+*]{2,13}$/i.test(ustId)) {
-        setFehler('USt-IdNr. hat ein ungültiges Format (z.B. DE123456789).'); return
-      }
-      if (ustId.toUpperCase().startsWith('DE') && !/^DE[0-9]{9}$/i.test(ustId)) {
-        setFehler('Deutsche USt-IdNr. muss das Format DE + 9 Ziffern haben (z.B. DE123456789).'); return
-      }
-    }
+    if (!form.ort?.trim()) return 'Ort ist erforderlich.'
+    if (steuerzeichen.test(form.ort)) return 'Ort enthält ungültige Zeichen.'
+    if ((form.ort ?? '').length > 200) return 'Ort: maximal 200 Zeichen.'
 
     const iban = (form.iban ?? '').replace(/\s/g, '').toUpperCase()
-    if (!iban) { setFehler('IBAN ist erforderlich.'); return }
+    if (!iban) return 'IBAN ist erforderlich.'
     const ibanFehler = validiereIban(iban)
-    if (ibanFehler) { setFehler(ibanFehler); return }
+    if (ibanFehler) return `IBAN: ${ibanFehler}`
+    return null
+  }
+
+  // Steuer-Tab: Steuernummer / USt-IdNr.
+  function pruefeSteuer(): string | null {
+    const stNr = (form.steuernummer ?? '').trim()
+    const ustId = (form.ust_idnr ?? '').trim()
+    if (!stNr && !ustId) return 'Steuernummer oder USt-IdNr. ist erforderlich (§14 UStG).'
+    if (ustId) {
+      if (!/^[A-Z]{2}[A-Z0-9+*]{2,13}$/i.test(ustId)) {
+        return 'USt-IdNr. hat ein ungültiges Format (z.B. DE123456789).'
+      }
+      if (ustId.toUpperCase().startsWith('DE') && !/^DE[0-9]{9}$/i.test(ustId)) {
+        return 'Deutsche USt-IdNr. muss das Format DE + 9 Ziffern haben (z.B. DE123456789).'
+      }
+    }
+    return null
+  }
+
+  const FIRMA_FELDER: (keyof Unternehmen)[] = ['firmenname', 'vorname', 'nachname', 'strasse', 'hausnummer', 'plz', 'ort', 'land', 'iban']
+  const STEUER_FELDER: (keyof Unternehmen)[] = ['steuernummer', 'ust_idnr']
+
+  function handleSpeichern(e: React.FormEvent) {
+    e.preventDefault()
+
+    // Jeder Tab prüft nur seine eigenen Pflichtfelder - die eines anderen Tabs nur, wenn dort
+    // ungespeicherte Änderungen liegen (sonst ließe sich z.B. eine fehlerhafte IBAN über das
+    // Speichern im Tab "Funktionen" unbemerkt durchschleusen). Vorher blockierte z.B. eine alte,
+    // ungültige IBAN das Speichern jeder Einstellung mit einer Meldung ohne Feld-/Tab-Bezug.
+    const pruefungen: { tab: TabId; label: string; felder: (keyof Unternehmen)[]; pruefe: () => string | null }[] = [
+      { tab: 'firma',  label: 'Firma',          felder: FIRMA_FELDER,  pruefe: pruefeFirma },
+      { tab: 'steuer', label: 'Steuer & Recht', felder: STEUER_FELDER, pruefe: pruefeSteuer },
+    ]
+    for (const p of pruefungen) {
+      if (activeTab !== p.tab && !geaendert(p.felder)) continue
+      const f = p.pruefe()
+      if (f) { setFehler(activeTab === p.tab ? f : `Tab „${p.label}“ – ${f}`); return }
+    }
 
     setFehler(null)
     mut.mutate(form)
@@ -890,6 +925,37 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
               {' '}Wird nur verwendet, wenn „Zahlungshinweis anzeigen" eingeschaltet ist.
               Gilt nur für die Rechnungsvorlage mit Fließtext – die tabellarische Vorlage zeigt Bankdaten
               und Zahlungsziel als feste Zeilen.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Anrede (optional)</label>
+            <input
+              type="text"
+              value={form.anrede_text ?? ''}
+              onChange={ev => set('anrede_text', ev.target.value || null)}
+              placeholder={ANREDE_STANDARD}
+              className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+            />
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">Ersatzanrede</label>
+              <input
+                type="text"
+                value={form.anrede_fallback ?? ''}
+                onChange={ev => set('anrede_fallback', ev.target.value || null)}
+                placeholder={ANREDE_FALLBACK_STANDARD}
+                className="flex-1 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+              />
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Platzhalter: <code>{'{vorname}'}</code>, <code>{'{nachname}'}</code>, <code>{'{firma}'}</code>,{' '}
+              <code>{'{anrede}'}</code> (Herr/Frau), <code>{'{sehr_geehrte}'}</code> („Sehr geehrte Frau" / „Sehr geehrter Herr",
+              bei divers oder ohne Angabe „Guten Tag" + Vorname). Herr/Frau/divers stellst du beim Kunden ein.
+              Beispiel: <code>{'{sehr_geehrte} {nachname},'}</code>.
+              Fehlt ein benötigter Wert (z. B. kein Name beim Kunden), wird die Ersatzanrede gedruckt.
+              Leer lassen für den Standard (grau im Feld). Die grüne Vorlage zeigt die Anrede immer, die
+              Standardvorlage nur, wenn du hier einen Satz einträgst. Pro Kunde kannst du die Anrede in den
+              Kundenstammdaten zusätzlich überschreiben.
             </p>
           </div>
 
