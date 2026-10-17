@@ -27,6 +27,7 @@ export const CHANGELOG: ChangelogVersion[] = [
     datum: 'Oktober 2026',
     eintraege: [
       { typ: 'neu', text: 'Anpassbare Anrede auf Rechnungen, Angeboten, Aufträgen und Proformas: Unter Einstellungen → Unternehmen → Funktionen kannst du den Anrede-Satz jetzt selbst formulieren, mit Platzhaltern wie {vorname}, {nachname}, {firma}, {anrede} (Herr/Frau) und {sehr_geehrte} – z. B. „{sehr_geehrte} {nachname}," ergibt „Sehr geehrte Frau Grün,". Beim Kunden gibt es dafür das neue Feld Anrede (Frau/Herr/divers) sowie optional eine eigene Anrede nur für diesen Kunden (z. B. „Liebe Sandra,"). Fehlt ein benötigter Wert, wird eine einstellbare Ersatzanrede gedruckt. Der Standard lautet jetzt „Hallo Vorname Nachname," statt nur „Hallo Vorname,". Die grüne Vorlage zeigt die Anrede wie bisher immer, die Standardvorlage nur, wenn du einen Satz einträgst. Bereits finalisierte Dokumente bleiben unverändert. Danke an trinity für die Anregung (Issue #440).' },
+      { typ: 'fix', text: 'Einstellungen → Unternehmen: Seit v0.7.2 wird die IBAN strenger geprüft (exakte Länge, Prüfziffer). Eine bereits gespeicherte IBAN, die diese Prüfung nicht besteht, blockierte dadurch das Speichern in jedem Tab – auch unter „Funktionen" – mit einer Meldung wie „Zu wenig Zeichen" ohne Hinweis auf das betroffene Feld. Jeder Tab prüft jetzt nur noch seine eigenen Pflichtfelder; die eines anderen Tabs nur, wenn du dort ungespeicherte Änderungen hast, und die Meldung nennt dann Tab und Feld (z. B. „Tab „Firma" – IBAN: Zu wenig Zeichen").' },
     ],
   },
   {
