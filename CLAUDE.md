@@ -63,6 +63,10 @@ npm run tauri:dev
 cd src/frontend && npm run dev   # dann http://localhost:5173
 ```
 
+**Bekannte Begleiterscheinungen im Dev-Modus (Stand 2026-10-17):**
+- `tauri:dev` startet zusätzlich den Sidecar aus `src-tauri/binaries/` (lokaler PyInstaller-Build vom 2026-08-04). Der ist veraltet und bricht mit `ModuleNotFoundError: No module named '…__mypyc'` (charset_normalizer) ab – **harmlos**, das Frontend nutzt im Dev-Modus ohnehin den Vite-Proxy auf `localhost:8002` (`client.ts::getBaseUrl`). Release-Builds sind nicht betroffen (CI baut den Sidecar frisch; v0.7.2-AppImage geprüft). Bei Bedarf neu bauen: `scripts/build-sidecar.sh`.
+- App erscheint in der Windows-Taskleiste, aber kein Fenster sichtbar → WSLg-Anzeigeproblem (nicht die App): Taskleiste Umschalt+Rechtsklick → „Maximieren“, sonst App + Backend beenden und `wsl --shutdown` in PowerShell.
+
 ## Ports & Pfade
 - Backend: Port **8002**
 - Frontend Dev: Port **5173** (Vite) – `cd src/frontend && npm run dev`
