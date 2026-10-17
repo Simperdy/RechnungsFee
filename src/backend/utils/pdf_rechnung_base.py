@@ -644,11 +644,19 @@ class RechnungPDFBase(FPDF):
         text = (getattr(self._r, "schlusstext", None) or
                 _standardtext(self._unt, "schlusstext", dokument_typ)).strip()
         if text:
+            abstand, x, breite = self._schlusstext_layout()
+            if abstand:
+                self.ln(abstand)
             self.set_font("DejaVu", "", 9)
             self.set_text_color(*TEXT_DUNKEL)
-            self.set_x(L_MARGIN)
-            self.multi_cell(NUTZ_W, 5, _md(text), markdown=True, align="L")
+            self.set_x(x)
+            self.multi_cell(breite, 5, _md(text), markdown=True, align="L")
             self.ln(2)
+
+    def _schlusstext_layout(self) -> tuple[float, float, float]:
+        """Issue #441: (Abstand davor, x, Breite) des Schlusstexts - Vorlagen mit eigenem
+        Block davor (Vorlage 1: Bezahldaten-Box) richten ihn daran aus."""
+        return 0, L_MARGIN, NUTZ_W
 
     def _render_positionen(self):
         """Positionstabelle. Muss self._sum_x, self._sum_lbl_w, self._sum_val_w setzen."""

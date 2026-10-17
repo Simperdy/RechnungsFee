@@ -221,6 +221,15 @@ class RechnungPDFVorlage1(RechnungPDFBase):
     def _render_zahlungsblock(self):
         self._bezahldaten_block(self._r, self._unt)
 
+    def _schlusstext_layout(self) -> tuple[float, float, float]:
+        # Issue #441: Schlusstext bündig unter der Bezahldaten-Box (ohne QR ist sie schmaler
+        # und zentriert) und mit einer Leerzeile Abstand statt direkt an ihrer Unterkante.
+        box = getattr(self, "_bezahl_box", None)
+        if box is None:
+            return super()._schlusstext_layout()
+        x, breite = box
+        return 5, x, breite
+
     def _render_notizen(self):
         r = self._r
         if r.notizen:
@@ -423,6 +432,7 @@ class RechnungPDFVorlage1(RechnungPDFBase):
         if qr_aktiv:
             self.line(x_start + box_w, block_top, x_start + box_w, block_bottom)
 
+        self._bezahl_box = (x_start, total_w)
         self.set_y(block_bottom)
 
 
