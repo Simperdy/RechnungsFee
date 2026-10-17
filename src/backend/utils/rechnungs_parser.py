@@ -164,17 +164,29 @@ def _datum_de_zu_iso(text: str) -> Optional[str]:
 def _betrag_de(text: str) -> Optional[str]:
     """Deutschen Betrag (1.234,56 / 1234,56 / 1234.56) → Decimal-String oder None."""
     text = text.strip().replace("€", "").replace("EUR", "").strip()
+    # Vorzeichen abtrennen ("- 21,01" mit Leerzeichen, "-1.234,56" mit Tausenderpunkt; Issue #438)
+    vz = ""
+    if text.startswith(("-", "–")):
+        vz, text = "-", text[1:].strip()
     try:
         if re.match(r"^\d{1,3}(?:\.\d{3})*,\d{2}$", text):
-            return str(Decimal(text.replace(".", "").replace(",", ".")))
+            return str(Decimal(vz + text.replace(".", "").replace(",", ".")))
         if re.match(r"^\d+,\d{2}$", text):
-            return str(Decimal(text.replace(",", ".")))
-        return str(Decimal(text.replace(",", ".")))
+            return str(Decimal(vz + text.replace(",", ".")))
+        return str(Decimal(vz + text.replace(",", ".")))
     except InvalidOperation:
         return None
 
 
 _GUELTIGE_UST = {0, 7, 9, 16, 19}  # in DE vorkommende Sätze
+
+# Issue #438: "Rabatt <Beschreibung> <Betrag>" ist eine Rabatt-POSITION (z.B. "Rabatt
+# meinGlasfaser 150 6M - 21,01 €"), kein Summenlabel wie "Rabatt: -5,00" / "Rabatt 10 % -5,00" /
+# "Rabatt gesamt -5,00". Nur dann gilt sie als Position, wenn nach "Rabatt" ein Wort folgt.
+_RABATT_POSITION_RE = re.compile(
+    r"^rabatt\s+(?!(?:gesamt|summe|betrag|netto|brutto|in|von|auf)\b)[A-Za-zÄÖÜäöüß]{3,}",
+    re.IGNORECASE,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -400,7 +412,7 @@ def _extrahiere_positionen(text: str, ust_satz_default: Optional[str]) -> list["
         s = z.strip()
         if _HEADER.search(s):
             start = i + 1
-        if i > start and _SUMMENLABEL.match(s) and _BETRAG_END.search(s):
+        if i > start and _SUMMENLABEL.match(s) and _BETRAG_END.search(s) and not _RABATT_POSITION_RE.match(s):
             end = i
             break
 
@@ -451,8 +463,15 @@ def _extrahiere_positionen(text: str, ust_satz_default: Optional[str]) -> list["
         # OCR-Artefakt: führendes Sonderzeichen entfernen
         # Kassenbon-Asterisks → Leerzeichen → bleibt manchmal " oder ` am Anfang
         vor = re.sub(r'^[“”"""\'`°]+\s*', '', vor).strip()
-        if not vor or _SUMMENLABEL.match(vor):
+        if not vor or (_SUMMENLABEL.match(vor) and not _RABATT_POSITION_RE.match(vor)):
             continue
+        # Abgesetztes Minus vor dem Betrag ("... 6M - 21,01 €", Issue #438): _BETRAG_END
+        # liest dann nur "21,01". Als negativ werten nur bei eindeutigen Abzugs-Positionen,
+        # sonst könnte ein Gedankenstrich als Trenner ("Artikel - 5,00") ein Vorzeichen werden.
+        if vor.endswith(("-", "–")):
+            vor = vor[:-1].strip()
+            if re.search(r"rabatt|gutschrift|nachlass|abzug|erstattung", vor, re.IGNORECASE):
+                betrag = str(-abs(Decimal(betrag)))
 
         # USt aus trailing-% (Gruppe 2) oder aus Inline-% in vor bestimmen
         # Dezimale Sätze wie "19,0%" / "7,0%" werden auf den Ganzzahlteil reduziert.
@@ -1212,6 +1231,13 @@ class BelegParser:
                 r"[+]?\s*(\d{1,2})[,.]?\d*\s*%\s*(?:MwSt\.?|USt\.?|Umsatzsteuer)\s+auf\s*([\d.,]+)\s*(?:€|EUR)?\s+([\d.,]+)",
                 text, re.IGNORECASE,
             )
+            if not m_tele:
+                # Label vor dem Satz: "MwSt.-Betrag 19,00% von 16,80 € 3,19 €" (Issue #438)
+                m_tele = re.search(
+                    r"(?:MwSt|USt|Umsatzsteuer)\.?(?:\s*-?\s*Betrag)?\s+(\d{1,2})(?:[,.]\d+)?\s*%\s*"
+                    r"(?:von|auf)\s*([\d.,]+)\s*(?:€|EUR)?\s+([\d.,]+)",
+                    text, re.IGNORECASE,
+                )
             if m_tele:
                 felder["ust_satz"] = felder.get("ust_satz") or m_tele.group(1)
                 netto_basis = _betrag_de(m_tele.group(2))
@@ -1247,6 +1273,7 @@ class BelegParser:
         m = re.search(
             r"(?:Gesamtbetrag|Rechnungsbetrag|Zu\s+zahlen(?:der\s+Betrag)?|Brutto(?:summe|betrag)?)"
             r"(?:\s+in\s+(?:€|EUR|CHF))?"
+            r"(?:\s+inkl\.?\s*(?:MwSt|USt|Umsatzsteuer)\.?)?"   # "Rechnungsbetrag in EUR inkl. MwSt. 19,99 €" (Issue #438)
             r"(?:\s*/[^\n0-9]{0,25})?\s*[:\s]*(?:€|EUR|CHF)?\s*([\d.,]+)\s*(?:€|EUR|CHF)?",
             text, re.IGNORECASE,
         )
@@ -1265,7 +1292,7 @@ class BelegParser:
             r"Gesamt\s+ohne\s+(?:MwSt\.?|USt\.?|Steuer|Umsatzsteuer)|net\s+amount)"
             r"(?:\s*/[^\n0-9]{0,25})?"
             r"(?:\s*\([^)]{1,20}\))?"   # opt. "(19,0 %)" o.ä. nach dem Label
-            r"\s*[:\s.·*\-]*([\d.,]+)\s*(?:€|EUR)?",
+            r"\s*[:\s.·*\-]*(?:(?:€|EUR)\s*)?([\d.,]+)\s*(?:€|EUR)?",   # "Nettobetrag EUR 16,80 €" (Issue #438)
             text, re.IGNORECASE,
         )
         if m:
@@ -1274,9 +1301,13 @@ class BelegParser:
                 felder["gesamt_netto"] = v
 
         # USt-ID
-        m = re.search(r"(?:USt\.?-?IdNr\.?|UStIdNr|UID)\s*:?\s*(DE\d{9})", text, re.IGNORECASE)
+        # auch "Ust.Id.: DE191 352 769" (Schreibweise + Leerzeichen-Gruppen, Issue #438)
+        m = re.search(
+            r"(?:USt\.?\s*-?\s*Id(?:\.?\s*-?\s*Nr)?\.?|UStIdNr|UID)\s*:?\s*(DE\s?\d{3}\s?\d{3}\s?\d{3})(?!\d)",
+            text, re.IGNORECASE,
+        )
         if m:
-            felder["lieferant_ust_id"] = m.group(1).strip()
+            felder["lieferant_ust_id"] = re.sub(r"\s", "", m.group(1))
 
         # Lieferantenname
         # \b entfernt: pdfplumber liefert oft "VodafoneGmbH" ohne Leerzeichen
@@ -1298,6 +1329,12 @@ class BelegParser:
                 # Bankverbindung-Zeilen überspringen (z.B. "Vodafone GmbH Bankverbindung:")
                 if re.search(r"Bankverbindung|IBAN|BIC|HRB|USt-Nr|Sitz\s+der", name, re.IGNORECASE):
                     continue
+                # Absenderzeile mit anderen Trennern: "Firma GmbH - Weg 12 - 12345 Ort" (Issue #438)
+                # - nur kürzen, wenn ein späteres Segment wirklich PLZ+Ort ist (sonst bleiben
+                # Namen wie "Müller - Schmidt GmbH" unangetastet)
+                segmente = [s.strip() for s in _ADRESS_TRENNER_RE.split(name) if s.strip()]
+                if len(segmente) > 1 and any(_PLZ_ORT_RE.match(s) for s in segmente[1:]):
+                    name = segmente[0]
                 felder["lieferant_name"] = name
                 name_zeile = i
                 break
