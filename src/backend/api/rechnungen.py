@@ -3964,17 +3964,10 @@ def get_rechnung_zahlungen(rechnung_id: int, db: Session = Depends(get_db)):
     rechnung = db.query(Rechnung).filter(Rechnung.id == rechnung_id).first()
     if not rechnung:
         raise HTTPException(status_code=404, detail="Rechnung nicht gefunden.")
-    return [
-        ZahlungKompakt(
-            id=e.id,
-            belegnr=e.belegnr,
-            datum=e.datum,
-            brutto_betrag=e.brutto_betrag,
-            art=e.art,
-            zahlungsart=e.zahlungsart,
-        )
-        for e in rechnung.journaleintraege
-    ]
+    # Issue #448: eigener ZahlungKompakt-Aufbau vergaß das Pflichtfeld beschreibung (500 bei
+    # jeder Rechnung mit Zahlung) und hätte storniert/ist_storno nie gesetzt - stattdessen
+    # dieselbe Liste wie RechnungResponse.zahlungen, inkl. Storno-Kennzeichnung.
+    return RechnungResponse.from_orm_extended(rechnung).zahlungen
 
 
 # ---------------------------------------------------------------------------
