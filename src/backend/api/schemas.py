@@ -5,7 +5,7 @@ Getrennt von den SQLAlchemy-Models (database/models.py).
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional, List
+from typing import Literal, Optional, List
 from pydantic import BaseModel, field_validator, model_validator
 
 from .schemas_rechnungen import BelegResponse
@@ -59,6 +59,8 @@ class UnternehmenBase(BaseModel):
     kammer_mitgliedschaft: Optional[str] = None
     zahlungshinweis_aktiv: bool = True
     zahlungshinweis_text: Optional[str] = None
+    anrede_text: Optional[str] = None
+    anrede_fallback: Optional[str] = None
     pdf_vorlage: int = 0
     einleitungstext: Optional[str] = None
     schlusstext: Optional[str] = None
@@ -534,6 +536,8 @@ class TagesabschlussVorschau(BaseModel):
 
 class KundeBase(BaseModel):
     firmenname: Optional[str] = None
+    anrede: Optional[Literal["herr", "frau", "divers", ""]] = None
+    anrede_individuell: Optional[str] = None
     vorname: Optional[str] = None
     nachname: Optional[str] = None
     strasse: Optional[str] = None

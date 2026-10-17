@@ -41,6 +41,69 @@ def _standardtext(unt: dict, feld: str, dokument_typ: str) -> str:
     return (unt.get(f"{feld}{suffix}") or "").strip()
 
 
+ANREDE_STANDARD = "Hallo {vorname} {nachname},"
+ANREDE_FALLBACK_STANDARD = "Hallo,"
+# Finalisierte Dokumente mit einem Snapshot von vor Issue #440 kennen den Schlüssel
+# "anrede_text" nicht - dort bleibt die damals fest eingebaute Anrede erhalten (GoBD).
+_ANREDE_VOR_440 = "Hallo {vorname},"
+
+_ANREDE_ANSPRACHE = {"herr": "Herr", "frau": "Frau"}
+_ANREDE_SEHR_GEEHRTE = {"herr": "Sehr geehrter Herr", "frau": "Sehr geehrte Frau"}
+
+
+def anrede_zeile(r, unt: dict, nur_wenn_konfiguriert: bool = False) -> str:
+    """Issue #440: Anrede-Zeile vor dem Einleitungstext.
+
+    Reihenfolge: eigene Anrede am Kunden > globaler Anrede-Satz > Standard.
+    Platzhalter: {vorname} {nachname} {firma} {anrede} (Herr/Frau) und {sehr_geehrte}
+    ("Sehr geehrter Herr"/"Sehr geehrte Frau", bei divers/ohne Angabe geschlechtsneutral
+    "Guten Tag {vorname}"). Bleibt ein benutzter Personen-Platzhalter leer (kein Name, oder
+    {anrede} ohne Herr/Frau), greift die Ersatzanrede statt eines halben Satzes.
+    nur_wenn_konfiguriert: Vorlage 0 zeigt die Anrede nur, wenn etwas eingestellt ist.
+    Bewusst str.replace statt str.format (unbekannte {…} bleiben stehen, kein KeyError).
+    """
+    partner = getattr(r, "kunde", None) if r.typ == "ausgang" else getattr(r, "lieferant", None)
+    if "anrede_text" in unt:
+        individuell = (getattr(partner, "anrede_individuell", None) or "").strip()
+        global_text = (unt.get("anrede_text") or "").strip()
+        if nur_wenn_konfiguriert and not individuell and not global_text:
+            return ""
+        vorlage = individuell or global_text or ANREDE_STANDARD
+    else:
+        if nur_wenn_konfiguriert:
+            return ""
+        vorlage = _ANREDE_VOR_440
+    fallback = (unt.get("anrede_fallback") or "").strip() or ANREDE_FALLBACK_STANDARD
+
+    vorname  = (getattr(partner, "vorname", None) or "").strip()
+    nachname = (getattr(partner, "nachname", None) or "").strip()
+    firma    = (getattr(partner, "firmenname", None) or "").strip() or \
+               (getattr(r, "partner_freitext", None) or "").strip()
+    geschlecht = (getattr(partner, "anrede", None) or "").strip().lower()
+    werte = {
+        "{vorname}":     vorname,
+        "{nachname}":    nachname,
+        "{firma}":       firma,
+        "{anrede}":      _ANREDE_ANSPRACHE.get(geschlecht, ""),
+        "{sehr_geehrte}": _ANREDE_SEHR_GEEHRTE.get(geschlecht) or f"Guten Tag {vorname}".strip(),
+    }
+
+    benutzt = [p for p in werte if p in vorlage]
+    hat_name = bool(vorname or nachname)
+    if (any(p in benutzt for p in ("{vorname}", "{nachname}", "{sehr_geehrte}")) and not hat_name) \
+            or ("{anrede}" in benutzt and not werte["{anrede}"]) \
+            or ("{firma}" in benutzt and not firma):
+        return fallback
+
+    text = vorlage
+    for p, w in werte.items():
+        text = text.replace(p, w)
+    # Leerer Vor- oder Nachname hinterlässt sonst doppelte Leerzeichen / " ,"
+    text = re.sub(r" {2,}", " ", text)
+    text = re.sub(r" +([,.!])", r"\1", text)
+    return text.strip()
+
+
 # ---------------------------------------------------------------------------
 # Konstanten
 # ---------------------------------------------------------------------------
@@ -552,7 +615,15 @@ class RechnungPDFBase(FPDF):
             self.cell(0, 5, "– Kopie –", new_x="LMARGIN", new_y="NEXT")
 
     def _render_nach_titel(self):
-        """Hook zwischen Titel und Positionen: Einleitungstext, dann Abstand."""
+        """Hook zwischen Titel und Positionen: Anrede (nur wenn konfiguriert, Issue #440),
+        Einleitungstext, dann Abstand."""
+        anrede = anrede_zeile(self._r, self._unt, nur_wenn_konfiguriert=True)
+        if anrede:
+            self.set_font("DejaVu", "", 9.5)
+            self.set_text_color(*TEXT_DUNKEL)
+            self.set_x(L_MARGIN)
+            self.cell(0, 6, anrede, new_x="LMARGIN", new_y="NEXT")
+            self.ln(1)
         dokument_typ = getattr(self._r, "dokument_typ", "Rechnung") or "Rechnung"
         text = (getattr(self._r, "einleitungstext", None) or
                 _standardtext(self._unt, "einleitungstext", dokument_typ)).strip()

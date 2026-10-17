@@ -823,6 +823,8 @@ function KundeRechnungen({ kunde, initialTab }: { kunde: Kunde; initialTab?: 'ko
 
 const schema = z.object({
   firmenname: z.string().optional(),
+  anrede: z.enum(['', 'herr', 'frau', 'divers']).optional(),
+  anrede_individuell: z.string().optional(),
   vorname: z.string().optional(),
   nachname: z.string().optional(),
   strasse: z.string().optional(),
@@ -855,7 +857,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 const EMPTY: FormValues = {
-  firmenname: '', vorname: '', nachname: '', strasse: '', hausnummer: '',
+  firmenname: '', anrede: '', anrede_individuell: '', vorname: '', nachname: '', strasse: '', hausnummer: '',
   plz: '', ort: '', land: 'DE', ust_idnr: '', ust_idnr_validiert: false, ust_idnr_validierung_datum: null,
   steuernummer_ausland: '', email: '', telefon: '',
   kundennummer: '', z_hd: '', notizen: '', ist_verein: false, ist_gemeinnuetzig: false, zugferd_aktiv: false,
@@ -977,7 +979,8 @@ export function KundenPage() {
   function openEdit(k: Kunde) {
     setEditKunde(k)
     reset({
-      firmenname: k.firmenname ?? '', vorname: k.vorname ?? '', nachname: k.nachname ?? '',
+      firmenname: k.firmenname ?? '', anrede: k.anrede ?? '', anrede_individuell: k.anrede_individuell ?? '',
+      vorname: k.vorname ?? '', nachname: k.nachname ?? '',
       strasse: k.strasse ?? '', hausnummer: k.hausnummer ?? '', plz: k.plz ?? '',
       ort: k.ort ?? '', land: k.land, ust_idnr: k.ust_idnr ?? '',
       ust_idnr_validiert: k.ust_idnr_validiert ?? false, ust_idnr_validierung_datum: k.ust_idnr_validierung_datum ?? null,
@@ -997,8 +1000,10 @@ export function KundenPage() {
   }
 
   function onSubmit(values: FormValues) {
+    // Issue #440: Anrede-Felder bewusst als "" mitschicken, sonst ließe sich eine einmal
+    // gesetzte Anrede nicht mehr leeren (Backend verwirft fehlende Felder beim Update)
     const clean = Object.fromEntries(
-      Object.entries(values).map(([k, v]) => [k, v === '' ? undefined : v])
+      Object.entries(values).map(([k, v]) => [k, v === '' && k !== 'anrede' && k !== 'anrede_individuell' ? undefined : v])
     ) as Partial<Kunde>
     if (editKunde?.id) {
       updateMutation.mutate({ id: editKunde.id, data: clean })
@@ -1330,6 +1335,15 @@ export function KundenPage() {
                   <input type="text" {...register('firmenname')} className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 ${errors.firmenname ? 'border-red-400 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'}`} />
                   {errors.firmenname && <p className="text-red-500 text-xs mt-0.5">{errors.firmenname.message}</p>}
                 </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Anrede</label>
+                  <select {...register('anrede')} className="w-40 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100">
+                    <option value="">– keine Angabe –</option>
+                    <option value="frau">Frau</option>
+                    <option value="herr">Herr</option>
+                    <option value="divers">divers</option>
+                  </select>
+                </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Vorname</label>
                   <input type="text" {...register('vorname')} className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
@@ -1393,6 +1407,13 @@ export function KundenPage() {
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">z.Hd. von</label>
                   <input type="text" {...register('z_hd')} placeholder="z.B. Max Mustermann oder Buchhaltung" className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Eigene Anrede auf Dokumenten (optional)</label>
+                  <input type="text" {...register('anrede_individuell')} placeholder="z.B. Liebe {vorname},  –  leer = Anrede aus den Einstellungen" className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Ersetzt für diesen Kunden den Anrede-Satz aus Einstellungen → Unternehmen → Funktionen. Dieselben Platzhalter wie dort sind möglich.
+                  </p>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Notizen</label>

@@ -13,7 +13,7 @@ from io import BytesIO
 
 from utils.pdf_rechnung_base import (
     RechnungPDFBase,
-    _fmt_euro, _fmt_ust_satz, _iso_zu_de, _adresszeilen, _md, _standardtext,
+    _fmt_euro, _fmt_ust_satz, _iso_zu_de, _adresszeilen, _md, _standardtext, anrede_zeile,
     TEXT_GRAU, TEXT_DUNKEL,
     L_MARGIN, R_MARGIN, PAGE_W, NUTZ_W, FOOTER_H,
 )
@@ -44,9 +44,7 @@ class RechnungPDFVorlage1(RechnungPDFBase):
 
     def _render_nach_titel(self):
         r = self._r
-        partner_obj = r.kunde if r.typ == "ausgang" else r.lieferant
-        vorname_kunde = getattr(partner_obj, "vorname", None) or ""
-        anrede = f"Hallo {vorname_kunde}," if vorname_kunde else "Hallo,"
+        anrede = anrede_zeile(r, self._unt)
 
         dokument_typ = getattr(r, "dokument_typ", "Rechnung") or "Rechnung"
         einleitungstext = (getattr(r, "einleitungstext", None) or

@@ -218,6 +218,8 @@ export type Unternehmen = {
   kammer_mitgliedschaft?: string | null
   zahlungshinweis_aktiv?: boolean
   zahlungshinweis_text?: string | null
+  anrede_text?: string | null
+  anrede_fallback?: string | null
   pdf_vorlage?: number
   logo_pfad?: string | null
   mail_betreff_vorlage?: string | null
@@ -661,6 +663,8 @@ export async function downloadTagesabschlussPdf(params: {
 export type Kunde = {
   id?: number
   firmenname?: string
+  anrede?: 'herr' | 'frau' | 'divers' | '' | null
+  anrede_individuell?: string | null
   vorname?: string
   nachname?: string
   strasse?: string

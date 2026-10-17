@@ -57,6 +57,7 @@ def _demo_rechnung(unt: dict) -> Any:
     )
     kunde = SimpleNamespace(
         firmenname="Musterfirma GmbH", vorname="Max", nachname="Mustermann",
+        anrede="herr", anrede_individuell=None,
         strasse="Musterstraße", hausnummer="12", plz="10115", ort="Berlin", land="DE",
     )
     brutto = Decimal("1280.00" if unt.get("ist_kleinunternehmer") else "1523.20")
@@ -97,6 +98,7 @@ def _unt_dict(unternehmen: Unternehmen | None) -> dict:
             "logo_pfad": "", "berufsbezeichnung": "", "kammer_mitgliedschaft": "",
             "rechtsform": "Einzelunternehmen", "ist_kleinunternehmer": True,
             "zahlungshinweis_aktiv": True, "qr_zahlung_aktiv": True,
+            "anrede_text": "", "anrede_fallback": "",
         }
     return {
         "firmenname":              unternehmen.firmenname or "",
@@ -125,6 +127,8 @@ def _unt_dict(unternehmen: Unternehmen | None) -> dict:
         "ist_kleinunternehmer":    unternehmen.ist_kleinunternehmer or False,
         "zahlungshinweis_aktiv":   unternehmen.zahlungshinweis_aktiv,
         "zahlungshinweis_text":    unternehmen.zahlungshinweis_text or "",
+        "anrede_text":             unternehmen.anrede_text or "",
+        "anrede_fallback":         unternehmen.anrede_fallback or "",
         "qr_zahlung_aktiv":        unternehmen.qr_zahlung_aktiv or False,
         "unterschrift_bild":       unternehmen.unterschrift_bild or "",
         "unterschrift_auf_rechnung": unternehmen.unterschrift_auf_rechnung or False,
