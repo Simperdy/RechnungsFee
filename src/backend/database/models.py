@@ -423,7 +423,7 @@ class Kunde(Base):
     ort: Mapped[str | None] = mapped_column(String(100))
     land: Mapped[str] = mapped_column(String(2), default="DE", nullable=False)
     ust_idnr: Mapped[str | None] = mapped_column(String(20))
-    ust_idnr_validiert: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    ust_idnr_validiert: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
     ust_idnr_validierung_datum: Mapped[date | None] = mapped_column(Date)
     # Steuer-/Unternehmens-ID für Drittland-Kunden (z.B. Schweizer UID CHE-xxx.xxx.xxx MWST) -
     # bewusst getrennt von ust_idnr, das für die EU-USt-IdNr. reserviert bleibt (Issue #315)
@@ -431,8 +431,8 @@ class Kunde(Base):
     email: Mapped[str | None] = mapped_column(String(200))
     telefon: Mapped[str | None] = mapped_column(String(50))
     # Vereins-spezifisch (Issue #14)
-    ist_verein: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    ist_gemeinnuetzig: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    ist_verein: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
+    ist_gemeinnuetzig: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
     bescheinigung_paragraph: Mapped[str | None] = mapped_column(String(50))  # §4 Nr. 21 UStG
     bescheinigung_nummer: Mapped[str | None] = mapped_column(String(100))
     bescheinigung_behoerde: Mapped[str | None] = mapped_column(String(200))
@@ -441,14 +441,14 @@ class Kunde(Base):
     debitor_nr: Mapped[str | None] = mapped_column(String(20), unique=True)
     z_hd: Mapped[str | None] = mapped_column(String(200))
     notizen: Mapped[str | None] = mapped_column(Text)
-    zugferd_aktiv: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    zugferd_aktiv: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
     skonto_prozent: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     skonto_tage: Mapped[int | None] = mapped_column(Integer)
-    mahnung_gesperrt: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    mahnung_warnung: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    mahnung_gesperrt: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
+    mahnung_warnung: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
     mahnsperre_bis: Mapped[date | None] = mapped_column(Date)
     mahnsperre_grund: Mapped[str | None] = mapped_column(String(500))
-    aktiv: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    aktiv: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False)
     erstellt_am: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     aktualisiert_am: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -526,7 +526,7 @@ class Lieferant(Base):
     ort: Mapped[str | None] = mapped_column(String(100))
     land: Mapped[str] = mapped_column(String(2), default="DE", nullable=False)
     ust_idnr: Mapped[str | None] = mapped_column(String(20))
-    ust_idnr_validiert: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    ust_idnr_validiert: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
     ust_idnr_validierung_datum: Mapped[date | None] = mapped_column(Date)
     email: Mapped[str | None] = mapped_column(String(200))
     telefon: Mapped[str | None] = mapped_column(String(50))
@@ -534,7 +534,7 @@ class Lieferant(Base):
     kreditor_nr: Mapped[str | None] = mapped_column(String(20), unique=True)
     z_hd: Mapped[str | None] = mapped_column(String(200))
     notizen: Mapped[str | None] = mapped_column(Text)
-    aktiv: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    aktiv: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False)
     erstellt_am: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     rechnungen: Mapped[list["Rechnung"]] = relationship(back_populates="lieferant")
@@ -575,7 +575,7 @@ class Artikel(Base):
     # Artikel von einer Netto-Rechnung mit demselben Artikel ab (Issue #332/#344, analog vk_netto).
     vk_brutto: Mapped[Decimal] = mapped_column(Numeric(12, 4), nullable=False)
     vk_netto: Mapped[Decimal] = mapped_column(Numeric(12, 4), nullable=False)  # aus vk_brutto abgeleitet, nicht auf Cent gerundet (Issue #332)
-    vk_eingabe: Mapped[str] = mapped_column(String(10), nullable=False, default="brutto")  # netto|brutto - welcher der beiden Preise die eingegebene Wahrheit ist, der andere wird daraus abgeleitet
+    vk_eingabe: Mapped[str] = mapped_column(String(10), nullable=False, default="brutto", server_default="brutto")  # netto|brutto - welcher der beiden Preise die eingegebene Wahrheit ist, der andere wird daraus abgeleitet
     ek_netto: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     ek_brutto: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     lieferant_id: Mapped[int | None] = mapped_column(ForeignKey("lieferanten.id"))
@@ -584,13 +584,13 @@ class Artikel(Base):
     artikelcode: Mapped[str | None] = mapped_column(String(100))
     beschreibung: Mapped[str | None] = mapped_column(Text)
     gruppe_id: Mapped[int | None] = mapped_column(ForeignKey("artikel_gruppen.id"))
-    differenzbesteuerung: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    differenzbesteuerung: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
     # Lagerführung-Light
     lager_aktiv: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
     bestand_aktuell: Mapped[Decimal] = mapped_column(Numeric(10, 3), default=0, server_default="0", nullable=False)
     mindestbestand: Mapped[Decimal] = mapped_column(Numeric(10, 3), default=0, server_default="0", nullable=False)
     minusbestand_erlaubt: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
-    aktiv: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    aktiv: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False)
     erstellt_am: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     aktualisiert_am: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

@@ -219,10 +219,11 @@ def _kunde_anlegen(db: Session, daten: dict, ueberschreiben_id: Optional[int] = 
         text("""INSERT INTO kunden (firmenname, vorname, nachname, strasse, hausnummer, plz, ort, land,
                 email, telefon, ust_idnr, kundennummer, z_hd, notizen, skonto_prozent, skonto_tage,
                 aktiv, ust_idnr_validiert, ist_verein, ist_gemeinnuetzig, zugferd_aktiv,
+                mahnung_gesperrt, mahnung_warnung,
                 erstellt_am, aktualisiert_am)
                 VALUES (:firmenname, :vorname, :nachname, :strasse, :hausnummer, :plz, :ort, :land,
                 :email, :telefon, :ust_idnr, :kundennummer, :z_hd, :notizen, :skonto_prozent, :skonto_tage,
-                1, 0, 0, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"""),
+                1, 0, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"""),
         {**felder, "kundennummer": kundennummer},
     )
     return "importiert"
@@ -258,10 +259,10 @@ def _lieferant_anlegen(db: Session, daten: dict, ueberschreiben_id: Optional[int
     lieferantennummer = daten.get("lieferantennummer") or _naechste_nummer(db, "lieferant")
     db.execute(
         text("""INSERT INTO lieferanten (firmenname, vorname, nachname, strasse, hausnummer, plz, ort, land,
-                email, telefon, ust_idnr, lieferantennummer, z_hd, notizen, aktiv, erstellt_am)
+                email, telefon, ust_idnr, lieferantennummer, z_hd, notizen, aktiv, ust_idnr_validiert, erstellt_am)
                 VALUES (:firmenname, :vorname, :nachname, :strasse, :hausnummer, :plz, :ort, :land,
                 :email, :telefon, :ust_idnr, :lieferantennummer, :z_hd, :notizen,
-                1, CURRENT_TIMESTAMP)"""),
+                1, 0, CURRENT_TIMESTAMP)"""),
         {**felder, "lieferantennummer": lieferantennummer},
     )
     return "importiert"
@@ -332,10 +333,10 @@ def _artikel_anlegen(db: Session, daten: dict, ueberschreiben_id: Optional[int] 
     db.execute(
         text("""INSERT INTO artikel (artikelnummer, typ, bezeichnung, einheit, steuersatz,
                 vk_brutto, vk_netto, ek_netto, artikelcode, hersteller, beschreibung, gruppe_id,
-                aktiv, differenzbesteuerung, erstellt_am, aktualisiert_am)
+                aktiv, differenzbesteuerung, vk_eingabe, erstellt_am, aktualisiert_am)
                 VALUES (:artikelnummer, :typ, :bezeichnung, :einheit, :steuersatz,
                 :vk_brutto, :vk_netto, :ek_netto, :artikelcode, :hersteller, :beschreibung, :gruppe_id,
-                1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"""),
+                1, 0, 'brutto', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"""),
         {**felder, "artikelnummer": artikelnummer},
     )
     return "importiert"
