@@ -33,7 +33,7 @@ logging.root.addHandler(_log_handler)
 from database.seed import run_all_seeds
 from api import unternehmen, konten, kategorien, setup, journal, kunden, lieferanten, tagesabschluss, nummernkreise, export, rechnungen, backup, artikel, artikel_gruppen, ust_saetze, pdf_vorlagen, eks, system, ustva, zm, euer, dokumentenpakete, mail, wiederkehrend, buchungsvorlagen, anlageverzeichnis, datev, anlage_s, anlage_g, fristen_api, guv, bank_templates, bank_import, auto_filter, forderungen, cockpit, datenmigration, kontenuebersicht, schnellbuchungen, mahnwesen, profile, kontokorrent, inventurliste
 
-SCHEMA_VERSION = 167
+SCHEMA_VERSION = 168
 
 app = FastAPI(title="RechnungsFee API", version="0.1.0")
 
@@ -3717,6 +3717,19 @@ def _run_migrations() -> None:
             conn.execute(text("PRAGMA user_version = 167"))
             conn.commit()
             print("[Migration] Schema auf Version 167 (Issue #436: unternehmen.zahlungshinweis_text – eigener Zahlungshinweis mit Platzhaltern)")
+
+        if version < 168:
+            cols168_u = {r[1] for r in conn.execute(text("PRAGMA table_info(unternehmen)")).fetchall()}
+            for col in ("anrede_text", "anrede_fallback"):
+                if col not in cols168_u:
+                    conn.execute(text(f"ALTER TABLE unternehmen ADD COLUMN {col} TEXT"))
+            cols168_k = {r[1] for r in conn.execute(text("PRAGMA table_info(kunden)")).fetchall()}
+            for col, typ in (("anrede", "VARCHAR(10)"), ("anrede_individuell", "VARCHAR(200)")):
+                if col not in cols168_k:
+                    conn.execute(text(f"ALTER TABLE kunden ADD COLUMN {col} {typ}"))
+            conn.execute(text("PRAGMA user_version = 168"))
+            conn.commit()
+            print("[Migration] Schema auf Version 168 (Issue #440: anpassbare Anrede – unternehmen.anrede_text/_fallback, kunden.anrede/_individuell)")
 
 
 def _migrate_kategorien() -> None:

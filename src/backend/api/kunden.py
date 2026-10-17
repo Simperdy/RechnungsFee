@@ -44,6 +44,8 @@ def list_kunden(nur_aktive: bool = True, db: Session = Depends(get_db)):
 @router.post("", response_model=KundeResponse, status_code=201)
 def create_kunde(data: KundeCreate, db: Session = Depends(get_db)):
     kunde_data = data.model_dump()
+    for key in ("anrede", "anrede_individuell"):
+        kunde_data[key] = (kunde_data.get(key) or "").strip() or None
     if not kunde_data.get("kundennummer"):
         kunde_data["kundennummer"] = _naechste_nummer("kunde", db)
     nr = kunde_data.get("kundennummer")
@@ -908,6 +910,10 @@ def update_kunde(kunde_id: int, data: KundeUpdate, db: Session = Depends(get_db)
         if db.query(Kunde).filter(Kunde.debitor_nr == neue_debitor, Kunde.id != kunde_id).first():
             raise HTTPException(status_code=409, detail=f"Debitorennummer '{neue_debitor}' ist bereits vergeben.")
     for key, value in dump.items():
+        # Issue #440: das Frontend schickt hier bewusst "" statt nichts, damit Leeren auch
+        # tatsächlich gespeichert wird (exclude_none würde ein None verwerfen)
+        if key in ("anrede", "anrede_individuell"):
+            value = (value or "").strip() or None
         setattr(kunde, key, value)
     db.commit()
     db.refresh(kunde)

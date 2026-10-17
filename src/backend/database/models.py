@@ -103,6 +103,10 @@ class Unternehmen(Base):
     zahlungshinweis_aktiv: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     # Issue #436: eigener Zahlungshinweis-Satz mit Platzhaltern; leer = Standardsatz
     zahlungshinweis_text: Mapped[str | None] = mapped_column(Text)
+    # Issue #440: Anrede-Satz mit Platzhaltern (leer = "Hallo {vorname} {nachname},") +
+    # Ersatzanrede, wenn ein benötigter Platzhalter leer bliebe (leer = "Hallo,")
+    anrede_text: Mapped[str | None] = mapped_column(Text)
+    anrede_fallback: Mapped[str | None] = mapped_column(Text)
     pdf_vorlage: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     einleitungstext: Mapped[str | None] = mapped_column(Text)
     schlusstext: Mapped[str | None] = mapped_column(Text)
@@ -407,6 +411,10 @@ class Kunde(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     firmenname: Mapped[str | None] = mapped_column(String(200))
+    # Issue #440: herr | frau | divers | NULL – für {anrede}/{sehr_geehrte} im Anrede-Satz
+    anrede: Mapped[str | None] = mapped_column(String(10))
+    # Issue #440: eigene Anrede nur für diesen Kunden, überschreibt den globalen Satz
+    anrede_individuell: Mapped[str | None] = mapped_column(String(200))
     vorname: Mapped[str | None] = mapped_column(String(100))
     nachname: Mapped[str | None] = mapped_column(String(100))
     strasse: Mapped[str | None] = mapped_column(String(200))

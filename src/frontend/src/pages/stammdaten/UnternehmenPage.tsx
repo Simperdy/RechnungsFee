@@ -29,7 +29,10 @@ const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm fo
 const selectCls = `${inputCls} bg-white dark:bg-slate-700`
 
 // Entspricht dem Standardsatz in utils/pdf_rechnung.py (BIC-Teil entfällt dort, wenn keine BIC hinterlegt ist)
-const ZAHLUNGSHINWEIS_STANDARD = "Bitte überweisen Sie {betrag} bis {faellig_am} unter Angabe der Rechnungsnummer {rechnungsnummer} auf IBAN {iban}  ·  BIC {bic}."
+// Issue #440 – identisch mit ANREDE_STANDARD/ANREDE_FALLBACK_STANDARD in utils/pdf_rechnung_base.py
+const ANREDE_STANDARD = 'Hallo {vorname} {nachname},'
+const ANREDE_FALLBACK_STANDARD = 'Hallo,'
+const ZAHLUNGSHINWEIS_STANDARD ="Bitte überweisen Sie {betrag} bis {faellig_am} unter Angabe der Rechnungsnummer {rechnungsnummer} auf IBAN {iban}  ·  BIC {bic}."
 
 // ---------------------------------------------------------------------------
 // Tab-Navigation
@@ -890,6 +893,37 @@ function FirmendatenSektion({ data, activeTab }: { data: Unternehmen; activeTab:
               {' '}Wird nur verwendet, wenn „Zahlungshinweis anzeigen" eingeschaltet ist.
               Gilt nur für die Rechnungsvorlage mit Fließtext – die tabellarische Vorlage zeigt Bankdaten
               und Zahlungsziel als feste Zeilen.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Anrede (optional)</label>
+            <input
+              type="text"
+              value={form.anrede_text ?? ''}
+              onChange={ev => set('anrede_text', ev.target.value || null)}
+              placeholder={ANREDE_STANDARD}
+              className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+            />
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">Ersatzanrede</label>
+              <input
+                type="text"
+                value={form.anrede_fallback ?? ''}
+                onChange={ev => set('anrede_fallback', ev.target.value || null)}
+                placeholder={ANREDE_FALLBACK_STANDARD}
+                className="flex-1 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+              />
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Platzhalter: <code>{'{vorname}'}</code>, <code>{'{nachname}'}</code>, <code>{'{firma}'}</code>,{' '}
+              <code>{'{anrede}'}</code> (Herr/Frau), <code>{'{sehr_geehrte}'}</code> („Sehr geehrte Frau" / „Sehr geehrter Herr",
+              bei divers oder ohne Angabe „Guten Tag" + Vorname). Herr/Frau/divers stellst du beim Kunden ein.
+              Beispiel: <code>{'{sehr_geehrte} {nachname},'}</code>.
+              Fehlt ein benötigter Wert (z. B. kein Name beim Kunden), wird die Ersatzanrede gedruckt.
+              Leer lassen für den Standard (grau im Feld). Die grüne Vorlage zeigt die Anrede immer, die
+              Standardvorlage nur, wenn du hier einen Satz einträgst. Pro Kunde kannst du die Anrede in den
+              Kundenstammdaten zusätzlich überschreiben.
             </p>
           </div>
 
