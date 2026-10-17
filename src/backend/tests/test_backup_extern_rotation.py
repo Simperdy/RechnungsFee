@@ -87,3 +87,58 @@ def test_schema_grenzen():
     assert UnternehmenBase(**basis).backup_extern_anzahl == 5
     with pytest.raises(pydantic.ValidationError):
         UnternehmenBase(**basis, backup_extern_anzahl=0)
+
+
+class _FakeSmbClient:
+    """Ersetzt smbprotocol/smbclient: hält Dateien je UNC-Pfad im Speicher."""
+
+    def __init__(self, vorhanden: dict[str, list[str]]):
+        self.ordner = {k: list(v) for k, v in vorhanden.items()}
+        self.geloescht: list[str] = []
+
+    def register_session(self, *a, **kw):
+        pass
+
+    def mkdir(self, pfad):
+        self.ordner.setdefault(pfad, [])
+
+    def open_file(self, unc_datei, mode="wb"):
+        import io
+        ordner, name = unc_datei.rsplit("\\", 1)
+        self.ordner.setdefault(ordner, []).append(name)
+        return io.BytesIO()
+
+    def listdir(self, pfad):
+        return list(self.ordner.get(pfad, []))
+
+    def remove(self, unc_datei):
+        ordner, name = unc_datei.rsplit("\\", 1)
+        self.ordner[ordner].remove(name)
+        self.geloescht.append(unc_datei)
+
+
+def test_smb_rotation(monkeypatch):
+    import sys
+    alte = [f"rechnungsfee_2025010{i}_120000.zip.enc" for i in range(1, 7)]
+    fake = _FakeSmbClient({r"\\nas\daten\backup\rf": alte + ["fremd.txt"]})
+    monkeypatch.setitem(sys.modules, "smbclient", fake)
+
+    main._backup_smb("smb://nas/daten/backup/rf", "rechnungsfee_20261017_120000.zip.enc",
+                     b"x", "user", "pw", behalten=5)
+
+    rest = sorted(fake.ordner[r"\\nas\daten\backup\rf"])
+    assert "fremd.txt" in rest
+    eigene = [n for n in rest if n.startswith("rechnungsfee_")]
+    assert len(eigene) == 5
+    assert eigene[-1] == "rechnungsfee_20261017_120000.zip.enc"
+    assert fake.geloescht == [rf"\\nas\daten\backup\rf\{n}" for n in alte[:2]]
+
+
+def test_smb_rotation_ohne_unterordner(monkeypatch):
+    import sys
+    fake = _FakeSmbClient({r"\\nas\daten": ["rechnungsfee_20250101_120000.zip.enc"]})
+    monkeypatch.setitem(sys.modules, "smbclient", fake)
+
+    main._backup_smb("smb://nas/daten", "rechnungsfee_20261017_120000.zip.enc", b"x", None, None, behalten=1)
+
+    assert fake.ordner[r"\\nas\daten"] == ["rechnungsfee_20261017_120000.zip.enc"]
