@@ -1336,13 +1336,24 @@ export function KundenPage() {
                   {errors.firmenname && <p className="text-red-500 text-xs mt-0.5">{errors.firmenname.message}</p>}
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Anrede</label>
-                  <select {...register('anrede')} className="w-40 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100">
-                    <option value="">– keine Angabe –</option>
-                    <option value="frau">Frau</option>
-                    <option value="herr">Herr</option>
-                    <option value="divers">divers</option>
-                  </select>
+                  <div className="flex gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Anrede</label>
+                      <select {...register('anrede')} className="w-40 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100">
+                        <option value="">– keine Angabe –</option>
+                        <option value="frau">Frau</option>
+                        <option value="herr">Herr</option>
+                        <option value="divers">divers</option>
+                      </select>
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Eigene Anrede auf Dokumenten (optional)</label>
+                      <input type="text" {...register('anrede_individuell')} placeholder="z.B. Liebe {vorname}," className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Leer = Anrede-Satz aus Einstellungen → Unternehmen → Funktionen. Eine eigene Anrede ersetzt diesen nur für diesen Kunden; dieselben Platzhalter sind möglich.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Vorname</label>
@@ -1407,13 +1418,6 @@ export function KundenPage() {
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">z.Hd. von</label>
                   <input type="text" {...register('z_hd')} placeholder="z.B. Max Mustermann oder Buchhaltung" className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Eigene Anrede auf Dokumenten (optional)</label>
-                  <input type="text" {...register('anrede_individuell')} placeholder="z.B. Liebe {vorname},  –  leer = Anrede aus den Einstellungen" className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Ersetzt für diesen Kunden den Anrede-Satz aus Einstellungen → Unternehmen → Funktionen. Dieselben Platzhalter wie dort sind möglich.
-                  </p>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Notizen</label>
