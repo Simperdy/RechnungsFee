@@ -15,7 +15,7 @@ const FOKUSSIERBAR =
 
 function fokussierbareElemente(wurzel: HTMLElement): HTMLElement[] {
   return Array.from(wurzel.querySelectorAll<HTMLElement>(FOKUSSIERBAR)).filter(
-    (el) => !el.hasAttribute('hidden') && el.getAttribute('aria-hidden') !== 'true',
+    (el) => el.tabIndex >= 0 && !el.closest('[hidden], [aria-hidden="true"]'),
   )
 }
 

@@ -103,6 +103,28 @@ describe('Modal – ARIA-Grundlage', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  it('ignoriert geschlossene LandCombobox-Optionen beim Focus-Trap', () => {
+    render(
+      <Modal title="Neuer Kunde" onClose={() => {}}>
+        <button type="button">Erstes Element</button>
+        <LandCombobox value="DE" onChange={() => {}} />
+      </Modal>,
+    )
+
+    const erstes = screen.getByRole('button', { name: 'Erstes Element' })
+    const landEingabe = screen.getByRole('combobox', { name: 'Land' })
+    const listbox = document.getElementById(landEingabe.getAttribute('aria-controls')!)!
+    expect(listbox.hasAttribute('hidden')).toBe(true)
+
+    erstes.focus()
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(landEingabe)
+
+    const tabAmRand = fireEvent.keyDown(document, { key: 'Tab' })
+    expect(tabAmRand).toBe(false)
+    expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true)
+  })
+
   it('hält den Tab-Fokus im Dialog (Focus-Trap vor und zurück)', () => {
     render(
       <Modal title="Neuer Kunde" onClose={() => {}}>
