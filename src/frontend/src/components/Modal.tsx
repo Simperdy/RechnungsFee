@@ -57,6 +57,7 @@ export function Modal({
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
+        if (e.defaultPrevented) return
         e.stopPropagation()
         onCloseRef.current()
         return

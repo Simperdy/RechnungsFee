@@ -82,6 +82,7 @@ export function LandCombobox({
       e.preventDefault()
     } else if (e.key === 'Escape') {
       setOffen(false)
+      e.preventDefault()
     }
   }
 
