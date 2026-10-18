@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { StrictMode } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { Modal } from './Modal'
+import { LandCombobox } from './LandCombobox'
 
 // Prio 1 der Roadmap (Barrierefreiheit): Modal-Overlays müssen als Dialog
 // erkennbar sein (role="dialog", aria-modal, aria-labelledby).
@@ -18,6 +19,29 @@ describe('Modal – ARIA-Grundlage', () => {
     expect(dialog.getAttribute('aria-modal')).toBe('true')
     const titel = screen.getByText('Neuer Kunde')
     expect(dialog.getAttribute('aria-labelledby')).toBe(titel.id)
+  })
+
+  it('schließt zuerst die offene Länderliste und erhält die Formulareingaben', () => {
+    const onClose = vi.fn()
+    render(
+      <Modal title="Neuer Kunde" onClose={onClose}>
+        <input aria-label="Firmenname" defaultValue="Beispiel GmbH" />
+        <LandCombobox value="DE" onChange={() => {}} />
+      </Modal>,
+    )
+
+    const landEingabe = screen.getByPlaceholderText('Land suchen…')
+    fireEvent.focus(landEingabe)
+    expect(screen.getByRole('button', { name: 'Deutschland' })).toBeTruthy()
+
+    fireEvent.keyDown(landEingabe, { key: 'Escape' })
+
+    expect(screen.queryByRole('button', { name: 'Deutschland' })).toBeNull()
+    expect(onClose).not.toHaveBeenCalled()
+    expect((screen.getByLabelText('Firmenname') as HTMLInputElement).value).toBe('Beispiel GmbH')
+
+    fireEvent.keyDown(landEingabe, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 
   it('schließt den Dialog per Esc', () => {
