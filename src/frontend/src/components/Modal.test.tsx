@@ -21,6 +21,53 @@ describe('Modal – ARIA-Grundlage', () => {
     expect(dialog.getAttribute('aria-labelledby')).toBe(titel.id)
   })
 
+  it('exponiert die Länderauswahl als benannte Combobox mit verknüpfter aktiver Option', () => {
+    render(<LandCombobox value="DE" onChange={() => {}} />)
+    const combobox = screen.getByRole('combobox', { name: 'Land' })
+    expect(combobox.getAttribute('aria-expanded')).toBe('false')
+    const listboxId = combobox.getAttribute('aria-controls')
+    expect(listboxId).toBeTruthy()
+    const zugeordneteListe = document.getElementById(listboxId!)
+    expect(zugeordneteListe?.getAttribute('role')).toBe('listbox')
+    expect(zugeordneteListe?.hasAttribute('hidden')).toBe(true)
+
+    fireEvent.focus(combobox)
+    fireEvent.change(combobox, { target: { value: '' } })
+
+    const listbox = screen.getByRole('listbox')
+    expect(listbox.id).toBe(listboxId)
+    const optionen = screen.getAllByRole('option')
+    expect(combobox.getAttribute('aria-expanded')).toBe('true')
+    expect(optionen[0].textContent).toBe('Deutschland')
+    expect(optionen[0].getAttribute('aria-selected')).toBe('true')
+    expect(optionen[1].textContent).toBe('Österreich')
+    expect(optionen[1].getAttribute('aria-selected')).toBe('false')
+    expect(combobox.getAttribute('aria-activedescendant')).toBe(optionen[0].id)
+
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' })
+    expect(combobox.getAttribute('aria-activedescendant')).toBe(optionen[1].id)
+  })
+
+  it('wählt die mit Pfeiltasten aktive Option per Enter aus', () => {
+    const onChange = vi.fn()
+    render(
+      <Modal title="Neuer Kunde" onClose={() => {}}>
+        <LandCombobox value="DE" onChange={onChange} />
+      </Modal>,
+    )
+    const combobox = screen.getByRole('combobox', { name: 'Land' })
+    fireEvent.focus(combobox)
+    fireEvent.change(combobox, { target: { value: '' } })
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' })
+    const aktiveOption = document.getElementById(combobox.getAttribute('aria-activedescendant')!)
+    expect(aktiveOption?.textContent).toBe('Österreich')
+
+    fireEvent.keyDown(combobox, { key: 'Enter' })
+
+    expect(onChange).toHaveBeenCalledWith('AT')
+    expect(combobox.getAttribute('aria-expanded')).toBe('false')
+  })
+
   it('schließt zuerst die offene Länderliste und erhält die Formulareingaben', () => {
     const onClose = vi.fn()
     render(
@@ -32,11 +79,12 @@ describe('Modal – ARIA-Grundlage', () => {
 
     const landEingabe = screen.getByPlaceholderText('Land suchen…')
     fireEvent.focus(landEingabe)
-    expect(screen.getByRole('button', { name: 'Deutschland' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Deutschland' })).toBeTruthy()
 
     fireEvent.keyDown(landEingabe, { key: 'Escape' })
 
-    expect(screen.queryByRole('button', { name: 'Deutschland' })).toBeNull()
+    expect(screen.queryByRole('option', { name: 'Deutschland' })).toBeNull()
+    expect(landEingabe.getAttribute('aria-expanded')).toBe('false')
     expect(onClose).not.toHaveBeenCalled()
     expect((screen.getByLabelText('Firmenname') as HTMLInputElement).value).toBe('Beispiel GmbH')
 
@@ -73,6 +121,42 @@ describe('Modal – ARIA-Grundlage', () => {
     // Erstes Element + Shift+Tab -> wieder auf das letzte
     fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
     expect(document.activeElement).toBe(buttons[1])
+  })
+
+  it('holt Tab-Fokus von außerhalb zum ersten Dialogelement zurück', () => {
+    const ausserhalb = document.createElement('button')
+    document.body.appendChild(ausserhalb)
+    ausserhalb.focus()
+    render(
+      <Modal title="Neuer Kunde" onClose={() => {}}>
+        <button type="button">Erstes Element</button>
+        <button type="button">Letztes Element</button>
+      </Modal>,
+    )
+
+    ausserhalb.focus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Erstes Element' }))
+    ausserhalb.remove()
+  })
+
+  it('holt Shift+Tab-Fokus von außerhalb zum letzten Dialogelement zurück', () => {
+    const ausserhalb = document.createElement('button')
+    document.body.appendChild(ausserhalb)
+    ausserhalb.focus()
+    render(
+      <Modal title="Neuer Kunde" onClose={() => {}}>
+        <button type="button">Erstes Element</button>
+        <button type="button">Letztes Element</button>
+      </Modal>,
+    )
+
+    ausserhalb.focus()
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Letztes Element' }))
+    ausserhalb.remove()
   })
 
   it('setzt beim Öffnen den Fokus auf das erste fokussierbare Element im Dialog', () => {

@@ -63,12 +63,15 @@ export function Modal({
         return
       }
       if (e.key !== 'Tab' || !panel) return
-      // Focus-Trap nur wenn der Fokus im (oder auf dem) Panel liegt.
-      if (!panel.contains(document.activeElement)) return
       const elements = fokussierbareElemente(panel)
       if (elements.length === 0) return
       const erstes = elements[0]
       const letztes = elements[elements.length - 1]
+      if (!panel.contains(document.activeElement)) {
+        e.preventDefault()
+        ;(e.shiftKey ? letztes : erstes).focus()
+        return
+      }
       const aktive = document.activeElement as HTMLElement
       if (e.shiftKey ? aktive === erstes : aktive === letztes) {
         e.preventDefault()
