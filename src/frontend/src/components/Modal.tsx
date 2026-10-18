@@ -42,10 +42,12 @@ export function Modal({
 }: ModalProps) {
   const titelId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
+  const vorherigesElementRef = useRef(document.activeElement as HTMLElement | null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   useEffect(() => {
     const panel = panelRef.current
-    const vorherigesElement = document.activeElement as HTMLElement | null
 
     // Initial Focus: ein autoFocus im Inhalt hat bereits gewonnen – sonst
     // erstes fokussierbares Element im Panel setzen.
@@ -56,7 +58,7 @@ export function Modal({
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.stopPropagation()
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key !== 'Tab' || !panel) return
@@ -75,9 +77,9 @@ export function Modal({
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      vorherigesElement?.focus?.()
+      vorherigesElementRef.current?.focus?.()
     }
-  }, [onClose])
+  }, [])
 
   return (
     <div

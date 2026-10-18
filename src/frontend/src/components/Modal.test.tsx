@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
+import { StrictMode } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { Modal } from './Modal'
 
@@ -74,6 +75,57 @@ describe('Modal – ARIA-Grundlage', () => {
 
     unmount()
     expect(document.activeElement).toBe(ausloeser)
+    ausloeser.remove()
+  })
+
+  it('stellt nach autoFocus auch unter StrictMode den Fokus auf den Auslöser zurück', () => {
+    const ausloeser = document.createElement('button')
+    document.body.appendChild(ausloeser)
+    ausloeser.focus()
+
+    const { unmount } = render(
+      <StrictMode>
+        <Modal title="Neuer Kunde" onClose={() => {}}>
+          <input autoFocus type="text" aria-label="Firmenname" />
+        </Modal>
+      </StrictMode>,
+    )
+    const eingabe = screen.getByLabelText('Firmenname')
+    expect(document.activeElement).toBe(eingabe)
+
+    unmount()
+    expect(document.activeElement).toBe(ausloeser)
+    ausloeser.remove()
+  })
+
+  it('bewahrt Fokus bei neuem onClose und verwendet beim Esc den neuesten Callback', () => {
+    const ausloeser = document.createElement('button')
+    document.body.appendChild(ausloeser)
+    ausloeser.focus()
+    const alterCallback = vi.fn()
+    const neuerCallback = vi.fn()
+
+    const { rerender } = render(
+      <Modal title="Neuer Kunde" onClose={alterCallback}>
+        <input type="text" aria-label="Firmenname" />
+        <button type="button">Fokusziel</button>
+      </Modal>,
+    )
+    const fokusziel = screen.getByRole('button', { name: 'Fokusziel' })
+    fokusziel.focus()
+    expect(document.activeElement).toBe(fokusziel)
+
+    rerender(
+      <Modal title="Neuer Kunde" onClose={neuerCallback}>
+        <input type="text" aria-label="Firmenname" />
+        <button type="button">Fokusziel</button>
+      </Modal>,
+    )
+    expect(document.activeElement).toBe(fokusziel)
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(alterCallback).not.toHaveBeenCalled()
+    expect(neuerCallback).toHaveBeenCalledTimes(1)
     ausloeser.remove()
   })
 })
