@@ -727,7 +727,7 @@ export function LieferantenPage() {
 
       {/* ── Rechte Spalte (Detail oder Formular) ─────────────────────── */}
       {!showForm && (
-        <div className="flex-1 md:flex-none w-full md:w-[28rem] shrink-0 min-h-0 overflow-y-auto">
+        <div className={`${selected ? 'flex' : 'hidden md:flex'} flex-1 md:flex-none w-full md:w-[28rem] shrink-0 min-h-0 overflow-y-auto flex-col`}>
           {selected ? (
             <LieferantDetail key={selected.id} lieferant={selected} initialTab={initialDetailTab} />
           ) : (
