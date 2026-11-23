@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from database.connection import Base, engine, SessionLocal, DB_PATH, APP_DATA_DIR
+import server_mode
 from utils import geheimnisse
 
 # ── Backend-Datei-Logging ─────────────────────────────────────────────────────
@@ -54,26 +55,29 @@ app = FastAPI(
 from utils.fehler_middleware import FehlerMiddleware  # noqa: E402
 app.add_middleware(FehlerMiddleware)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "tauri://localhost", "http://tauri.localhost"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=[
-        "Content-Disposition",
-        "X-Datev-Eintraege",
-        "X-Datev-Uebersprungen",
-        # fehlten bis Issue #502: in der installierten App (anderer Origin als das Backend)
-        # waren sie für das Frontend unlesbar - „ohne Sachkonto“ zeigte immer 0
-        "X-Datev-LeerKonto",
-        "X-Datev-Belege",
-        "X-Datev-Verrechnung",
-        "X-Datev-Verrechnung-Belege",
-        "X-Buchhalter-Eintraege",
-        "X-GoBD-Buchungen",
-        "X-GoBD-Belege",
-    ],
-)
+# Server-Modus (Docker, same-origin SPA + API): kein CORS noetig - der Desktop-Modus
+# (Tauri/Vite-Devserver) braucht es und behaelt es unveraendert.
+if not server_mode.SERVER_MODE:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173", "tauri://localhost", "http://tauri.localhost"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=[
+            "Content-Disposition",
+            "X-Datev-Eintraege",
+            "X-Datev-Uebersprungen",
+            # fehlten bis Issue #502: in der installierten App (anderer Origin als das Backend)
+            # waren sie für das Frontend unlesbar - „ohne Sachkonto" zeigte immer 0
+            "X-Datev-LeerKonto",
+            "X-Datev-Belege",
+            "X-Datev-Verrechnung",
+            "X-Datev-Verrechnung-Belege",
+            "X-Buchhalter-Eintraege",
+            "X-GoBD-Buchungen",
+            "X-GoBD-Belege",
+        ],
+    )
 
 # Issue #476: angehängten Dateinamen ("/_datei/<name>") vor dem Routing entfernen
 from utils.pdf_dateiname_pfad import PdfDateinameMiddleware  # noqa: E402
@@ -134,6 +138,10 @@ app.include_router(cockpit.router)
 app.include_router(datenmigration.router)
 app.include_router(mahnwesen.router)
 app.include_router(rechnungen_import.router)
+
+# SPA-Auslieferung ganz zuletzt (Fallback-Route mit niedrigster Prioritaet).
+# Ohne RECHNUNGSFEE_SERVER_MODE no-op -> Desktop-Verhalten byte-identisch.
+server_mode.mount_spa(app)
 
 
 @app.post("/api/shutdown")
