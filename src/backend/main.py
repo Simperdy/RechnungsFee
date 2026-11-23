@@ -57,27 +57,9 @@ app.add_middleware(FehlerMiddleware)
 
 # Server-Modus (Docker, same-origin SPA + API): kein CORS noetig - der Desktop-Modus
 # (Tauri/Vite-Devserver) braucht es und behaelt es unveraendert.
-if not server_mode.SERVER_MODE:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["http://localhost:5173", "tauri://localhost", "http://tauri.localhost"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=[
-            "Content-Disposition",
-            "X-Datev-Eintraege",
-            "X-Datev-Uebersprungen",
-            # fehlten bis Issue #502: in der installierten App (anderer Origin als das Backend)
-            # waren sie für das Frontend unlesbar - „ohne Sachkonto" zeigte immer 0
-            "X-Datev-LeerKonto",
-            "X-Datev-Belege",
-            "X-Datev-Verrechnung",
-            "X-Datev-Verrechnung-Belege",
-            "X-Buchhalter-Eintraege",
-            "X-GoBD-Buchungen",
-            "X-GoBD-Belege",
-        ],
-    )
+_cors = server_mode.cors_middleware_kwargs()
+if _cors is not None:
+    app.add_middleware(CORSMiddleware, **_cors)
 
 # Issue #476: angehängten Dateinamen ("/_datei/<name>") vor dem Routing entfernen
 from utils.pdf_dateiname_pfad import PdfDateinameMiddleware  # noqa: E402
@@ -139,9 +121,25 @@ app.include_router(datenmigration.router)
 app.include_router(mahnwesen.router)
 app.include_router(rechnungen_import.router)
 
+# OIDC-Auth (nur Server-Modus; im Desktop-Modus keine Import-/Laufzeitwirkung)
+if server_mode.SERVER_MODE:
+    from api import auth as auth_router
+    app.include_router(auth_router.router)
+
 # SPA-Auslieferung ganz zuletzt (Fallback-Route mit niedrigster Prioritaet).
 # Ohne RECHNUNGSFEE_SERVER_MODE no-op -> Desktop-Verhalten byte-identisch.
 server_mode.mount_spa(app)
+
+# Server-Modus: OIDC-Pflicht-Env pruefen (Startup-Fehler), Rate-Limit, Auth-Guard,
+# Security-Header. Im Desktop-Modus no-op.
+server_mode.initialisiere(app)
+
+
+def _startup_auth_tabelle() -> None:
+    """Legt im Server-Modus nur die Session-Tabelle an. Getrennt von
+    Base.metadata.create_all, damit die GoBD-Modelle unberuehrt bleiben."""
+    from auth_sessions import AuthSession
+    Base.metadata.create_all(bind=engine, tables=[AuthSession.__table__])
 
 
 @app.post("/api/shutdown")
@@ -5051,6 +5049,8 @@ def _migrate_signaturen_sicher() -> None:
 def startup():
     _prüfe_wiederherstellung()   # Vor create_all – DB muss ggf. erst ersetzt werden
     Base.metadata.create_all(bind=engine)
+    if server_mode.SERVER_MODE:
+        _startup_auth_tabelle()
     _run_migrations()
     try:
         _migrate_geheimnisse()   # Security-Audit F6: Klartext-Passwörter → Schlüsselbund

@@ -1,4 +1,6 @@
 import sys
+
+import pytest
 from pathlib import Path
 
 # Backend-Verzeichnis zum Suchpfad hinzufügen, damit alle Module importierbar sind
@@ -39,3 +41,11 @@ def schluesselbund(tmp_path_factory, monkeypatch):
     monkeypatch.delenv("RECHNUNGSFEE_KEIN_SCHLUESSELBUND", raising=False)
     yield kr
     keyring.set_keyring(vorher)
+
+
+# Server-Modus-Tests (test_auth.py) sind async: anyio laeuft dort mit asyncio-Backend.
+# Fuer alle anderen Tests bleibt asyncio der Brute-Force-Backend, damit attempts.py,
+# deren einer die Nicht-Neuigkeit belegt, not_auth erst gar nicht lauft.
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
