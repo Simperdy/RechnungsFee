@@ -186,9 +186,10 @@ class OidcClient(AsyncOAuth2Client):
     Registry-Variante erwartet ein ``framework``-Argument). Trust-Regel fuer den
     Issuer: https bzw. http://localhost, siehe ``lade_config``."""
 
-    def __init__(self, *args, server_metadata_url: str | None = None, **kwargs):
+    def __init__(self, *args, server_metadata_url: str | None = None, config_issuer: str | None = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.server_metadata_url = server_metadata_url
+        self.config_issuer = config_issuer
         self.server_metadata: dict = {}
 
     async def load_server_metadata(self) -> dict:
@@ -222,6 +223,7 @@ def oauth_client(config: ServerAuthConfig, transport: httpx.BaseTransport | None
         scope=_SCOPE,
         code_challenge_method="S256",
         server_metadata_url=config.metadata_url,
+        config_issuer=config.issuer,
         trust_env=False,
         timeout=10.0,
         **({"transport": transport} if transport is not None else {}),

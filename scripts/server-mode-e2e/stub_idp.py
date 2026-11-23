@@ -10,7 +10,7 @@ import base64
 import hashlib
 import json
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from cryptography.hazmat.primitives import serialization
@@ -19,7 +19,7 @@ from jwcrypto import jwk  # falls nicht vorhanden: siehe requirements-Hinweis un
 
 ISSUER = "http://localhost:9999"
 CLIENT_ID = "rechnungsfee-test"
-REDIRECT = "http://127.0.0.1:18000/api/auth/callback"
+REDIRECT = "http://127.0.0.1:8000/api/auth/callback"
 
 _key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 _priv_pem = _key.private_bytes(
@@ -44,7 +44,7 @@ def make_id_token(email: str, nonce: str) -> str:
     }
     from jwcrypto import jws, jwt as jwcrypto_jwt
     tok = jwcrypto_jwt.JWT(header=header, claims=payload)
-    tok.make_signed_token(_key)
+    tok.make_signed_token(_jwk)  # jwcrypto erwartet ein JWK-Objekt, keinen cryptography-Key
     return tok.serialize()
 
 # single-use codes
@@ -100,29 +100,37 @@ class H(BaseHTTPRequestHandler):
             self._json({"error": "not found"}, 404)
 
     def do_POST(self):
-        u = urlparse(self.path)
-        if u.path == "/token":
-            n = int(self.headers.get("Content-Length", 0))
-            form = parse_qs(self.rfile.read(n).decode())
-            code = form["code"][0]
-            entry = _codes.pop(code, None)
-            if entry is None:
-                self._json({"error": "invalid_grant"}, 400)
-                return
-            # PKCE verifizieren
-            verifier = form["code_verifier"][0]
-            if _b64u(hashlib.sha256(verifier.encode()).digest()) != entry["challenge"]:
-                self._json({"error": "invalid_grant", "error_description": "PKCE mismatch"}, 400)
-                return
-            self._json({
-                "access_token": "stub-access",
-                "token_type": "Bearer",
-                "expires_in": 3600,
-                "id_token": make_id_token("caro@example.org", entry["nonce"] or ""),
-            })
-        else:
-            self._json({"error": "not found"}, 404)
+        try:
+            u = urlparse(self.path)
+            if u.path == "/token":
+                n = int(self.headers.get("Content-Length", 0))
+                form = parse_qs(self.rfile.read(n).decode())
+                code = form["code"][0]
+                entry = _codes.pop(code, None)
+                if entry is None:
+                    self._json({"error": "invalid_grant"}, 400)
+                    return
+                # PKCE verifizieren
+                verifier = form["code_verifier"][0]
+                if _b64u(hashlib.sha256(verifier.encode()).digest()) != entry["challenge"]:
+                    self._json({"error": "invalid_grant", "error_description": "PKCE mismatch"}, 400)
+                    return
+                self._json({
+                    "access_token": "stub-access",
+                    "token_type": "Bearer",
+                    "expires_in": 3600,
+                    "id_token": make_id_token("caro@example.org", entry["nonce"] or ""),
+                })
+            else:
+                self._json({"error": "not found"}, 404)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except Exception as exc:  # Stub-IdP: Fehler als JSON, nie crashen
+            try:
+                self._json({"error": "server_error", "error_description": repr(exc)[:200]}, 500)
+            except Exception:
+                pass
 
 if __name__ == "__main__":
     print(f"Stub-IdP auf {ISSUER} — Client {CLIENT_ID}, Redirect {REDIRECT}")
-    HTTPServer(("127.0.0.1", 9999), H).serve_forever()
+    ThreadingHTTPServer(("127.0.0.1", 9999), H).serve_forever()
