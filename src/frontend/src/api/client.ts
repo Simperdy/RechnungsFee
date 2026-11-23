@@ -101,6 +101,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   })
   if (!res.ok) {
+    // Server-Modus: Session abgelaufen/fehlend → zum OIDC-Login weiterleiten.
+    // Im Tauri-Modus (lokales Backend ohne Auth) bleibt das bisherige Werfen.
+    if (res.status === 401 && !isTauri()) {
+      window.location.assign('/api/auth/login')
+    }
     const err = await res.json().catch(() => ({ detail: res.statusText }))
     // FastAPI gibt bei 422 ein Array zurück: [{ loc, msg, type }]
     const detail = err.detail
