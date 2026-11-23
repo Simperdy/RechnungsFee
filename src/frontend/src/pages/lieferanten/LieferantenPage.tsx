@@ -572,27 +572,27 @@ export function LieferantenPage() {
   )
 
   return (
-    <div className="flex h-full">
+    <div className="flex flex-col md:flex-row h-full">
 
       {/* ── Linke Spalte ─────────────────────────────────────────────── */}
       <div
-        className={`${showForm ? (manuell ? 'shrink-0' : 'w-1/3 min-w-[260px] shrink-0') : 'flex-1'} flex flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 transition-all`}
+        className={`${showForm ? (manuell ? 'shrink-0 md:shrink-0' : 'w-full md:w-1/3 md:min-w-[260px] shrink-0') : 'flex-1'} w-full md:w-auto flex flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 transition-all`}
         style={showForm && manuell ? { width: splitterBreite, minWidth: '220px' } : undefined}
       >
 
         {/* Header */}
-        <div className="p-6 pb-4 shrink-0">
+        <div className="p-4 md:p-6 md:pb-4 pb-3 shrink-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Lieferanten</h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setImportOffen(true)}
                 title="CSV importieren"
-                className="p-2 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
+                className="min-h-11 min-w-11 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
               >
                 <span className="material-symbols-outlined text-xl">upload_file</span>
               </button>
-              <button onClick={openCreate} className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700">
+              <button onClick={openCreate} className="min-h-11 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700">
                 + Neu
               </button>
             </div>
@@ -603,13 +603,47 @@ export function LieferantenPage() {
             placeholder="Suchen…"
             value={suche}
             onChange={(e) => setSuche(e.target.value)}
-            className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+            className="w-full min-h-11 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
           />
         </div>
 
-        {/* Tabelle */}
-        <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        {/* Tabelle (ab md:) / Karten (mobil) */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-4 md:px-6 pb-6">
+          {/* Mobil: Karten mit großen Touch-Zielen */}
+          {!isLoading && gefiltert.length === 0 && (
+            <p className="md:hidden text-slate-400 dark:text-slate-500 text-sm p-5">{suche ? 'Keine Treffer.' : 'Noch keine Lieferanten angelegt.'}</p>
+          )}
+          {!isLoading && gefiltert.length > 0 && (
+            <div className="md:hidden space-y-2">
+              {gefiltert.map((l) => (
+                <div key={l.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                  <span className="font-medium text-slate-800 dark:text-slate-100 block truncate">{l.firmenname}</span>
+                  {(l.email || l.ort || l.lieferantennummer) && (
+                    <div className="mt-1 text-xs text-slate-500 dark:text-slate-400 space-y-0.5">
+                      {l.email && <p className="truncate">{l.email}</p>}
+                      {l.ort && <p>{[l.plz, l.ort].filter(Boolean).join(' ')}</p>}
+                      {l.lieferantennummer && <p className="font-mono">{l.lieferantennummer}</p>}
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" onClick={() => setSelected(selected?.id === l.id ? null : l)}
+                      className="flex-1 min-h-11 text-sm font-medium border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
+                      Details
+                    </button>
+                    <button type="button" onClick={() => openEdit(l)}
+                      className="flex-1 min-h-11 text-sm font-medium border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
+                      Bearbeiten
+                    </button>
+                    <button type="button" onClick={() => handleDelete(l)}
+                      className="min-h-11 px-3 text-sm font-medium border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950">
+                      Löschen
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
           {isLoading ? (
             <p className="text-slate-400 dark:text-slate-500 text-sm p-5">Lade…</p>
           ) : !gefiltert.length ? (
@@ -663,7 +697,7 @@ export function LieferantenPage() {
               <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{selected.firmenname}</span>
               <button onClick={() => setSelected(null)} className="text-slate-400 hover:text-slate-600 text-sm leading-none">×</button>
             </div>
-            <div className="grid grid-cols-4 gap-2 text-xs">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
               {selected.telefon && (
                 <div><span className="text-slate-400 dark:text-slate-500 block">Telefon</span><span className="text-slate-700 dark:text-slate-200">{selected.telefon}</span></div>
               )}
@@ -693,7 +727,7 @@ export function LieferantenPage() {
 
       {/* ── Rechte Spalte (Detail oder Formular) ─────────────────────── */}
       {!showForm && (
-        <div className="w-[28rem] shrink-0">
+        <div className="flex-1 md:flex-none w-full md:w-[28rem] shrink-0 min-h-0 overflow-y-auto">
           {selected ? (
             <LieferantDetail key={selected.id} lieferant={selected} initialTab={initialDetailTab} />
           ) : (
@@ -706,14 +740,14 @@ export function LieferantenPage() {
 
       {/* ── Formular-Panel ───────────────────────────────────────────── */}
       {showForm && (
-        <div className="flex-1 border-l border-slate-200 dark:border-slate-700 overflow-y-auto">
+        <div className="w-full flex-1 border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-700 overflow-y-auto">
           <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0">
             <h3 className="font-semibold text-slate-800 dark:text-slate-100">
               {editLieferant ? 'Lieferant bearbeiten' : 'Neuer Lieferant'}
             </h3>
-            <button onClick={closeForm} className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 text-xl leading-none">×</button>
+            <button onClick={closeForm} aria-label="Schließen" className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 text-xl leading-none">×</button>
           </div>
-          <div className="p-6 max-w-lg">
+          <div className="p-4 md:p-6 max-w-lg">
             {deleteFehlgeschlagen && (
               <div className="mb-4 bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-800 rounded-lg px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
                 <p className="font-medium">Löschen nicht möglich</p>
@@ -722,7 +756,7 @@ export function LieferantenPage() {
             )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Firmenname *</label>
                   <input type="text" {...register('firmenname')} className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
@@ -738,12 +772,12 @@ export function LieferantenPage() {
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Adresse</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <input type="text" {...register('strasse')} placeholder="Straße" className="col-span-2 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    <input type="text" {...register('strasse')} placeholder="Straße" className="md:col-span-2 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
                     <input type="text" {...register('hausnummer')} placeholder="Nr." className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
                     <input type="text" {...register('plz')} placeholder="PLZ" className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
                     <input type="text" {...register('ort')} placeholder="Ort" className="col-span-2 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
-                    <div className="col-span-3">
+                    <div className="col-span-2 md:col-span-3">
                       <LandCombobox value={watchLand ?? ''} onChange={(code) => setValue('land', code)} />
                     </div>
                   </div>
@@ -791,10 +825,10 @@ export function LieferantenPage() {
               )}
 
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={closeForm} className="flex-1 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
+                <button type="button" onClick={closeForm} className="flex-1 min-h-11 md:min-h-0 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700">
                   Abbrechen
                 </button>
-                <button type="submit" disabled={isPending} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                <button type="submit" disabled={isPending} className="flex-1 min-h-11 md:min-h-0 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
                   {isPending ? 'Speichert…' : 'Speichern'}
                 </button>
               </div>

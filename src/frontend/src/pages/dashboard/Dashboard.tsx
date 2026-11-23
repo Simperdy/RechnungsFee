@@ -245,7 +245,7 @@ function UeberzahlungWidget() {
         {rechnungen.map(r => {
           const ueberzahlung = parseFloat(r.bezahlt_betrag) - parseFloat(r.brutto_gesamt)
           return (
-            <div key={r.id} className="flex items-center justify-between gap-2 text-xs">
+            <div key={r.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-xs">
               <div className="min-w-0">
                 <button
                   onClick={() => navigate(`/rechnungen/${r.id}`)}
@@ -260,14 +260,14 @@ function UeberzahlungWidget() {
               <div className="flex gap-1.5 shrink-0">
                 <button
                   onClick={() => navigate(`/rechnungen/${r.id}`)}
-                  className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap"
+                  className="flex-1 md:flex-none min-h-11 md:min-h-0 px-3 md:px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 whitespace-nowrap"
                 >
                   Gutschrift →
                 </button>
                 <button
                   onClick={() => anerkenneMut.mutate(r.id)}
                   disabled={anerkenneMut.isPending}
-                  className="px-2 py-1 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 rounded hover:bg-amber-100 dark:hover:bg-amber-900/50 whitespace-nowrap disabled:opacity-40"
+                  className="min-h-11 min-w-11 md:min-h-0 md:min-w-0 px-3 md:px-2 py-1 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 whitespace-nowrap disabled:opacity-40"
                 >
                   OK
                 </button>
@@ -1191,7 +1191,7 @@ function CockpitWidget() {
           Zum Cockpit →
         </button>
       </div>
-      <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-slate-700">
+      <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100 dark:divide-slate-700">
         {kpis.map(k => {
           const trend = k.jetzt !== null ? trendPfeil(k.jetzt, k.vj) : null
           return (
@@ -1442,8 +1442,30 @@ export function Dashboard() {
             {letzteEintraege.length === 0 ? (
               <p className="text-slate-400 dark:text-slate-500 text-sm p-5">Keine Buchungen im gewählten Zeitraum.</p>
             ) : (
-              <div className="overflow-y-auto resize-y" style={{ height: '240px', minHeight: '96px' }}>
-                <table className="w-full text-sm">
+              <div className="md:overflow-y-auto md:resize-y" style={{ minHeight: '96px' }}>
+                {/* Mobil: Karten statt enger Tabelle */}
+                <ul className="md:hidden divide-y divide-slate-50 dark:divide-slate-700">
+                  {letzteEintraege.map((e) => (
+                    <li key={e.id} className="min-h-11 px-4 py-2.5">
+                      <div className="flex items-start justify-between gap-2 text-sm">
+                        <span className="text-slate-700 dark:text-slate-200 min-w-0">
+                          {e.beschreibung}
+                          {e.kategorie_kontenart === 'Privat' && (
+                            <span className="ml-1.5 text-[10px] text-purple-500 bg-purple-50 border border-purple-200 rounded px-1 dark:bg-purple-950 dark:border-purple-800">Privat</span>
+                          )}
+                        </span>
+                        <span className={`shrink-0 font-medium ${e.kategorie_kontenart === 'Privat' ? 'text-slate-400' : e.art === 'Einnahme' ? 'text-green-600' : 'text-red-600'}`}>
+                          {e.art === 'Ausgabe' ? '−' : '+'}{formatEuro(e.brutto_betrag)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                        <span>{formatDatum(e.datum)}</span>
+                        <span className="font-mono">{e.belegnr}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <table className="hidden md:table w-full text-sm">
                   <tbody>
                     {letzteEintraege.map((e) => (
                       <tr key={e.id} className="border-b border-slate-50 dark:border-slate-700 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700">
@@ -1471,42 +1493,42 @@ export function Dashboard() {
   }
 
   return (
-    <div className={`p-6 max-w-4xl ${mxAuto}`}>
+    <div className={`p-4 md:p-6 max-w-4xl ${mxAuto}`}>
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Dashboard</h2>
           {/* Konfigurieren */}
           <button onClick={() => setKonfModus(true)} title="Dashboard konfigurieren"
-            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+            className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>settings</span>
           </button>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col md:flex-row md:flex-wrap md:items-center md:justify-between gap-2 mt-3">
+          <div className="flex items-center gap-2 min-h-11 md:min-h-0">
             {filterModus === 'monat' && (
               <input type="month" value={monat} onChange={(e) => setMonat(e.target.value)}
-                className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100" />
+                className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100" />
             )}
             {filterModus === 'datum' && (
               <DateInput value={datum} onChange={setDatum}
-                className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100" />
+                className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100" />
             )}
             {filterModus === 'zeitraum' && (
               <div className="flex items-center gap-2">
                 <DateInput value={datumVon} onChange={setDatumVon}
-                  className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100" />
+                  className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100" />
                 <span className="text-slate-400 dark:text-slate-500 text-sm">bis</span>
                 <DateInput value={datumBis} min={datumVon} onChange={setDatumBis}
-                  className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100" />
+                  className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100" />
               </div>
             )}
           </div>
           {/* Zeitfilter */}
-          <div className="flex rounded-lg border border-slate-300 dark:border-slate-600 overflow-hidden text-sm">
+          <div className="flex w-full md:w-auto rounded-lg border border-slate-300 dark:border-slate-600 overflow-hidden text-sm">
             {(['monat', 'datum', 'zeitraum', 'alle'] as FilterModus[]).map((m) => (
               <button key={m} onClick={() => setFilterModus(m)}
-                className={`px-3 py-1.5 transition-colors ${filterModus === m ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}`}>
+                className={`flex-1 md:flex-none min-h-11 md:min-h-0 px-3 py-1.5 transition-colors ${filterModus === m ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}`}>
                 {m === 'monat' ? 'Monat' : m === 'datum' ? 'Tag' : m === 'zeitraum' ? 'Zeitraum' : 'Jahr'}
               </button>
             ))}
