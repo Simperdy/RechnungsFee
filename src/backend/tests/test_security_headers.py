@@ -127,3 +127,63 @@ async def test_auth_status_ohne_session_200(client):
     r = await client.get("/api/auth/status")
     assert r.status_code == 200
     assert r.json() == {"authenticated": False}
+
+
+@pytest.mark.anyio
+async def test_setup_status_ohne_session_erreichbar(client):
+    """Regression Audit CRITICAL #1: /api/setup/status muss vor dem ersten Login
+    erreichbar sein, sonst bootet ein frisches Volume nie bis zur Anmeldung."""
+    r = await client.get("/api/setup/status")
+    assert r.status_code != 401
+
+
+@pytest.mark.anyio
+async def test_post_ohne_origin_und_referer_403(client, sid):
+    """Regression Audit MEDIUM #6: mutierende Requests ohne Origin UND ohne
+    Referer duerfen nicht auf SameSite=Lax allein vertrauen."""
+    r = await client.post("/api/konten", cookies={"rf_session": sid})
+    assert r.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_post_mit_passendem_referer_ok(client, sid):
+    r = await client.post(
+        "/api/konten",
+        cookies={"rf_session": sid},
+        headers={"Referer": "https://rf.example.org/dashboard"},
+    )
+    assert r.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_post_mit_fremdem_referer_403(client, sid):
+    r = await client.post(
+        "/api/konten",
+        cookies={"rf_session": sid},
+        headers={"Referer": "https://evil.example.org/angriff"},
+    )
+    assert r.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_guard_kein_prefix_trick(client, sid):
+    """Regression: /api/authxx, //api/..., /API/... duerfen nicht als oeffentlich
+    oder geschuetzt durchrutschen - sie haben keine Route und landen im Fallback."""
+    for pfad in ("/api/authxx", "//api/konten", "/API/konten"):
+        r = await client.get(pfad)
+        assert r.status_code in (401, 404), pfad
+
+
+def test_ist_https_hart_true_im_server_modus(monkeypatch):
+    """Regression Audit CRITICAL #2: im Server-Modus immer Secure-Cookie,
+    unabhaengig vom (spoofbaren) X-Forwarded-Proto."""
+    monkeypatch.setattr(server_mode, "SERVER_MODE", True)
+
+    class _Req:
+        url = type("U", (), {"scheme": "http"})()
+        headers = {}
+
+    from api.auth import ist_https
+    assert ist_https(_Req()) is True
+    monkeypatch.setattr(server_mode, "SERVER_MODE", False)
+    assert ist_https(_Req()) is False

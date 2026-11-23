@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from database.connection import get_db, APP_DATA_DIR
 from database.models import Beleg, DokumentenPaket, DokumentenPaketBeleg, Rechnung
+from utils.upload_guard import lies_upload
 
 router = APIRouter(prefix="/api/dokumentenpakete", tags=["Stammdaten"])
 
@@ -176,7 +177,7 @@ async def upload_datei(
     if mime not in ERLAUBTE_MIME_TYPES:
         raise HTTPException(status_code=422, detail=f"Dateityp '{mime}' nicht erlaubt. Erlaubt: PDF, JPEG, PNG.")
 
-    inhalt = await datei.read()
+    inhalt = await lies_upload(datei)
     sha256 = hashlib.sha256(inhalt).hexdigest()
 
     jetzt = datetime.now()

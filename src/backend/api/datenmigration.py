@@ -28,6 +28,7 @@ from api.schemas import (
     ImportMappingVorlageResponse,
 )
 from utils.bank_csv_parser import detect_encoding, detect_delimiter
+from utils.upload_guard import lies_upload
 
 router = APIRouter(prefix="/api/datenmigration", tags=["datenmigration"])
 
@@ -432,7 +433,7 @@ async def spalten_lesen(
     datei: UploadFile = File(...),
     hat_header: bool = Form(True),
 ):
-    raw = await datei.read()
+    raw = await lies_upload(datei)
     spaltennamen, vorschau, delimiter, encoding = _parse_csv_raw(raw, hat_header)
     if not spaltennamen:
         raise HTTPException(400, "CSV ist leer oder konnte nicht gelesen werden.")
@@ -497,7 +498,7 @@ async def import_vorschau(
     if typ not in ("kunden", "lieferanten", "artikel", "gemischt"):
         raise HTTPException(400, f"Unbekannter Typ: {typ}")
 
-    raw = await datei.read()
+    raw = await lies_upload(datei)
     spaltennamen, _, _, _ = _parse_csv_raw(raw, hat_header)
 
     # Alle Zeilen nochmal parsen (vorschau enthält nur 5)

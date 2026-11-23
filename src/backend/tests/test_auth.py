@@ -306,7 +306,8 @@ async def test_callback_lehnt_falschen_state_ab(app):
         await c.get("/api/auth/login")
         r = await c.get("/api/auth/callback?code=abc&state=gefaelscht")
     assert r.status_code == 400
-    assert r.json()["detail"] == "invalid_state"
+    assert "text/html" in r.headers["content-type"]
+    assert "invalid_state" in r.text
 
 
 @pytest.mark.anyio
@@ -314,14 +315,17 @@ async def test_callback_ohne_flow_cookie_ist_400(app):
     async with _client(app) as c:
         r = await c.get("/api/auth/callback?code=abc&state=irgendwas")
     assert r.status_code == 400
-    assert r.json()["detail"] == "invalid_state"
+    assert "invalid_state" in r.text
+    assert "text/html" in r.headers["content-type"]
+    assert "invalid_state" in r.text
 
 
 @pytest.mark.anyio
 async def test_callback_nicht_allowlist_email_403_ohne_session(app, stub_idp, db_factory):
     _, r = await _login_und_callback(app, stub_idp, email="fremd@example.org")
     assert r.status_code == 403
-    assert r.json()["detail"] == "not_allowed"
+    assert "not_allowed" in r.text
+    assert "nicht freigeschaltet" in r.text
     db = db_factory()
     try:
         assert db.query(AuthSession).count() == 0
@@ -333,6 +337,7 @@ async def test_callback_nicht_allowlist_email_403_ohne_session(app, stub_idp, db
 async def test_callback_email_nicht_verifiziert_403(app, stub_idp):
     _, r = await _login_und_callback(app, stub_idp, email_verified=False)
     assert r.status_code == 403
+    assert "not_allowed" in r.text
 
 
 @pytest.mark.anyio
@@ -343,7 +348,7 @@ async def test_callback_falsche_nonce_wird_abgelehnt(app, stub_idp):
         stub_idp.nonce = "voellig-andere-nonce"
         r = await c.get(f"/api/auth/callback?code=abc&state={q['state'][0]}")
     assert r.status_code == 400
-    assert r.json()["detail"] == "login_failed"
+    assert "login_failed" in r.text
 
 
 # ---------------------------------------------------------------------------

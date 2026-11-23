@@ -233,8 +233,17 @@ def oauth_client(config: ServerAuthConfig, transport: httpx.BaseTransport | None
 # ---------------------------------------------------------------------------
 
 def ist_https(request: Request) -> bool:
-    """Secure-Cookie nur ueber TLS. Der TLS-terminierende Proxy (NPM im Homelab)
-    muss ``X-Forwarded-Proto: https`` weiterreichen."""
+    """Secure-Cookie nur ueber TLS.
+
+    Im Server-Modus sitzt immer ein TLS-terminierender Proxy (NPM) davor, der
+    ``X-Forwarded-Proto: https`` setzt. Uvicorn vertraut dem Header aber nur von
+    127.0.0.1 (Default ``--forwarded-allow-ips``) - im Docker-Netz ist die
+    Proxy-IP nicht Loopback, deshalb wird das Flag hier hart auf True gesetzt,
+    sobald wir im Server-Modus laufen (Deployment-Regel: Port 8000 nie direkt
+    erreichbar, immer hinter NPM/TLS)."""
+    import server_mode
+    if server_mode.SERVER_MODE:
+        return True
     if request.url.scheme == "https":
         return True
     return request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower() == "https"
@@ -329,17 +338,25 @@ async def callback(request: Request, code: str | None = None, state: str | None 
                    error: str | None = None, error_description: str | None = None,
                    db: Session = Depends(get_db)):
     """Callback des IdP: state/nonce pruefen, id_token verifizieren, Allowlist pruefen,
-    Session anlegen."""
+    Session anlegen. Das Pending-Cookie wird in jedem Fall am Ende geloescht."""
     config = get_auth_config()
+
+    def _fehler_response(status: int, detail: str, log_msg: str | None = None) -> Response:
+        if log_msg:
+            log.warning("%s", log_msg)
+        resp = _auth_fehlerseite(status, detail)
+        resp.delete_cookie(_PENDING_COOKIE, path="/api/auth", httponly=True, samesite=_LAX)
+        return resp
+
     if error:
-        log.warning("OIDC-Login vom IdP abgebrochen: %s (%s)", error, error_description)
-        raise HTTPException(status_code=400, detail="login_failed")
+        # error_description kommt aus der Query und darf nicht ungefiltert ins Log
+        log.warning("OIDC-Login vom IdP abgebrochen: %r", (error_description or error)[:200])
+        return _fehler_response(400, "login_failed")
 
     pending = lese_pending(request.cookies.get(_PENDING_COOKIE), config.session_secret)
     if not pending or not code or not state or not hmac.compare_digest(str(pending.get("state")), state):
         # state passt nicht zum signierten Flow-Cookie -> CSRF-Versuch oder abgelaufen
-        log.warning("OIDC-Callback: state/Flow-Cookie ungueltig.")
-        raise HTTPException(status_code=400, detail="invalid_state")
+        return _fehler_response(400, "invalid_state", "OIDC-Callback: state/Flow-Cookie ungueltig.")
 
     try:
         client = oauth_client(config)
@@ -356,17 +373,15 @@ async def callback(request: Request, code: str | None = None, state: str | None 
         finally:
             await client.aclose()
     except Exception as exc:  # noqa: BLE001 - authlib wirft diverse OAuthError-Varianten
-        log.warning("OIDC: Token-Tausch/ID-Token-Pruefung fehlgeschlagen: %s", exc)
-        raise HTTPException(status_code=400, detail="login_failed") from exc
+        log.warning("OIDC: Token-Tausch/ID-Token-Pruefung fehlgeschlagen: %r", str(exc)[:200])
+        return _fehler_response(400, "login_failed")
 
     email = str(claims.get("email") or "").strip().lower()
     if not claims.get("email_verified", True):
-        log.warning("OIDC-Login abgelehnt: id_token meldet email_verified=false.")
-        raise HTTPException(status_code=403, detail="not_allowed")
+        return _fehler_response(403, "not_allowed", "OIDC-Login abgelehnt: email_verified=false.")
     if not config.ist_erlaubt(email):
         # Bewusst ohne die Adresse im Log (personenbezogen), nur der Hinweis.
-        log.warning("OIDC-Login abgelehnt: E-Mail nicht in OIDC_ALLOWED_EMAILS.")
-        raise HTTPException(status_code=403, detail="not_allowed")
+        return _fehler_response(403, "not_allowed", "OIDC-Login abgelehnt: E-Mail nicht in OIDC_ALLOWED_EMAILS.")
 
     sid, sitzung = create_session(
         db, email,
@@ -379,6 +394,33 @@ async def callback(request: Request, code: str | None = None, state: str | None 
     response.delete_cookie(_PENDING_COOKIE, path="/api/auth", httponly=True, samesite=_LAX)
     log.info("Server-Modus: Session angelegt (id=%s)", sitzung.id)
     return response
+
+
+_AUTH_FEHLER_SEITE = """<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anmeldung fehlgeschlagen – RechnungsFee</title>
+<style>body{font-family:system-ui,sans-serif;max-width:26rem;margin:3rem auto;padding:0 1rem;color:#1c1917}
+h1{font-size:1.25rem}code{background:#f5f5f4;padding:.1rem .3rem;border-radius:.25rem}
+a{color:#b45309}.hinweis{color:#57534e;font-size:.9rem}</style></head>
+<body><h1>Anmeldung fehlgeschlagen</h1>
+<p class="hinweis">{detail_text}</p>
+<p><code>{detail}</code></p>
+<p><a href="/api/auth/login">Erneut anmelden</a></p></body></html>"""
+
+_DETAIL_TEXTE = {
+    "login_failed": "Der Anmelde-Vorgang beim Identitaetsanbieter ist fehlgeschlagen. Bitte versuche es erneut.",
+    "invalid_state": "Die Anmeldungssitzung ist abgelaufen oder ungueltig. Bitte versuche es erneut.",
+    "not_allowed": "Dieses Konto ist fuer diese RechnungsFee-Instanz nicht freigeschaltet. Bitte wende dich an den Administrator.",
+}
+
+
+def _auth_fehlerseite(status: int, detail: str) -> Response:
+    """Minimale Fehlerseite statt nacktem JSON - der OIDC-Callback ist ein
+    Top-Level-Navigation-Request, JSON sieht der Nutzer nie."""
+    from fastapi.responses import HTMLResponse
+    text = _DETAIL_TEXTE.get(detail, "Unbekannter Fehler.")
+    body = _AUTH_FEHLER_SEITE.replace("{detail_text}", text).replace("{detail}", detail)
+    return HTMLResponse(body, status_code=status, headers={"Cache-Control": "no-store"})
 
 
 @router.get("/logout")

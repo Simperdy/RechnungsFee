@@ -61,6 +61,7 @@ router = APIRouter(prefix="/api/rechnungen", tags=["Rechnungen"])
 # ---------------------------------------------------------------------------
 
 from utils.belegnummer import belegnr_aus_format as _belegnr_aus_format
+from utils.upload_guard import lies_upload
 
 
 def _fmt_menge(n: Decimal) -> str:
@@ -905,7 +906,7 @@ def _entferne_eigene_adresse(ergebnis, db: Session) -> None:
 @router.post("/analysieren", response_model=AnalyseResponse)
 async def analysiere_rechnung(datei: UploadFile = File(...), db: Session = Depends(get_db)):
     """ZUGFeRD / XRechnung aus PDF oder XML extrahieren (keine DB-Änderung)."""
-    inhalt = await datei.read()
+    inhalt = await lies_upload(datei)
     ergebnis = analysiere_datei(datei.filename or "", inhalt)
     _entferne_eigene_adresse(ergebnis, db)
 
@@ -2654,7 +2655,7 @@ async def upload_zugferd_anhang(
     if mime not in ERLAUBTE_MIME_TYPES:
         raise HTTPException(422, f"Dateityp '{mime}' nicht erlaubt.")
 
-    inhalt = await datei.read()
+    inhalt = await lies_upload(datei)
     sha256 = hashlib.sha256(inhalt).hexdigest()
     jetzt = datetime.now()
     ziel_dir = BELEG_DIR / str(jetzt.year) / jetzt.strftime("%m")
@@ -4834,7 +4835,7 @@ async def upload_beleg(rechnung_id: int, datei: UploadFile = File(...), db: Sess
     if mime not in ERLAUBTE_MIME_TYPES:
         raise HTTPException(status_code=422, detail=f"Dateityp '{mime}' nicht erlaubt. Erlaubt: PDF, JPEG, PNG, TIFF.")
 
-    inhalt = await datei.read()
+    inhalt = await lies_upload(datei)
     sha256 = hashlib.sha256(inhalt).hexdigest()
 
     jetzt = datetime.now()

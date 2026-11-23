@@ -45,6 +45,7 @@ from .rechnungen import (
     _satz_ratios_je_satz, _verteile_nach_satz, ausgangs_positionskategorien_aktiv,
 )
 from .schemas import JournalEintragCreate
+from utils.upload_guard import lies_upload
 
 router = APIRouter(prefix="/api/bank-import", tags=["Bank-Import"])
 
@@ -976,7 +977,7 @@ async def vorschau_import(
 ):
     if konto_id is not None and not db.query(Konto).filter(Konto.id == konto_id).first():
         raise HTTPException(status_code=404, detail="Konto nicht gefunden.")
-    raw = await datei.read()
+    raw = await lies_upload(datei)
     return _vorschau_fuer_bytes(raw, konto_id, template_id, db)
 
 

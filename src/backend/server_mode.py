@@ -35,14 +35,17 @@ SPA_DIR = Path(__file__).resolve().parent / "static"
 
 _API_PREFIX = "/api/"
 
-# Im Server-Modus ohne Login erreichbar (Health fuer Docker/NPM, API-Doku hinter NPM-ACL)
+# Im Server-Modus ohne Login erreichbar (Health fuer Docker/NPM, API-Doku hinter NPM-ACL).
+# /api/setup/status liefert nur Booleans (kein Personenbezug) und muss vor dem ersten
+# Login erreichbar sein - sonst bootet ein frisches Volume nie bis zur Anmeldung.
 PUBLIC_PATHS = frozenset({"/health", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"})
-_PUBLIC_PREFIXES = ("/api/auth/",) + tuple(PUBLIC_PATHS)
+_PUBLIC_PREFIXES = ("/api/auth/", "/api/setup/status") + tuple(PUBLIC_PATHS)
 
 # Statische Top-Level-Dateien der SPA (index.html-Fallback deckt den Rest)
 _STATIC_DATEIEN = (
     "favicon.ico", "favicon.png", "manifest.webmanifest", "sw.js", "theme-init.js",
     "registerSW.js", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "robots.txt",
+    "vite.svg", "logo.svg",
 )
 
 # Security-Header fuer jede Antwort. HSTS setzt der TLS-Proxy (NPM), das Backend
@@ -211,13 +214,23 @@ def _same_origin(origin: str, host_header: str, scheme: str, forwarded_proto: st
 
 
 def origin_ist_fremd(headers: Headers, scheme: str) -> bool:
-    """True, wenn ein Origin-Header vorhanden ist und nicht zum Host passt."""
+    """True, wenn ein Origin-Header vorhanden ist und nicht zum Host passt.
+
+    Mutierende Requests ohne Origin UND ohne Referer gelten ebenfalls als fremd:
+    SameSite=Lax allein ist keine zweite Deckung (alte Webviews, Same-Site-Bypass)."""
     origin = headers.get("origin")
-    if not origin:
-        return False
-    if origin.strip() == "null":  # sandboxed iframe / file://
-        return True
-    return not _same_origin(origin, headers.get("host", ""), scheme, headers.get("x-forwarded-proto", ""))
+    if origin:
+        if origin.strip() == "null":  # sandboxed iframe / file://
+            return True
+        return not _same_origin(origin, headers.get("host", ""), scheme, headers.get("x-forwarded-proto", ""))
+    referer = headers.get("referer")
+    if referer:
+        try:
+            teile = urlsplit(referer)
+        except ValueError:
+            return True
+        return teile.netloc.lower() != headers.get("host", "").strip().lower()
+    return True
 
 
 def _setze_session(scope: Scope, sitzung) -> None:
@@ -307,10 +320,26 @@ async def _json_antwort(send: Send, status: int, inhalt: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def limiter_erzeugen():
-    """Limiter ohne Default-Limits (nur explizit begrenzte Pfade). Schluessel ist die
-    Client-IP; hinter dem NPM-Proxy muss dieser ``X-Forwarded-For`` setzen."""
+    """Limiter ohne Default-Limits (nur explizit begrenzte Pfade).
+
+    Schluessel ist die Client-IP. Hinter dem NPM-Proxy steht in
+    ``request.client.host`` nur die Proxy-IP - im Server-Modus wird deshalb die
+    erste IP aus ``X-Forwarded-For`` genommen (NPM setzt den Header immer und
+    ueberschreibt clientseitig hereinkommende Werte). Der Container-Port 8000
+    darf nie direkt erreichbar sein, sonst liesse sich der Header spoofen."""
     from slowapi import Limiter
     from slowapi.util import get_remote_address
+
+    import server_mode
+
+    if server_mode.SERVER_MODE:
+        def key_func(request) -> str:
+            xff = request.headers.get("x-forwarded-for", "")
+            if xff:
+                return xff.split(",")[0].strip()
+            return request.client.host if request.client else "unknown"
+
+        return Limiter(key_func=key_func, default_limits=[])
 
     return Limiter(key_func=get_remote_address, default_limits=[])
 
@@ -362,6 +391,21 @@ def initialisiere(app: FastAPI) -> None:
 
     # 1) Pflicht-Env
     pruefe_konfiguration()
+
+    # 1b) Abgelaufene Auth-Sessions regelmaessig aufraeumen (sonst waechst die
+    # Tabelle unbegrenzt; GoBD-relevant ist nur die Pruefung bei jedem Zugriff).
+    from auth_sessions import purge_abgelaufen
+    from database.connection import SessionLocal
+
+    @app.on_event("startup")
+    def _purge_bei_startup() -> None:
+        db = SessionLocal()
+        try:
+            geloescht = purge_abgelaufen(db)
+            if geloescht:
+                log.info("Server-Modus: %d abgelaufene Auth-Sessions entfernt.", geloescht)
+        finally:
+            db.close()
 
     # 2) Rate-Limit auf /api/auth/login + /callback (10/min/IP)
     app.state.limiter = limiter_erzeugen()

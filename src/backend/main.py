@@ -144,7 +144,13 @@ def _startup_auth_tabelle() -> None:
 
 @app.post("/api/shutdown")
 def shutdown():
-    """Graceful Shutdown – Tauri ruft diesen Endpoint vor dem Update-Installer auf."""
+    """Graceful Shutdown – Tauri ruft diesen Endpoint vor dem Update-Installer auf.
+
+    Im Server-Modus (Docker) deaktiviert: os._exit wuerde den Container killen;
+    Stop/Start ist Aufgabe von Docker/Dockhand."""
+    import server_mode
+    if server_mode.SERVER_MODE:
+        raise HTTPException(status_code=404, detail="Not Found")
     def _exit():
         import time
         time.sleep(0.15)   # Antwort zuerst senden, dann beenden

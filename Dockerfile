@@ -50,4 +50,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Proxy-Header nur von privaten Docker-Netzen vertrauen (NPM sitzt dort). Port 8000
+# darf nie direkt vom Host erreichbar sein - sonst liessen sich X-Forwarded-For/
+# X-Forwarded-Proto spoofen. Im Server-Modus setzt das Backend das Secure-Flag
+# sowieso hart (api/auth.py::ist_https).
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"]
