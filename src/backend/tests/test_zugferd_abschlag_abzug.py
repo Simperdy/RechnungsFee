@@ -13,7 +13,7 @@ from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from database.connection import Base
 from database.models import Rechnung, Rechnungsposition
@@ -27,7 +27,7 @@ UNTERNEHMEN = {
 }
 
 
-def _schlussrechnung_mit_abzug() -> Rechnung:
+def _schlussrechnung_mit_abzug() -> tuple[Rechnung, Session]:
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
@@ -52,13 +52,18 @@ def _schlussrechnung_mit_abzug() -> Rechnung:
     ))
     db.commit()
     db.refresh(r)
-    return r
+    # Session explizit zurueckgeben: Solange der Caller db haelt, bleibt r bound.
+    # Ohne das wird db nach Rueckkehr GC'd -> Session closed -> DetachedInstanceError
+    # beim lazy load von rechnung.kunde in generate_zugferd_xml (nur im Vollauf sichtbar).
+    return r, db
 
 
 def test_kopfsummen_mit_negierter_abzugsposition():
-    rechnung = _schlussrechnung_mit_abzug()
-
-    xml = generate_zugferd_xml(rechnung, UNTERNEHMEN).decode("utf-8")
+    rechnung, db = _schlussrechnung_mit_abzug()
+    try:
+        xml = generate_zugferd_xml(rechnung, UNTERNEHMEN).decode("utf-8")
+    finally:
+        db.close()
 
     assert "<ram:LineTotalAmount>1000.00</ram:LineTotalAmount>" in xml
     assert "<ram:TaxBasisTotalAmount>1000.00</ram:TaxBasisTotalAmount>" in xml
@@ -67,9 +72,11 @@ def test_kopfsummen_mit_negierter_abzugsposition():
 
 
 def test_abzugsposition_erscheint_mit_negativem_vorzeichen_nicht_als_absolutwert():
-    rechnung = _schlussrechnung_mit_abzug()
-
-    xml = generate_zugferd_xml(rechnung, UNTERNEHMEN).decode("utf-8")
+    rechnung, db = _schlussrechnung_mit_abzug()
+    try:
+        xml = generate_zugferd_xml(rechnung, UNTERNEHMEN).decode("utf-8")
+    finally:
+        db.close()
 
     # Die negierte Positionssumme (BT-131) der Abzugszeile muss negativ im XML stehen -
     # würde sie faelschlich als abs() auftauchen, ergäbe die Summe aller Line-Totals
@@ -79,9 +86,11 @@ def test_abzugsposition_erscheint_mit_negativem_vorzeichen_nicht_als_absolutwert
 
 
 def test_kein_crash_bei_negativer_billed_quantity():
-    rechnung = _schlussrechnung_mit_abzug()
-
-    # Darf keine Exception werfen (z.B. durch eine abs()/Validierung, die eine negative
-    # Menge für unmöglich hält).
-    xml_bytes = generate_zugferd_xml(rechnung, UNTERNEHMEN)
+    rechnung, db = _schlussrechnung_mit_abzug()
+    try:
+        # Darf keine Exception werfen (z.B. durch eine abs()/Validierung, die eine negative
+        # Menge für unmöglich hält).
+        xml_bytes = generate_zugferd_xml(rechnung, UNTERNEHMEN)
+    finally:
+        db.close()
     assert len(xml_bytes) > 0
