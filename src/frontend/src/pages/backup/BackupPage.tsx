@@ -340,7 +340,7 @@ function BackupTab() {
               {laedt ? <><span className="animate-spin">⏳</span>Wird erstellt…</> : <>💾 Backup herunterladen</>}
             </button>
             <p className="text-sm text-slate-500 dark:text-slate-400 pt-1.5">
-              Dateiname: <span className="font-mono text-slate-700 dark:text-slate-200">RechnungsFee-Backup-JJJJ-MM-TT.zip</span>
+              Dateiname: <span className="font-mono text-slate-700 dark:text-slate-200 break-all">RechnungsFee-Backup-JJJJ-MM-TT.zip</span>
             </p>
           </div>
 
@@ -469,7 +469,7 @@ function LokaleBackupListe({ onErfolg }: { onErfolg: () => void }) {
               <p className="font-medium text-slate-800 dark:text-slate-100 truncate">
                 {formatTimestamp(eintrag.timestamp)}
               </p>
-              <p className="text-xs text-slate-400 font-mono">{eintrag.dateiname} · {formatBytes(eintrag.groesse)}</p>
+              <p className="text-xs text-slate-400 font-mono break-all">{eintrag.dateiname} · {formatBytes(eintrag.groesse)}</p>
             </div>
             <button
               type="button"
