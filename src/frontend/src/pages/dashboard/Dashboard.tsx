@@ -1390,18 +1390,18 @@ export function Dashboard() {
       case 'kacheln':
         return (
           <div key="kacheln">
-            <div className="grid grid-cols-3 gap-4 mb-2">
-              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Betriebseinnahmen</p>
-                <p className="text-2xl font-bold text-green-600">{loaded ? formatEuro(einnahmen) : '—'}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-2">
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 sm:p-5">
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-1 truncate" title="Betriebseinnahmen">Betriebseinnahmen</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600 whitespace-nowrap">{loaded ? formatEuro(einnahmen) : '—'}</p>
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Betriebsausgaben</p>
-                <p className="text-2xl font-bold text-red-600">{loaded ? formatEuro(ausgaben) : '—'}</p>
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 sm:p-5">
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-1 truncate" title="Betriebsausgaben">Betriebsausgaben</p>
+                <p className="text-xl sm:text-2xl font-bold text-red-600 whitespace-nowrap">{loaded ? formatEuro(ausgaben) : '—'}</p>
               </div>
-              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Saldo</p>
-                <p className={`text-2xl font-bold ${saldo >= 0 ? 'text-blue-600' : 'text-red-700'}`}>{loaded ? formatEuro(saldo) : '—'}</p>
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 sm:p-5">
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-1">Saldo</p>
+                <p className={`text-xl sm:text-2xl font-bold whitespace-nowrap ${saldo >= 0 ? 'text-blue-600' : 'text-red-700'}`}>{loaded ? formatEuro(saldo) : '—'}</p>
               </div>
             </div>
             {hatPrivatbuchungen ? (
