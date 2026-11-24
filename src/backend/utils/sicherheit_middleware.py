@@ -62,13 +62,21 @@ def _hostname(host_header: str) -> str:
 
 
 
-def _ist_proxy_client(headers: dict) -> bool:
-    """True, wenn X-Forwarded-* vom eigenen Proxy stammt — geschätzt über den
-    Host des Requests gegen die erlaubten externen Hosts ist unzuverlässig;
-    hier genügt die Proxy-Kennung (XFP gesetzt) + privater Client (siehe Host-Check)."""
-    return True
+def _ist_proxy_client(scope: dict) -> bool:
+    """True, wenn der Request nachweislich vom eigenen Proxy kam.
 
-def origin_erlaubt(origin: str, headers: dict | None = None) -> bool:
+    uvicorn loest mit --proxy-headers/--forwarded-allow-ips die echte Client-IP
+    in scope['client'] auf. Wir vertrauen X-Forwarded-* nur, wenn diese IP aus
+    dem privaten Proxy-Netz kommt — ein direkter LAN/Docker-Zugriff auf :8000
+    (anderer Container im selben Netz) kann die Header sonst spoofen."""
+    import ipaddress
+    client_ip = (scope.get("client") or ("", 0))[0]
+    try:
+        return ipaddress.ip_address(client_ip).is_private
+    except ValueError:
+        return False
+
+def origin_erlaubt(origin: str, scope: dict | None = None) -> bool:
     origin = origin.strip().lower()
     if origin in _ERLAUBTE_ORIGINS:
         return True
@@ -86,9 +94,12 @@ def origin_erlaubt(origin: str, headers: dict | None = None) -> bool:
     # selbst vom Proxy kam (X-Forwarded-Proto), dann ist same-origin garantiert.
     # Server-Modus: fremde Origin nur erlauben, wenn der Request nachweislich
     # vom eigenen Proxy kam — X-Forwarded-Proto allein ist spoofbar, deshalb
-    # zusaetzlich die Client-IP gegen das private Proxy-Netz pruefen.
-    if server_mode.SERVER_MODE and headers and headers.get("x-forwarded-proto") and _ist_proxy_client(headers):
-        return True
+    # zusaetzlich die echte Client-IP aus scope['client'] gegen das private
+    # Proxy-Netz pruefen (siehe _ist_proxy_client).
+    if server_mode.SERVER_MODE and scope is not None:
+        headers = scope.get("headers") or {}
+        if any(k.lower() == b"x-forwarded-proto" for k, _ in headers) and _ist_proxy_client(scope):
+            return True
     return False
 
 
@@ -135,7 +146,7 @@ class SicherheitMiddleware:
                 return
 
         origin = headers.get("origin")
-        if scope.get("method", "GET") not in _LESEND and origin is not None and not origin_erlaubt(origin, headers):
+        if scope.get("method", "GET") not in _LESEND and origin is not None and not origin_erlaubt(origin, scope):
             await _abweisen(send, 403, "Anfrage von fremder Herkunft abgelehnt.")
             return
 

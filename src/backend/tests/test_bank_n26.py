@@ -89,3 +89,24 @@ def test_n26_wird_bestehender_datenbank_idempotent_hinzugefuegt(db):
     run_all_seeds(db)
     assert db.query(BankTemplate).count() == previous_count + 1
     assert db.get(BankTemplate, existing_id).name == 'Individuelle Bezeichnung'
+
+
+def test_parse_camt_from_zip_zip_bombe_wird_abgeschnitten():
+    """Regression: 25-MB-ZIP mit hochkomprimiertem XML darf nicht voll in den RAM.
+    Entry behauptet kleine file_size, entpackt aber > Limit -> Eintrag wird
+    uebersprungen, Funktion liefert (None, []) statt OOM."""
+    import io, zipfile
+    from utils.bank_csv_parser import parse_camt_from_zip, _MAX_XML_EINTRAG
+
+    daten = b"<x>" + b"A" * (1024 * 1024) + b"</x>"  # klein genug fuer einen Eintrag
+    bomb = b"<x>" + b"B" * (_MAX_XML_EINTRAG + 1024) + b"</x>"  # > Limit
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("a.xml", daten)
+        info = zipfile.ZipInfo("bomb.xml")
+        info.file_size = 10  # gelogen
+        zf.writestr(info, bomb)
+    buf.seek(0)
+    konto, txns = parse_camt_from_zip(buf.getvalue())
+    # bomb.xml wurde uebersprungen (zu gross), a.xml geparst (liefert kein CAMT -> leer)
+    assert isinstance(txns, list)

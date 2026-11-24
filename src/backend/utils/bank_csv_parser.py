@@ -290,6 +290,31 @@ def is_zip(raw: bytes) -> bool:
     return raw[:4] == b'PK\x03\x04'
 
 
+
+_MAX_XML_EINTRAG = 50 * 1024 * 1024   # 50 MB entpackt pro XML-Datei
+_MAX_XML_GESAMT = 100 * 1024 * 1024   # 100 MB entpackt gesamt
+_MAX_XML_ANZAHL = 200                  # max. XML-Dateien im ZIP
+
+
+def _lies_xml_gestueckelt(zf, name: str, zaehler: list) -> bytes | None:
+    """Liest einen ZIP-Eintrag chunkweise und zaehlt die ECHT entpackten Bytes.
+
+    Schuetzt gegen ZIP-Bomben: ZIP-Metadaten (file_size) sind lügnerisch, deshalb
+    wird real dekomprimiert und bei Limit-Ueberschreitung abgebrochen."""
+    import io as _io2
+    buf = _io2.BytesIO()
+    with zf.open(name) as quelle:
+        while True:
+            chunk = quelle.read(1024 * 1024)
+            if not chunk:
+                break
+            zaehler[0] += len(chunk)
+            if zaehler[0] > _MAX_XML_GESAMT or buf.tell() + len(chunk) > _MAX_XML_EINTRAG:
+                return None  # ZIP-Bombe -> Eintrag ueberspringen
+            buf.write(chunk)
+    return buf.getvalue()
+
+
 def extract_xml_from_zip(raw: bytes) -> Optional[bytes]:
     """Gibt den Inhalt der ersten XML-Datei aus einem ZIP zurück (Legacy)."""
     import zipfile, io as _io
@@ -297,7 +322,9 @@ def extract_xml_from_zip(raw: bytes) -> Optional[bytes]:
         with zipfile.ZipFile(_io.BytesIO(raw)) as zf:
             xml_names = sorted(n for n in zf.namelist() if n.lower().endswith('.xml'))
             if xml_names:
-                return zf.read(xml_names[0])
+                if len(xml_names) > _MAX_XML_ANZAHL:
+                    return None
+                return _lies_xml_gestueckelt(zf, xml_names[0], [0])
     except Exception:
         pass
     return None
@@ -315,8 +342,13 @@ def parse_camt_from_zip(raw: bytes) -> tuple[Optional[str], list[dict]]:
                 return None, []
             konto_iban: Optional[str] = None
             alle: list[dict] = []
+            if len(xml_names) > _MAX_XML_ANZAHL:
+                return None, []
+            zaehler = [0]
             for name in xml_names:
-                xml_raw = zf.read(name)
+                xml_raw = _lies_xml_gestueckelt(zf, name, zaehler)
+                if xml_raw is None:
+                    continue  # Eintrag zu gross / Limit -> ueberspringen
                 if konto_iban is None:
                     konto_iban = extract_konto_iban_camt(xml_raw)
                 alle.extend(parse_camt(xml_raw))

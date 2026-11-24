@@ -25,7 +25,6 @@ from database.connection import Base
 COOKIE_NAME = "rf_session"
 SESSION_TTL = timedelta(hours=8)
 # Renewal erst nach 1 h ohne Verlaengerung schreiben (begrenzt DB-Writes)
-RENEWAL_INTERVALL = timedelta(hours=1)  # Doku: Renewal-Schwelle ist SESSION_TTL/2 (siehe get_session)
 
 _SID_BYTES = 32  # 256 Bit
 
@@ -82,7 +81,7 @@ def create_session(
 
 def get_session(db: Session, sid: str | None) -> AuthSession | None:
     """Gueltige (nicht abgelaufene, nicht revokierte) Session zur SID - sonst None.
-    Verlaengert ``expires_at`` per Sliding Renewal (gedrosselt durch RENEWAL_INTERVALL)."""
+    Verlaengert ``expires_at`` per Sliding Renewal — erst ab der zweiten Haelfte der Laufzeit (SESSION_TTL/2), damit nicht jeder Request schreibt."""
     if not sid:
         return None
     zeile = db.execute(
@@ -118,7 +117,11 @@ def purge_abgelaufen(db: Session, *, behalte_tage: int = 30) -> int:
     """Loescht Sessions, die laenger als ``behalte_tage`` abgelaufen sind (Aufraeumen;
     keine Buchungsdaten). Rueckgabe: Anzahl geloeschter Zeilen."""
     grenze = _jetzt() - timedelta(days=behalte_tage)
-    alte = db.execute(select(AuthSession).where(AuthSession.expires_at < grenze)).scalars().all()
+    # Abgelaufen ODER revokiert (Logout) — revokierte Zeilen duerfen nicht bis
+    # expires_at + behalte_tage liegen bleiben (DSGVO: E-Mail personenbezogen).
+    alte = db.execute(select(AuthSession).where(
+        (AuthSession.expires_at < grenze) | (AuthSession.revoked_at < grenze)
+    )).scalars().all()
     for zeile in alte:
         db.delete(zeile)
     if alte:
@@ -127,6 +130,6 @@ def purge_abgelaufen(db: Session, *, behalte_tage: int = 30) -> int:
 
 
 __all__ = [
-    "AuthSession", "COOKIE_NAME", "SESSION_TTL", "RENEWAL_INTERVALL", "create_session",
+    "AuthSession", "COOKIE_NAME", "SESSION_TTL", "create_session",
     "get_session", "revoke_session", "purge_abgelaufen", "sid_hash",
 ]
