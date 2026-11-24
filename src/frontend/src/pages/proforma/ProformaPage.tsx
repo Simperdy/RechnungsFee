@@ -1440,7 +1440,7 @@ export function ProformaPage() {
 
       {/* Detail-Panel */}
       {!formModus && selected && (
-        <div className="hidden md:block w-[28rem] shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-y-auto">
+        <div className={`${selectedId ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0} border-l border-slate-200 dark:border-slate-700 overflow-y-auto`}>
           <ProformaDetail
             proforma={selected}
             onEdit={() => setFormModus('bearbeiten')}

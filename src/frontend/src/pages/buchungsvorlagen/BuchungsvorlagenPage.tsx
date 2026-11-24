@@ -899,7 +899,7 @@ export default function BuchungsvorlagenPage() {
 
       {/* Rechte Spalte – Detail (schmal) */}
       {formModus === null && selVorlage && (
-        <div className="hidden md:block w-[28rem] shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-y-auto p-6">
+        <div className={`${selVorlage ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0} border-l border-slate-200 dark:border-slate-700 overflow-y-auto p-6`}>
           <VorlageDetail
             vorlage={selVorlage}
             onBearbeiten={() => setFormModus('bearbeiten')}

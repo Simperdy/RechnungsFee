@@ -468,7 +468,7 @@ export function AnlageverzeichnisPage() {
 
       {/* Rechte Spalte – Detail */}
       {formModus === null && selGut && (
-        <div className="hidden md:block w-[28rem] shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-y-auto p-5">
+        <div className={`${selId ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0} border-l border-slate-200 dark:border-slate-700 overflow-y-auto p-5`}>
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="font-semibold text-slate-800 dark:text-slate-100 text-sm">{selGut.bezeichnung}</h2>
