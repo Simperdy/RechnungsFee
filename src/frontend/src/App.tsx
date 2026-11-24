@@ -60,6 +60,25 @@ function AppRoutes() {
     retryDelay: 500,
   })
 
+  // Server-Modus (Web, nicht Tauri): ohne gültige Session direkt zum OIDC-Login –
+  // auch vor dem Setup, sonst sieht man den Wizard ohne Auth.
+  const { data: authStatus } = useQuery({
+    queryKey: ['auth-status'],
+    queryFn: async () => {
+      const res = await fetch('/api/auth/status')
+      if (!res.ok) return { authenticated: false }
+      return res.json() as Promise<{ authenticated: boolean }>
+    },
+    enabled: !isTauri(),
+    retry: false,
+    staleTime: 0,
+  })
+  useEffect(() => {
+    if (!isTauri() && authStatus && !authStatus.authenticated) {
+      window.location.assign('/api/auth/login')
+    }
+  }, [authStatus])
+
   // Zeigt nach 8 s einen Hinweis: erster Start nach einem Update dauert länger
   const [longWait, setLongWait] = useState(false)
   useEffect(() => {
