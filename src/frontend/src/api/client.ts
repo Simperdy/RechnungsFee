@@ -1204,7 +1204,12 @@ export async function uploadBackupWiederherstellen(datei: File, passwort?: strin
   const res = await apiFetch(`${base}/backup/wiederherstellen`, { method: 'POST', body: form })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail ?? 'Wiederherstellung fehlgeschlagen')
+    // Proxy-Fehler (z.B. nginx 413 "Request Entity Too Large") liefern HTML statt JSON
+    if (!err.detail) {
+      if (res.status === 413) throw new Error('Backup zu groß für den Proxy (413) – client_max_body_size erhöhen')
+      throw new Error(`Wiederherstellung fehlgeschlagen (HTTP ${res.status})`)
+    }
+    throw new Error(err.detail)
   }
 }
 
