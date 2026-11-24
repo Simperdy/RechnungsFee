@@ -99,7 +99,7 @@ function KalenderDropdown({ value, min, max, onSelect, onClose }: KalenderDropdo
   return (
     <div
       ref={ref}
-      className="absolute z-50 right-0 mt-1 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg p-3"
+      className="absolute z-50 right-0 mt-1 w-64 max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg p-3"
     >
       <div className="flex items-center justify-between mb-2">
         <button type="button" onClick={vorMonat} tabIndex={-1} className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">‹</button>
