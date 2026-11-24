@@ -88,9 +88,16 @@ def lade_config(env: dict[str, str] | None = None) -> ServerAuthConfig:
             "Siehe src/backend/.env.server.example (nur Schluessel, keine Werte)."
         )
     issuer = quelle["OIDC_ISSUER"].strip()
-    if not (issuer.startswith("https://") or issuer.startswith("http://localhost")):
+    # Lokale Tests erlaubt: http://localhost ODER http://<beliebige-IP> (z. B. LAN-IP
+    # mit Stub-IdP im selben Netz). Produktion: https-Pflicht bleibt bestehen, weil
+    # nur https:// und explizit http://localhost|127.*|192.168.*|10.*|172.16-31.*
+    # als "lokal" gelten.
+    _lokal = issuer.startswith("http://localhost") or any(
+        issuer.startswith(f"http://{p}") for p in ("127.", "192.168.", "10.")
+    ) or (issuer.startswith("http://172.") and 16 <= int(issuer.split("//")[1].split(".")[1].split(":")[0]) <= 31)
+    if not (issuer.startswith("https://") or _lokal):
         raise AuthKonfigFehler(
-            f"Server-Modus: OIDC_ISSUER muss https sein (oder http://localhost fuer lokale Tests), ist {issuer!r}"
+            f"Server-Modus: OIDC_ISSUER muss https sein (oder http://localhost/<private IP> fuer lokale Tests), ist {issuer!r}"
         )
     emails = frozenset(e.strip().lower() for e in quelle["OIDC_ALLOWED_EMAILS"].split(",") if e.strip())
     if not emails:

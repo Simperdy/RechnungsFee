@@ -9,6 +9,7 @@ Start:  python3 stub_idp.py   (läuft auf 127.0.0.1:9999)
 import base64
 import hashlib
 import json
+import os
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -17,9 +18,13 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from jwcrypto import jwk  # falls nicht vorhanden: siehe requirements-Hinweis unten
 
-ISSUER = "http://localhost:9999"
-CLIENT_ID = "rechnungsfee-test"
-REDIRECT = "http://127.0.0.1:8000/api/auth/callback"
+# Per Env uebersteuerbar, damit der Stub auch auf LAN-IP erreichbar ist
+# (z. B. STUB_ISSUER=http://192.168.66.203:9999 STUB_REDIRECT=https://192.168.66.203:8443/api/auth/callback)
+ISSUER = os.environ.get("STUB_ISSUER", "http://localhost:9999")
+CLIENT_ID = os.environ.get("STUB_CLIENT_ID", "rechnungsfee-test")
+REDIRECT = os.environ.get("STUB_REDIRECT", "http://127.0.0.1:8000/api/auth/callback")
+_BIND = os.environ.get("STUB_BIND", "127.0.0.1")
+_PORT = int(os.environ.get("STUB_PORT", "9999"))
 
 _key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 _priv_pem = _key.private_bytes(
@@ -133,4 +138,4 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     print(f"Stub-IdP auf {ISSUER} — Client {CLIENT_ID}, Redirect {REDIRECT}")
-    ThreadingHTTPServer(("127.0.0.1", 9999), H).serve_forever()
+    ThreadingHTTPServer((_BIND, _PORT), H).serve_forever()
