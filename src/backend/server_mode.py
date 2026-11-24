@@ -197,20 +197,50 @@ def ist_geschuetzt(path: str) -> bool:
 def _same_origin(origin: str, host_header: str, scheme: str, forwarded_proto: str) -> bool:
     """Origin gegen Host vergleichen. Das Schema zaehlt nur, wenn es eindeutig ist
     (echtes https oder ``X-Forwarded-Proto: https`` vom TLS-Proxy); hinter einem
-    reinen HTTP-LAN-Zugriff waere ein erzwungener https-Vergleich ein Fehlalarm."""
+    reinen HTTP-LAN-Zugriff waere ein erzwungener https-Vergleich ein Fehlalarm.
+
+    Der Port wird nur verglichen, wenn BEIDE Seiten einen expliziten Port haben:
+    Proxies wie nginx ``proxy_set_header Host $host`` oder NPM strippen den Port
+    aus dem Host-Header, der Browser schickt ihn im Origin aber mit (z.B.
+    Origin ``https://host:8443`` vs. Host ``host``). Ohne Port-Abgleich waere jeder
+    Request hinter solchem Proxy ein Fehlalarm (403 cross_origin_forbidden)."""
     try:
         teile = urlsplit(origin)
     except ValueError:
         return False
     if not teile.scheme or not teile.netloc:
         return False
-    if teile.netloc.lower() != host_header.strip().lower():
+    if not _host_netloc_gleich(teile.netloc, host_header.strip()):
         return False
     if (forwarded_proto or "").strip().lower().split(",")[0] == "https" and teile.scheme.lower() != "https":
         return False
     if scheme.lower() == "https" and teile.scheme.lower() != "https":
         return False
     return True
+
+
+def _host_netloc_gleich(origin_netloc: str, host_header: str) -> bool:
+    """Vergleicht host[:port] – Port nur wenn beide einen haben (Default-Ports gelten als gleich)."""
+    def _split(netloc: str):
+        # IPv6 in Klammern: [::1]:8443
+        if netloc.startswith("["):
+            ende = netloc.find("]")
+            host = netloc[1:ende]
+            rest = netloc[ende + 1:]
+            port = rest[1:] if rest.startswith(":") else ""
+            return host.lower(), port
+        host, _, port = netloc.partition(":")
+        return host.lower(), port
+
+    o_host, o_port = _split(origin_netloc)
+    h_host, h_port = _split(host_header)
+    if o_host != h_host:
+        return False
+    # Ein Port auf einer Seite fehlt (Proxy hat ihn gestrippt) -> Hosts gleich,
+    # Port nicht vergleichbar -> akzeptieren. Default-Ports gelten als leer.
+    if o_port in ("", "443", "80") or h_port in ("", "443", "80"):
+        return True
+    return o_port == h_port
 
 
 def origin_ist_fremd(headers: Headers, scheme: str) -> bool:
@@ -229,7 +259,7 @@ def origin_ist_fremd(headers: Headers, scheme: str) -> bool:
             teile = urlsplit(referer)
         except ValueError:
             return True
-        return teile.netloc.lower() != headers.get("host", "").strip().lower()
+        return not _host_netloc_gleich(teile.netloc, headers.get("host", "").strip())
     return True
 
 

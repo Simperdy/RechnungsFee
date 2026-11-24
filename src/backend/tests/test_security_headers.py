@@ -187,3 +187,39 @@ def test_ist_https_hart_true_im_server_modus(monkeypatch):
     assert ist_https(_Req()) is True
     monkeypatch.setattr(server_mode, "SERVER_MODE", False)
     assert ist_https(_Req()) is False
+
+
+# --- Regression: Port-Abgleich im CSRF-Check -------------------------------
+# Proxies (nginx `proxy_set_header Host $host`, NPM) strippen den Port aus dem
+# Host-Header; der Browser schickt ihn im Origin aber mit. Ohne Port-Abgleich
+# kam jeder POST hinter solchem Proxy als 403 cross_origin_forbidden zurück.
+def test_host_netloc_gleich_port_nur_wenn_beide_haben():
+    from server_mode import _host_netloc_gleich
+    # Proxy strippt Port: Origin mit :8443, Host ohne -> OK
+    assert _host_netloc_gleich("192.168.66.203:8443", "192.168.66.203") is True
+    assert _host_netloc_gleich("host.example.org:8443", "host.example.org") is True
+    # beide mit gleichem Port -> OK
+    assert _host_netloc_gleich("host:8443", "host:8443") is True
+    # beide ohne Port -> OK
+    assert _host_netloc_gleich("host", "host") is True
+    # Default-Ports gelten als gleich
+    assert _host_netloc_gleich("host:443", "host") is True
+    assert _host_netloc_gleich("host", "host:80") is True
+    # verschiedene Ports -> fremd
+    assert _host_netloc_gleich("host:8443", "host:9000") is False
+    # verschiedener Host -> fremd
+    assert _host_netloc_gleich("evil.example.org:8443", "host:8443") is False
+    # IPv6
+    assert _host_netloc_gleich("[::1]:8443", "[::1]") is True
+    assert _host_netloc_gleich("[::1]:8443", "[::2]") is False
+
+
+def test_same_origin_hinter_proxy_mit_port_im_origin():
+    from server_mode import _same_origin
+    # nginx-Szenario: Browser-Origin mit Port, Host-Header ohne Port (TLS-Proxy)
+    assert _same_origin("https://192.168.66.203:8443", "192.168.66.203", "http", "https") is True
+    # direkt (kein Proxy): Origin und Host beide mit Port
+    assert _same_origin("https://host:8443", "host:8443", "https", "") is True
+    # wirklich fremd bleibt fremd
+    assert _same_origin("https://evil.org:8443", "host", "http", "https") is False
+    assert _same_origin("https://host:9999", "host:8443", "http", "") is False
