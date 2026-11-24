@@ -218,7 +218,7 @@ async def test_login_redirectet_mit_state_und_pkce(app):
     assert len(q["state"][0]) >= 32 and len(q["nonce"][0]) >= 32
     assert len(q["code_challenge"][0]) == 43  # base64url(SHA-256) ohne Padding
 
-    cookie = [h for h in r.headers.get_list("set-cookie") if h.startswith("rf_oidc_pending=")][0]
+    cookie = [h for h in r.headers.get_list("set-cookie") if h.startswith("rf_oidc_pending_")][0]
     assert "HttpOnly" in cookie
     assert "samesite=lax" in cookie.lower()
     assert "Path=/api/auth" in cookie

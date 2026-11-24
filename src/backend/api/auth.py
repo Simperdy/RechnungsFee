@@ -129,7 +129,7 @@ def lade_config(env: dict[str, str] | None = None) -> ServerAuthConfig:
 # Signierter Flow-State (state, nonce, code_verifier)
 # ---------------------------------------------------------------------------
 
-_PENDING_COOKIE = "rf_oidc_pending"
+_PENDING_COOKIE_PREFIX = "rf_oidc_pending_"  # + state[:16]: parallele Flows kollidieren nicht
 _PENDING_MAX_ALTER = 600  # 10 min ab login; laenger dauert kein Login
 
 
@@ -369,7 +369,7 @@ def login(request: Request):
     response = RedirectResponse(url, status_code=302)
     response.headers["Cache-Control"] = "no-store"
     response.set_cookie(
-        _PENDING_COOKIE,
+        _PENDING_COOKIE_PREFIX + state[:16],
         signiere_pending(
             {"state": state, "nonce": nonce, "verifier": verifier, "iat": int(time.time())},
             config.session_secret,
@@ -392,11 +392,13 @@ async def callback(request: Request, code: str | None = None, state: str | None 
     Session anlegen. Das Pending-Cookie wird in jedem Fall am Ende geloescht."""
     config = get_auth_config()
 
+    cookie_name = _PENDING_COOKIE_PREFIX + (state or "")[:16] if state else _PENDING_COOKIE_PREFIX
+
     def _fehler_response(status: int, detail: str, log_msg: str | None = None) -> Response:
         if log_msg:
             log.warning("%s", log_msg)
         resp = _auth_fehlerseite(status, detail)
-        resp.delete_cookie(_PENDING_COOKIE, path="/api/auth", httponly=True, samesite=_LAX)
+        resp.delete_cookie(cookie_name, path="/api/auth", httponly=True, samesite=_LAX)
         return resp
 
     if error:
@@ -404,10 +406,14 @@ async def callback(request: Request, code: str | None = None, state: str | None 
         log.warning("OIDC-Login vom IdP abgebrochen: %r", (error_description or error)[:200])
         return _fehler_response(400, "login_failed")
 
-    pending = lese_pending(request.cookies.get(_PENDING_COOKIE), config.session_secret)
+    # Pro Flow eindeutig benanntes Cookie — parallele Logins (zweiter Tab/Geraet)
+    # ueberschreiben sich nicht gegenseitig.
+    pending = lese_pending(request.cookies.get(cookie_name), config.session_secret)
     if not pending or not code or not state or not hmac.compare_digest(str(pending.get("state")), state):
         # state passt nicht zum signierten Flow-Cookie -> CSRF-Versuch oder abgelaufen
-        return _fehler_response(400, "invalid_state", "OIDC-Callback: state/Flow-Cookie ungueltig.")
+        resp = _fehler_response(400, "invalid_state", "OIDC-Callback: state/Flow-Cookie ungueltig.")
+        resp.delete_cookie(cookie_name, path="/api/auth", httponly=True, samesite=_LAX)
+        return resp
 
     try:
         client = oauth_client(config)
@@ -440,7 +446,7 @@ async def callback(request: Request, code: str | None = None, state: str | None 
         return _fehler_response(400, "login_failed")
 
     email = str(claims.get("email") or "").strip().lower()
-    if not claims.get("email_verified", False):  # fail-closed: fehlender Claim = nicht verifiziert
+    if claims.get("email_verified") is not True:  # strikt boolesch, fail-closed (fehlend/"true"/1 ablehnen)
         return _fehler_response(403, "not_allowed", "OIDC-Login abgelehnt: email_verified=false.")
     if not config.ist_erlaubt(email):
         # Bewusst ohne die Adresse im Log (personenbezogen), nur der Hinweis.
@@ -454,7 +460,7 @@ async def callback(request: Request, code: str | None = None, state: str | None 
     response = RedirectResponse("/", status_code=302)
     response.headers["Cache-Control"] = "no-store"
     response.set_cookie(**session_cookie_params(sid, request))
-    response.delete_cookie(_PENDING_COOKIE, path="/api/auth", httponly=True, samesite=_LAX)
+    response.delete_cookie(cookie_name, path="/api/auth", httponly=True, samesite=_LAX)
     log.info("Server-Modus: Session angelegt (id=%s)", sitzung.id)
     return response
 

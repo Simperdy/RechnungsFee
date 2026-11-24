@@ -242,11 +242,30 @@ def _host_netloc_gleich(origin_netloc: str, host_header: str) -> bool:
     h_host, h_port = _split(host_header)
     if o_host != h_host:
         return False
-    # Ein Port auf einer Seite fehlt (Proxy hat ihn gestrippt) -> Hosts gleich,
-    # Port nicht vergleichbar -> akzeptieren. Default-Ports gelten als leer.
-    if o_port in ("", "443", "80") or h_port in ("", "443", "80"):
+    # Port-Regel: nur wenn BEIDE einen Port mitsenden, muessen sie uebereinstimmen.
+    # Fehlt auf einer Seite der Port, pruefen wir gegen den konfigurierten
+    # oeffentlichen Port (RECHNUNGSFEE_PUBLIC_PORT, z. B. 443 hinter NPM) bzw.
+    # den Default-Port des Schemas — ein beliebiger anderer Port (anderer Dienst
+    # auf gleichem Host) gilt dann als fremd. Ohne Konfig bleiben wir strikt:
+    # fehlender Port auf einer Seite akzeptiert nur den jeweiligen Default-Port
+    # (443/https, 80/http) des anderen.
+    import os
+    public_port = os.environ.get("RECHNUNGSFEE_PUBLIC_PORT", "").strip()
+    if o_port and h_port:
+        return o_port == h_port
+    # Eine Seite portlos: nur der konfigurierte oeffentliche Port gilt als gleich
+    # (Default-Ports 443/https bzw. 80/http werden als leer normalisiert).
+    o_eff = o_port or ("443" if public_port == "" else public_port)
+    h_eff = h_port or ("443" if public_port == "" else public_port)
+    if public_port:
+        return o_eff == public_port and h_eff == public_port
+    # Ohne PUBLIC_PORT-Konfig: Default-Ports akzeptieren, sonst strikt ablehnen —
+    # ein Dienst auf anderem Port desselben Hosts ist dann fremd (CSRF-Schutz).
+    if o_port in ("", "443") and h_port in ("", "443"):
         return True
-    return o_port == h_port
+    if o_port in ("", "80") and h_port in ("", "80"):
+        return True
+    return False
 
 
 def origin_ist_fremd(headers: Headers, scheme: str) -> bool:
@@ -370,9 +389,11 @@ def limiter_erzeugen():
 
     if server_mode.SERVER_MODE:
         def key_func(request) -> str:
-            xff = request.headers.get("x-forwarded-for", "")
-            if xff:
-                return xff.split(",")[0].strip()
+            # XFF nur vom vertrauenswuerdigen Proxy (uvicorn loest via
+            # --forwarded-allow-ips die echte Client-IP in request.client auf).
+            # Direkter LAN-Zugriff auf :8000 kann XFF sonst spoofen und das
+            # 10/min-Limit auf login/callback umgehen -> deshalb IMMER die
+            # aufgelöste Client-IP, XFF wird ignoriert.
             return request.client.host if request.client else "unknown"
 
         return Limiter(key_func=key_func, default_limits=[])

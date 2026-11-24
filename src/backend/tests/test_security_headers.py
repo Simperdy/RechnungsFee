@@ -193,11 +193,17 @@ def test_ist_https_hart_true_im_server_modus(monkeypatch):
 # Proxies (nginx `proxy_set_header Host $host`, NPM) strippen den Port aus dem
 # Host-Header; der Browser schickt ihn im Origin aber mit. Ohne Port-Abgleich
 # kam jeder POST hinter solchem Proxy als 403 cross_origin_forbidden zurück.
-def test_host_netloc_gleich_port_nur_wenn_beide_haben():
+def test_host_netloc_gleich_port_nur_wenn_beide_haben(monkeypatch):
     from server_mode import _host_netloc_gleich
-    # Proxy strippt Port: Origin mit :8443, Host ohne -> OK
+    monkeypatch.delenv("RECHNUNGSFEE_PUBLIC_PORT", raising=False)
+    # Proxy strippt Port: Origin mit :8443, Host ohne -> FREMD (CSRF-Schutz, Runde 4).
+    # Erlaubt nur mit explizitem RECHNUNGSFEE_PUBLIC_PORT (siehe naechster Test).
+    assert _host_netloc_gleich("192.168.66.203:8443", "192.168.66.203") is False
+    assert _host_netloc_gleich("host.example.org:8443", "host.example.org") is False
+    monkeypatch.setenv("RECHNUNGSFEE_PUBLIC_PORT", "8443")
     assert _host_netloc_gleich("192.168.66.203:8443", "192.168.66.203") is True
     assert _host_netloc_gleich("host.example.org:8443", "host.example.org") is True
+    monkeypatch.delenv("RECHNUNGSFEE_PUBLIC_PORT", raising=False)
     # beide mit gleichem Port -> OK
     assert _host_netloc_gleich("host:8443", "host:8443") is True
     # beide ohne Port -> OK
@@ -210,14 +216,20 @@ def test_host_netloc_gleich_port_nur_wenn_beide_haben():
     # verschiedener Host -> fremd
     assert _host_netloc_gleich("evil.example.org:8443", "host:8443") is False
     # IPv6
+    monkeypatch.setenv("RECHNUNGSFEE_PUBLIC_PORT", "8443")
     assert _host_netloc_gleich("[::1]:8443", "[::1]") is True
+    monkeypatch.delenv("RECHNUNGSFEE_PUBLIC_PORT", raising=False)
     assert _host_netloc_gleich("[::1]:8443", "[::2]") is False
 
 
-def test_same_origin_hinter_proxy_mit_port_im_origin():
+def test_same_origin_hinter_proxy_mit_port_im_origin(monkeypatch):
     from server_mode import _same_origin
-    # nginx-Szenario: Browser-Origin mit Port, Host-Header ohne Port (TLS-Proxy)
+    # nginx-Szenario mit RECHNUNGSFEE_PUBLIC_PORT: Browser-Origin mit Port, Host ohne
+    monkeypatch.setenv("RECHNUNGSFEE_PUBLIC_PORT", "8443")
     assert _same_origin("https://192.168.66.203:8443", "192.168.66.203", "http", "https") is True
+    monkeypatch.delenv("RECHNUNGSFEE_PUBLIC_PORT", raising=False)
+    # ohne PUBLIC_PORT-Konfig: portloser Host + Origin mit anderem Port -> fremd
+    assert _same_origin("https://192.168.66.203:8443", "192.168.66.203", "http", "https") is False
     # direkt (kein Proxy): Origin und Host beide mit Port
     assert _same_origin("https://host:8443", "host:8443", "https", "") is True
     # wirklich fremd bleibt fremd
