@@ -153,3 +153,20 @@ def test_backup_dateiname_traversal_abgelehnt():
     from pathlib import Path
     assert Path("../../etc/rechnungsfee_x.db").name != "../../etc/rechnungsfee_x.db"
     assert Path("rechnungsfee_2026.db").name == "rechnungsfee_2026.db"
+
+
+def test_system_router_im_server_modus_nicht_registriert(monkeypatch):
+    """Regression: api/system.py (pkexec/apt/OCR-Debug) darf im Server-Modus gar
+    nicht als Route existieren — sonst Host-Interaktion aus dem Web."""
+    import importlib
+    import server_mode
+    import main as main_modul
+
+    monkeypatch.setattr(server_mode, "SERVER_MODE", True)
+    importlib.reload(main_modul)
+    try:
+        pfade = [getattr(r, "path", "") for r in main_modul.app.routes]
+        assert not any(p.startswith("/api/system") for p in pfade), pfade
+    finally:
+        monkeypatch.setattr(server_mode, "SERVER_MODE", False)
+        importlib.reload(main_modul)

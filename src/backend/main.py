@@ -100,7 +100,11 @@ app.include_router(eks.router)
 app.include_router(ustva.router)
 app.include_router(zm.router)
 app.include_router(euer.router)
-app.include_router(system.router)
+# Desktop-only: system.router enthaelt Host-Interaktion (pkexec/apt/winget/brew,
+# OCR-Debug) — im Server-Modus gar nicht erst registrieren.
+import server_mode as _sm
+if not _sm.SERVER_MODE:
+    app.include_router(system.router)
 app.include_router(dokumentenpakete.router)
 app.include_router(mail.router)
 app.include_router(postfach.router)
