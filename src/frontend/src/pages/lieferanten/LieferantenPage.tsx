@@ -60,7 +60,7 @@ function formatDatum(iso: string): string {
   return `${d}.${m}.${y}`
 }
 
-function LieferantDetail({ lieferant, initialTab }: { lieferant: Lieferant; initialTab?: 'kontokorrent' }) {
+function LieferantDetail({ lieferant, initialTab, onClose }: { lieferant: Lieferant; initialTab?: 'kontokorrent'; onClose?: () => void }) {
   const qc = useQueryClient()
   const [tab, setTab] = useState<'details' | 'kontokorrent'>(initialTab ?? 'details')
   const [kreditorEdit, setKreditorEdit] = useState(false)
@@ -152,6 +152,11 @@ function LieferantDetail({ lieferant, initialTab }: { lieferant: Lieferant; init
 
       {/* Header */}
       <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
+        {onClose && (
+          <button onClick={onClose} className="md:hidden min-h-11 -ml-2 mb-1 px-2 text-sm font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1">
+            ← Zurück zur Liste
+          </button>
+        )}
         <h3 className="font-semibold text-slate-800 dark:text-slate-100">{lieferant.firmenname}</h3>
         {(lieferant.vorname || lieferant.nachname) && (
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{[lieferant.vorname, lieferant.nachname].filter(Boolean).join(' ')}</p>
@@ -576,7 +581,7 @@ export function LieferantenPage() {
 
       {/* ── Linke Spalte ─────────────────────────────────────────────── */}
       <div
-        className={`${showForm ? (manuell ? 'shrink-0 md:shrink-0' : 'w-full md:w-1/3 md:min-w-[260px] shrink-0') : 'flex-1'} w-full md:w-auto flex flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 transition-all`}
+        className={`${showForm ? 'hidden md:flex md:flex-col' : 'flex-1'} w-full md:w-auto flex flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 transition-all ${showForm && manuell ? 'md:shrink-0' : ''} ${showForm && !manuell ? 'md:w-1/3 md:min-w-[260px] shrink-0' : ''}`}
         style={showForm && manuell ? { width: splitterBreite, minWidth: '220px' } : undefined}
       >
 
@@ -725,13 +730,13 @@ export function LieferantenPage() {
         />
       )}
 
-      {/* ── Rechte Spalte (Detail oder Formular) ─────────────────────── */}
+      {/* ── Rechte Spalte (Detail) — auf Mobile nach Auswahl als eigene Ansicht ── */}
       {!showForm && (
-        <div className={`${selected ? 'flex' : 'hidden md:flex'} flex-1 md:flex-none w-full md:w-[28rem] shrink-0 min-h-0 overflow-y-auto flex-col`}>
+        <div className={`${selected ? 'flex' : 'hidden md:flex'} ${selected ? 'fixed inset-0 z-40 md:static md:z-auto bg-white dark:bg-slate-900 md:bg-transparent' : ''} flex-1 md:flex-none w-full md:w-[28rem] shrink-0 min-h-0 overflow-y-auto flex-col`}>
           {selected ? (
-            <LieferantDetail key={selected.id} lieferant={selected} initialTab={initialDetailTab} />
+            <LieferantDetail key={selected.id} lieferant={selected} initialTab={initialDetailTab} onClose={() => setSelected(null)} />
           ) : (
-            <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500 text-sm">
+            <div className="hidden md:flex items-center justify-center h-full text-slate-400 dark:text-slate-500 text-sm">
               Lieferant auswählen
             </div>
           )}
