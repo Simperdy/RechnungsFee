@@ -359,21 +359,21 @@ export function AnlageverzeichnisPage() {
 
         {/* Kopf */}
         <div className="shrink-0 p-4 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <div>
               <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">Anlagenverzeichnis</h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">Anlage AVEÜR – Abschreibungsplan</p>
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center w-full sm:w-auto">
               <select value={jahr} onChange={e => setJahr(parseInt(e.target.value))}
-                className="border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm dark:bg-slate-700 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm dark:bg-slate-700 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-11 md:min-h-0">
                 {Array.from({ length: 6 }, (_, i) => AKTUELLES_JAHR - i).map(y => (
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>
               <ExportButtons formats={['pdf']} onExport={handlePdf} />
               <button onClick={() => { setFormModus('neu'); setSelId(null) }}
-                className="bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-blue-700">
+                className="bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-blue-700 min-h-11 md:min-h-0">
                 + Neu
               </button>
             </div>

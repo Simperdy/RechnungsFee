@@ -32,8 +32,8 @@ const DONUT_FARBEN = [
 
 function InfoTooltip({ text, direction = 'down' }: { text: string; direction?: 'up' | 'down' }) {
   const box = direction === 'down'
-    ? 'top-full left-1/2 -translate-x-1/2 mt-2'
-    : 'bottom-full left-1/2 -translate-x-1/2 mb-2'
+    ? 'top-full left-1/2 -translate-x-1/2 mt-2 max-sm:left-0 max-sm:translate-x-0'
+    : 'bottom-full left-1/2 -translate-x-1/2 mb-2 max-sm:left-0 max-sm:translate-x-0'
   const arrow = direction === 'down'
     ? 'absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-800 dark:border-b-slate-700'
     : 'absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800 dark:border-t-slate-700'
