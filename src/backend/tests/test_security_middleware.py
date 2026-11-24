@@ -171,10 +171,40 @@ def test_ocr_debug_im_release_aus(monkeypatch):
     assert exc.value.status_code == 404
 
 
-def test_api_doku_nur_ohne_release():
-    # Testlauf ist kein PyInstaller-Build → Doku an; im Release (sys.frozen) aus
+def test_api_doku_nur_ohne_release(monkeypatch):
+    # Testlauf ist kein PyInstaller-Build und kein Server-Modus → Doku an;
+    # im Release (sys.frozen) oder Server-Modus (Docker) aus.
+    monkeypatch.delenv("RECHNUNGSFEE_SERVER_MODE", raising=False)
+    import importlib
+    importlib.reload(main)
     assert main._IST_RELEASE is False
     assert main.app.docs_url == "/docs"
+
+
+def test_api_doku_im_server_modus_aus(monkeypatch):
+    """Im Server-Modus (Docker) duerfen /docs, /redoc, /openapi.json nicht
+    oeffentlich erreichbar sein — sonst API-Recon ohne Login."""
+    import importlib
+    import server_mode
+    # Server-Modus ohne OIDC-Env darf nicht crashen, nur Doku-Flag aendern:
+    monkeypatch.setenv("RECHNUNGSFEE_SERVER_MODE", "1")
+    _vals = {"OIDC_ISSUER": "https://idp.example", "OIDC_CLIENT_ID": "x",
+             "OIDC_REDIRECT_URI": "https://app.example/api/auth/callback",
+             "OIDC_ALLOWED_EMAILS": "a@b.de", "SESSION_SECRET": "x" * 40}
+    for k, v in _vals.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setattr(server_mode, "SERVER_MODE", True)
+    importlib.reload(main)
+    try:
+        assert main.app.docs_url is None
+        assert main.app.redoc_url is None
+        assert main.app.openapi_url is None
+    finally:
+        monkeypatch.delenv("RECHNUNGSFEE_SERVER_MODE", raising=False)
+        for k in _vals:
+            monkeypatch.delenv(k, raising=False)
+        monkeypatch.setattr(server_mode, "SERVER_MODE", False)
+        importlib.reload(main)
 
 
 def test_middleware_ist_in_der_app_registriert():
