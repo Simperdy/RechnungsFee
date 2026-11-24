@@ -61,7 +61,7 @@ def _hostname(host_header: str) -> str:
     return host.rsplit(":", 1)[0] if ":" in host else host
 
 
-def origin_erlaubt(origin: str) -> bool:
+def origin_erlaubt(origin: str, headers: dict | None = None) -> bool:
     origin = origin.strip().lower()
     if origin in _ERLAUBTE_ORIGINS:
         return True
@@ -72,7 +72,14 @@ def origin_erlaubt(origin: str) -> bool:
     if teile.scheme not in ("http", "https"):
         return False
     host = teile.hostname or ""
-    return host in ("127.0.0.1", "localhost", "::1")
+    if host in ("127.0.0.1", "localhost", "::1"):
+        return True
+    # Server-Modus (Docker, same-origin SPA hinter TLS-Proxy): der Browser schickt
+    # die öffentliche Origin (z.B. https://host:8443) – erlaubt, wenn der Request
+    # selbst vom Proxy kam (X-Forwarded-Proto), dann ist same-origin garantiert.
+    if server_mode.SERVER_MODE and headers and headers.get("x-forwarded-proto"):
+        return True
+    return False
 
 
 async def _abweisen(send, status: int, text: str) -> None:
@@ -108,7 +115,7 @@ class SicherheitMiddleware:
             return
 
         origin = headers.get("origin")
-        if scope.get("method", "GET") not in _LESEND and origin is not None and not origin_erlaubt(origin):
+        if scope.get("method", "GET") not in _LESEND and origin is not None and not origin_erlaubt(origin, headers):
             await _abweisen(send, 403, "Anfrage von fremder Herkunft abgelehnt.")
             return
 
