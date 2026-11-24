@@ -763,6 +763,14 @@ def _prüfe_wiederherstellung() -> None:
             marker_db.unlink()
             print("[Wiederherstellung] Datenbank (lokales Backup) wiederhergestellt")
 
+        # Restore ersetzt die komplette DB — alle bisherigen Server-Sessions
+        # sind damit ungueltig (Cookies im Browser zeigen auf fremde sid_hash).
+        try:
+            with engine.begin() as conn:
+                conn.execute(text("DELETE FROM auth_sessions"))
+            print("[Wiederherstellung] auth_sessions geleert (alle Logins ungueltig)")
+        except Exception as e:
+            print(f"[Wiederherstellung] auth_sessions leeren fehlgeschlagen: {e}")
         print("[Wiederherstellung] Abgeschlossen")
     except Exception as e:
         print(f"[Wiederherstellung] Fehler: {e}")

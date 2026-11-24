@@ -112,6 +112,10 @@ def lade_config(env: dict[str, str] | None = None) -> ServerAuthConfig:
     secret = quelle["SESSION_SECRET"].strip()
     if len(secret) < 32:
         raise AuthKonfigFehler("Server-Modus: SESSION_SECRET muss mindestens 32 Zeichen lang sein.")
+    try:
+        secret.encode("ascii")
+    except UnicodeEncodeError:
+        raise AuthKonfigFehler("Server-Modus: SESSION_SECRET darf nur ASCII-Zeichen enthalten (HMAC-Signatur).")
     redirect_uri = quelle["OIDC_REDIRECT_URI"].strip()
     if not urlsplit(redirect_uri).netloc:
         raise AuthKonfigFehler(f"Server-Modus: OIDC_REDIRECT_URI ist keine absolute URL: {redirect_uri!r}")

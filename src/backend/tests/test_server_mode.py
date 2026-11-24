@@ -197,3 +197,25 @@ def test_initialisiere_startup_auf_frischem_volumen_ohne_auth_tabelle(tmp_path, 
     finally:
         snap.restore()
         importlib.reload(connection)
+
+
+def test_neue_auth_route_ist_fail_closed():
+    """Regression: _PUBLIC_PATHS_EXAKT statt Prefix — eine neue /api/auth/*-Route
+    (z. B. /api/auth/debug) darf NICHT automatisch oeffentlich sein."""
+    from server_mode import ist_geschuetzt, _PUBLIC_PATHS_EXAKT
+    assert not ist_geschuetzt("/api/auth/login")
+    assert not ist_geschuetzt("/api/auth/callback")
+    assert not ist_geschuetzt("/api/auth/status")
+    assert ist_geschuetzt("/api/auth/logout")
+    assert ist_geschuetzt("/api/auth/debug")
+    assert ist_geschuetzt("/api/auth/irgendwas-neues")
+    assert len(_PUBLIC_PATHS_EXAKT) == 3
+
+
+def test_session_zur_anfrage_sid_format_vorfilter():
+    """Erfundene Cookie-Werte (kein 43-Zeichen-base64url) duerfen nie die DB sehen."""
+    from starlette.datastructures import Headers
+    from server_mode import session_zur_anfrage
+    assert session_zur_anfrage(Headers({"cookie": "rf_session=garbage"})) is None
+    assert session_zur_anfrage(Headers({"cookie": "rf_session=" + "A" * 43})) is None  # formal ok, DB sagt nein
+    assert session_zur_anfrage(Headers({"cookie": "rf_session=" + "A" * 44})) is None  # zu lang

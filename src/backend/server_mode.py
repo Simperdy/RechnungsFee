@@ -39,7 +39,10 @@ _API_PREFIX = "/api/"
 # /api/setup/status liefert nur Booleans (kein Personenbezug) und muss vor dem ersten
 # Login erreichbar sein - sonst bootet ein frisches Volume nie bis zur Anmeldung.
 PUBLIC_PATHS = frozenset({"/health"})  # /docs, /redoc, /openapi.json sind im Server-Modus deaktiviert (main.py)
-_PUBLIC_PREFIXES = ("/api/auth/", "/api/setup/status") + tuple(PUBLIC_PATHS)
+# Fail-closed: exakte öffentliche Routen statt Prefix — eine neu hinzugefuegte
+# /api/auth/*-Route ist sonst automatisch ohne Login erreichbar.
+_PUBLIC_PATHS_EXAKT = ("/api/auth/login", "/api/auth/callback", "/api/auth/status")
+_PUBLIC_PREFIXES = _PUBLIC_PATHS_EXAKT + ("/api/setup/status",) + tuple(PUBLIC_PATHS)
 
 # Statische Top-Level-Dateien der SPA (index.html-Fallback deckt den Rest)
 _STATIC_DATEIEN = (
@@ -151,6 +154,11 @@ def session_zur_anfrage(headers: Headers):
             break
     if not sid:
         return None
+    # Format-Vorfilter vor dem DB-Hit: SID ist base64url(32 bytes) = 43 Zeichen
+    # [A-Za-z0-9_-]. Erfundene/Cookie-Spam-Werte landen so nie in der DB.
+    import re as _re
+    if not _re.fullmatch(r"[A-Za-z0-9_-]{43}", sid):
+        return None
     db = _session_factory()
     try:
         return get_session(db, sid)
@@ -193,11 +201,14 @@ def cors_middleware_kwargs() -> dict | None:
 # ---------------------------------------------------------------------------
 
 def ist_geschuetzt(path: str) -> bool:
-    """Alle /api/* ausser /api/auth/*; /health, /docs, /redoc, /openapi.json frei.
-    Alles ausserhalb von /api/ (SPA, Assets) ist ebenfalls frei."""
+    """Alle /api/* ausser den exakt whitelisteten öffentlichen Routen
+    (login/callback/status, /api/setup/status, /health). Alles andere /api/*
+    verlangt eine Session — fail-closed bei neuen Routen."""
     if not path.startswith(_API_PREFIX):
         return False
-    return not path.startswith(_PUBLIC_PREFIXES)
+    if path in _PUBLIC_PATHS_EXAKT or path == "/api/setup/status" or path == "/health":
+        return False
+    return True
 
 
 def _same_origin(origin: str, host_header: str, scheme: str, forwarded_proto: str) -> bool:
