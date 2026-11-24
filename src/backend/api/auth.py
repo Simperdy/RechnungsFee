@@ -439,7 +439,7 @@ async def callback(request: Request, code: str | None = None, state: str | None 
             claims = await client.parse_id_token(
                 token, nonce=pending["nonce"], leeway=120,
                 claims_options={
-                    "iss": {"essential": True, "value": config.issuer},
+                    "iss": {"essential": True, "value": config.issuer.rstrip("/")},
                     "aud": {"essential": True, "values": [config.client_id]},
                 },
             )
@@ -449,6 +449,9 @@ async def callback(request: Request, code: str | None = None, state: str | None 
         log.warning("OIDC: Token-Tausch/ID-Token-Pruefung fehlgeschlagen: %r", str(exc)[:200])
         return _fehler_response(400, "login_failed")
 
+    if not claims:
+        # parse_id_token lieferte None (z. B. id_token in Token-Antwort fehlt)
+        return _fehler_response(400, "login_failed", "OIDC-Callback: kein id_token in der Token-Antwort.")
     email = str(claims.get("email") or "").strip().lower()
     if claims.get("email_verified") is not True:  # strikt boolesch, fail-closed (fehlend/"true"/1 ablehnen)
         return _fehler_response(403, "not_allowed", "OIDC-Login abgelehnt: email_verified=false.")
