@@ -28,6 +28,7 @@ import logging
 import os
 import secrets
 import time
+from datetime import timedelta
 from dataclasses import dataclass
 from urllib.parse import urlencode, urlsplit
 
@@ -92,9 +93,14 @@ def lade_config(env: dict[str, str] | None = None) -> ServerAuthConfig:
     # mit Stub-IdP im selben Netz). Produktion: https-Pflicht bleibt bestehen, weil
     # nur https:// und explizit http://localhost|127.*|192.168.*|10.*|172.16-31.*
     # als "lokal" gelten.
-    _lokal = issuer.startswith("http://localhost") or any(
-        issuer.startswith(f"http://{p}") for p in ("127.", "192.168.", "10.")
-    ) or (issuer.startswith("http://172.") and 16 <= int(issuer.split("//")[1].split(".")[1].split(":")[0]) <= 31)
+    import ipaddress
+    from urllib.parse import urlsplit as _urlsplit
+    _host = _urlsplit(issuer).hostname or ""
+    try:
+        _ip = ipaddress.ip_address(_host)
+        _lokal = _ip.is_private or _ip.is_loopback
+    except ValueError:
+        _lokal = _host == "localhost" or _host.endswith(".localhost")
     if not (issuer.startswith("https://") or _lokal):
         raise AuthKonfigFehler(
             f"Server-Modus: OIDC_ISSUER muss https sein (oder http://localhost/<private IP> fuer lokale Tests), ist {issuer!r}"
@@ -267,7 +273,9 @@ def session_cookie_params(sid: str, request: Request) -> dict:
     return {
         "key": COOKIE_NAME,
         "value": sid,
-        "max_age": int(SESSION_TTL.total_seconds()),
+        # Cookie lebt laenger als die serverseitige Session (30 d); die absolute
+        # Laufzeit erzwingt allein expires_at in auth_sessions (Sliding Renewal).
+        "max_age": int(timedelta(days=30).total_seconds()),
         "httponly": True,
         "secure": ist_https(request),
         "samesite": _LAX,
@@ -371,6 +379,10 @@ async def callback(request: Request, code: str | None = None, state: str | None 
         client = oauth_client(config)
         try:
             metadata = await client.load_server_metadata()
+            # Discovery-Dokument muss vom konfigurierten Issuer stammen (sonst
+            # Token-/JWKS-Endpunkte eines fremden IdP nach DNS-/Proxy-Hijack).
+            if str(metadata.get("issuer") or "").rstrip("/") != config.issuer.rstrip("/"):
+                raise AuthKonfigFehler("OIDC-Discovery: issuer im Dokument != OIDC_ISSUER")
             token = await client.fetch_token(
                 metadata["token_endpoint"],
                 code=code,
@@ -378,7 +390,15 @@ async def callback(request: Request, code: str | None = None, state: str | None 
                 code_verifier=pending["verifier"],
                 grant_type="authorization_code",
             )
-            claims = await client.parse_id_token(token, nonce=pending["nonce"], leeway=120)
+            # Strikte iss/aud-Pruefung (fail-closed) — sonst wuerde ein id_token
+            # einer anderen Client-App am selben IdP akzeptiert.
+            claims = await client.parse_id_token(
+                token, nonce=pending["nonce"], leeway=120,
+                claims_options={
+                    "iss": {"essential": True, "value": config.issuer},
+                    "aud": {"essential": True, "values": [config.client_id]},
+                },
+            )
         finally:
             await client.aclose()
     except Exception as exc:  # noqa: BLE001 - authlib wirft diverse OAuthError-Varianten
@@ -386,7 +406,7 @@ async def callback(request: Request, code: str | None = None, state: str | None 
         return _fehler_response(400, "login_failed")
 
     email = str(claims.get("email") or "").strip().lower()
-    if not claims.get("email_verified", True):
+    if not claims.get("email_verified", False):  # fail-closed: fehlender Claim = nicht verifiziert
         return _fehler_response(403, "not_allowed", "OIDC-Login abgelehnt: email_verified=false.")
     if not config.ist_erlaubt(email):
         # Bewusst ohne die Adresse im Log (personenbezogen), nur der Hinweis.

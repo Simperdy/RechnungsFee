@@ -263,7 +263,7 @@ async def test_callback_legt_session_an_und_setzt_sicheren_cookie(app, stub_idp,
     assert "HttpOnly" in cookie
     assert "samesite=lax" in cookie.lower()
     assert "Path=/" in cookie
-    assert "Max-Age=28800" in cookie  # 8 h
+    assert "Max-Age=2592000" in cookie  # 30 d Cookie; absolute Laufzeit serverseitig (expires_at)
     sid = cookie.split("rf_session=")[1].split(";")[0]
 
     # Klartext-SID nirgends in der DB - nur der SHA-256-Hash

@@ -41,13 +41,16 @@ from api import unternehmen, konten, kategorien, setup, journal, kunden, liefera
 SCHEMA_VERSION = 195
 
 # Security-Audit F10: API-Dokumentation (komplette Endpunktliste) nur im Entwicklungsmodus,
-# nicht im ausgelieferten PyInstaller-Sidecar (sys.frozen).
+# nicht im ausgelieferten PyInstaller-Sidecar (sys.frozen) und nicht im
+# Docker-Server-Modus: dort haette die API-Doku ohne Login erreichbar sein.
+import os as _os
 _IST_RELEASE = getattr(sys, "frozen", False)
+_DOCS_OFFEN = not _IST_RELEASE and not _os.environ.get("RECHNUNGSFEE_SERVER_MODE")
 app = FastAPI(
     title="RechnungsFee API", version="0.1.0",
-    docs_url=None if _IST_RELEASE else "/docs",
-    redoc_url=None if _IST_RELEASE else "/redoc",
-    openapi_url=None if _IST_RELEASE else "/openapi.json",
+    docs_url="/docs" if _DOCS_OFFEN else None,
+    redoc_url="/redoc" if _DOCS_OFFEN else None,
+    openapi_url="/openapi.json" if _DOCS_OFFEN else None,
 )
 
 # Issue #537: vor CORS registriert = innere Schicht → auch Fehlerantworten tragen CORS-Header,

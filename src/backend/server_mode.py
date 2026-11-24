@@ -38,7 +38,7 @@ _API_PREFIX = "/api/"
 # Im Server-Modus ohne Login erreichbar (Health fuer Docker/NPM, API-Doku hinter NPM-ACL).
 # /api/setup/status liefert nur Booleans (kein Personenbezug) und muss vor dem ersten
 # Login erreichbar sein - sonst bootet ein frisches Volume nie bis zur Anmeldung.
-PUBLIC_PATHS = frozenset({"/health", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"})
+PUBLIC_PATHS = frozenset({"/health"})  # /docs, /redoc, /openapi.json sind im Server-Modus deaktiviert (main.py)
 _PUBLIC_PREFIXES = ("/api/auth/", "/api/setup/status") + tuple(PUBLIC_PATHS)
 
 # Statische Top-Level-Dateien der SPA (index.html-Fallback deckt den Rest)

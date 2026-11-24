@@ -25,7 +25,7 @@ from database.connection import Base
 COOKIE_NAME = "rf_session"
 SESSION_TTL = timedelta(hours=8)
 # Renewal erst nach 1 h ohne Verlaengerung schreiben (begrenzt DB-Writes)
-RENEWAL_INTERVALL = timedelta(hours=1)
+RENEWAL_INTERVALL = timedelta(hours=1)  # Doku: Renewal-Schwelle ist SESSION_TTL/2 (siehe get_session)
 
 _SID_BYTES = 32  # 256 Bit
 
@@ -93,7 +93,9 @@ def get_session(db: Session, sid: str | None) -> AuthSession | None:
         return None
     if zeile.revoked_at is not None or zeile.expires_at <= jetzt:
         return None
-    if zeile.expires_at - jetzt < SESSION_TTL - RENEWAL_INTERVALL:
+    # Renewal erst in der zweiten Halbzeit der Laufzeit (nicht ab Minute 1):
+    # sonst schreibt jeder Request nach der ersten Stunde.
+    if zeile.expires_at - jetzt < SESSION_TTL / 2:
         zeile.expires_at = jetzt + SESSION_TTL
         db.commit()
     return zeile
