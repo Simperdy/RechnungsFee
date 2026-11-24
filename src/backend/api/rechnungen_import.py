@@ -415,8 +415,10 @@ def _pruefe_betaege(z: _AusgewerteteZeile) -> None:
 # Endpunkte
 # ---------------------------------------------------------------------------
 
-def _csv_lesen(datei: UploadFile) -> list[dict]:
-    content = datei.file.read()
+async def _csv_lesen(datei: UploadFile) -> list[dict]:
+    # Server-Modus: Begrenzung wie alle anderen Uploads (vorher ungeprueft in den RAM)
+    from utils.upload_guard import lies_upload
+    content = await lies_upload(datei)
     if not content:
         raise HTTPException(status_code=422, detail="Die Datei ist leer.")
     try:
@@ -457,7 +459,7 @@ async def import_vorschau(
     """CSV hochladen und Zeilen validieren – schreibt nichts in die Datenbank."""
     typ = _pruefe_typ(typ)
     mapping = _parse_mapping(kategorie_mapping)
-    rows = _csv_lesen(datei)
+    rows = await _csv_lesen(datei)
     seen: set[str] = set()
     ergebnis: list[VorschauZeile] = []
     for idx, row in enumerate(rows, start=2):  # Zeile 1 = Header
@@ -496,7 +498,7 @@ async def import_durchfuehren(
     über die regulären Erstellungs-/Zahlungspfade gebucht."""
     typ = _pruefe_typ(typ)
     mapping = _parse_mapping(kategorie_mapping)
-    rows = _csv_lesen(datei)
+    rows = await _csv_lesen(datei)
     seen: set[str] = set()
     ergebnis: list[ImportZeileErgebnis] = []
     importiert = uebersprungen = fehler = 0

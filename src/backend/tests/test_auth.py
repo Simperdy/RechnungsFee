@@ -421,7 +421,7 @@ async def test_logout_revokiert_session_und_loescht_cookie(app, db_factory):
         db.close()
     async with _client(app) as c:
         assert (await c.get("/api/konten", cookies={"rf_session": sid})).status_code == 200
-        r = await c.get("/api/auth/logout", cookies={"rf_session": sid})
+        r = await c.post("/api/auth/logout", cookies={"rf_session": sid}, headers={"Origin": "https://rf.example.org"})
         assert r.status_code == 302
         assert any(h.startswith("rf_session=") and "Max-Age=0" in h for h in r.headers.get_list("set-cookie"))
     db = db_factory()
@@ -482,3 +482,56 @@ def test_sid_wird_nur_als_hash_gespeichert(db_factory):
         assert zeile.expires_at - zeile.created_at == timedelta(hours=8)
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# Rate-Limit (slowapi) - Runde 3
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def rl_app(db_factory, monkeypatch):
+    """Aeussere App mit echtem initialisiere()-Pfad (Limiter + SlowAPIMiddleware + Guard)."""
+    from database.connection import get_db
+
+    monkeypatch.setattr(server_mode, "SERVER_MODE", True)
+    monkeypatch.setattr(server_mode, "_session_factory", db_factory)
+    app = FastAPI()
+
+    def _db():
+        db = db_factory()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = _db
+    # initialisiere() liest die Config aus der Env (pruefe_konfiguration) -> hier setzen
+    for k, v in {
+        "OIDC_ISSUER": ISSUER, "OIDC_CLIENT_ID": CLIENT_ID, "OIDC_REDIRECT_URI": REDIRECT_URI,
+        "OIDC_ALLOWED_EMAILS": ERLAUBT, "SESSION_SECRET": GEHEIM,
+    }.items():
+        monkeypatch.setenv(k, v)
+    app.include_router(auth_modul.router)
+    server_mode.initialisiere(app)
+    return app
+
+
+@pytest.mark.anyio
+async def test_rate_limit_login_und_callback_429(rl_app):
+    """Regression: Runde 1+2 meldeten 'Rate-Limit aktiv'. 14 Logins pro IP muessen
+    ab dem 11. Request 429 liefern - die slowapi-Middleware liest nur
+    Limiter._route_limits (Dekorator), nicht ein manuell gesetztes
+    endpoint.ratelimit-Attribut."""
+    transport = httpx.ASGITransport(app=rl_app)
+    async with httpx.AsyncClient(transport=transport, base_url="https://rf.example.org",
+                                 headers={"x-forwarded-for": "203.0.113.7"}) as c:
+        codes = [(await c.get("/api/auth/login")).status_code for _ in range(14)]
+    assert codes[:10] == [302] * 10, codes
+    assert codes[10:] == [429] * 4, codes
+
+
+@pytest.mark.anyio
+async def test_rate_limit_ohne_initialisiere_schlaegt_nicht_fehl(app):
+    """Ohne Limiter (Desktop-Modus / Mini-App) darf der Login weiterlaufen."""
+    async with _client(app) as c:
+        assert (await c.get("/api/auth/login")).status_code == 302

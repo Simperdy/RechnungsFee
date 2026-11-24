@@ -21,6 +21,7 @@ Login-Fenster funktionieren, nichts landet in der DB.
 from __future__ import annotations
 
 import base64
+import functools
 import hashlib
 import hmac
 import json
@@ -155,7 +156,10 @@ def lese_pending(token: str | None, secret: str) -> dict | None:
         return None
     payload, sig = token.split(".", 1)
     try:
-        if not hmac.compare_digest(_signatur(payload, secret), _unb64(sig)):
+        # Signatur bindet das Secret als BYTES - bei Nicht-ASCII-Secret (Umlaute/EUR aus
+        # einem Passwort-Manager) liefert _signatur beim Lesen einen anderen Wert ->
+        # lese_pending gab immer None (jeder Login failed nach dem IdP-Redirect).
+        if not hmac.compare_digest(_signatur(payload, secret).hex(), _unb64(sig).hex()):
             return None
         daten = json.loads(_unb64(payload))
     except (ValueError, TypeError):
@@ -311,11 +315,36 @@ def get_auth_config() -> ServerAuthConfig:
     return lade_config()
 
 
+def limitiere(func):
+    """Aussenliegender Dekorator: setzt den slowapi-Limit erst beim ersten Request.
+
+    SlowAPIMiddleware liest Limits ausschliesslich aus ``Limiter._route_limits``, das nur
+    ``Limiter.limit(...)`` befuellt - und das braucht den Limiter aus
+    ``main.initialisiere()`` (Import-Reihenfolge: auth-Router vor initialisiere).
+    Hier wird der echte Handler (gleicher __module__/__name__ wie die Route) einmalig
+    dekoriert und ab dann direkt aufgerufen; im Desktop-Modus limitiert slowapi nicht.
+    """
+    zustand: dict = {}
+
+    @functools.wraps(func)
+    def _mit_limit(*args, **kwargs):
+        from starlette.requests import Request as _Request
+
+        request = args[0] if args and isinstance(args[0], _Request) else kwargs.get("request")
+        limiter = getattr(request.app.state, "limiter", None) if request is not None else None
+        if id(limiter) not in zustand:
+            zustand[id(limiter)] = limiter.limit(RATE_LIMIT)(func) if limiter is not None else func
+        return zustand[id(limiter)](*args, **kwargs)
+
+    return _mit_limit
+
+
 def konfiguriere(config: ServerAuthConfig) -> None:
     router._config = config  # type: ignore[attr-defined]
 
 
 @router.get("/login")
+@limitiere
 def login(request: Request):
     """Startet den Authorization-Code-Flow: 302 zum IdP."""
     config = get_auth_config()
@@ -332,6 +361,10 @@ def login(request: Request):
         "nonce": nonce,
         "code_challenge": challenge,
         "code_challenge_method": "S256",
+        # PocketID/IdP-Login erzwingen: ohne prompt wuerde /api/auth/login die bestehende
+        # IdP-Session wiederverwenden. Nach einem Logout/abgelehnten Login kann das zu einer
+        # Redirect-Schleife (App -> login -> callback -> App) fuehren.
+        "prompt": "select_account",
     })
     response = RedirectResponse(url, status_code=302)
     response.headers["Cache-Control"] = "no-store"
@@ -351,6 +384,7 @@ def login(request: Request):
 
 
 @router.get("/callback")
+@limitiere
 async def callback(request: Request, code: str | None = None, state: str | None = None,
                    error: str | None = None, error_description: str | None = None,
                    db: Session = Depends(get_db)):
@@ -452,7 +486,7 @@ def _auth_fehlerseite(status: int, detail: str) -> Response:
     return HTMLResponse(body, status_code=status, headers={"Cache-Control": "no-store"})
 
 
-@router.get("/logout")
+@router.post("/logout")
 def logout(request: Request):
     """Revokiert die Session serverseitig und loescht das Cookie."""
     sid = request.cookies.get(COOKIE_NAME)

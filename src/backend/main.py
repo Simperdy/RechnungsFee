@@ -416,8 +416,10 @@ async def backup_wiederherstellen(
     """Nimmt .zip (unverschlüsselt) oder .zip.enc (AES-256) entgegen, validiert und speichert als Pending-Marker."""
     import io
     import zipfile
+    from utils.upload_guard import lies_upload
     filename = datei.filename or ""
-    content  = await datei.read()
+    # Server-Modus: Restore-Uploads sind gross (Belege+DB), aber nicht unbegrenzt.
+    content  = await lies_upload(datei, max_bytes=_BACKUP_MAX_GROESSE)
 
     if filename.endswith(".zip.enc"):
         if not passwort:
@@ -449,7 +451,47 @@ _BACKUP_MAX_EINTRAEGE = 100_000
 _BACKUP_MAX_GROESSE   = 10 * 1024 ** 3   # 10 GB entpackt
 
 
-def _pruefe_backup_eintraege(zf, uploads_dir: Path) -> list[tuple[str, Path]]:
+
+def _zaehle_entpackt(zf, info, limit: int) -> int:
+    """Entpackt einen ZIP-Eintrag gestueckelt und zaehlt die echten Bytes.
+
+    Schuetzt gegen ZIP-Bomben mit gelogenen file_size-Metadaten: Abbruch, sobald
+    mehr als ``limit`` Bytes entpackt wurden."""
+    import shutil
+    zaehler = _LimitCounter(limit)
+    with zf.open(info) as quelle, open(os.devnull, "wb") as _sink:
+        shutil.copyfileobj(quelle, _SinkMitZaehler(_sink, zaehler), 1024 * 1024)
+    return zaehler.count
+
+
+class _LimitCounter:
+    def __init__(self, limit: int):
+        self.limit = limit
+        self.count = 0
+
+
+class _SinkMitZaehler:
+    """write()-Wrapper, der nach ``limit`` Bytes ValueError wirft."""
+    def __init__(self, ziel, zaehler: _LimitCounter):
+        self._ziel = ziel
+        self._zaehler = zaehler
+
+    def write(self, daten: bytes) -> int:
+        self._zaehler.count += len(daten)
+        if self._zaehler.count > self._zaehler.limit:
+            raise ValueError("entpackte Größe überschreitet Limit (ZIP-Bomb?)")
+        return self._ziel.write(daten)
+
+
+def _kopiere_gestueckelt(zf, name: str, ziel: Path, limit: int) -> None:
+    """Kopiert einen ZIP-Eintrag chunkweise auf Platte — nie komplett in den RAM."""
+    import shutil
+    zaehler = _LimitCounter(limit)
+    with zf.open(name) as quelle, open(ziel, "wb") as out:
+        shutil.copyfileobj(quelle, _SinkMitZaehler(out, zaehler), 1024 * 1024)
+
+
+def _pruefe_backup_eintraege(zf, uploads_dir: Path, max_groesse: int = _BACKUP_MAX_GROESSE) -> list[tuple[str, Path]]:
     """Prüft alle Einträge eines Backup-ZIPs und liefert (Name, Zielpfad) der Belege.
 
     Security-Audit F1 (ZIP-Slip): Ein Eintrag wie „uploads/../../.config/autostart/x.desktop“
@@ -460,7 +502,11 @@ def _pruefe_backup_eintraege(zf, uploads_dir: Path) -> list[tuple[str, Path]]:
     infos = zf.infolist()
     if len(infos) > _BACKUP_MAX_EINTRAEGE:
         raise ValueError(f"zu viele Einträge ({len(infos)})")
-    if sum(i.file_size for i in infos) > _BACKUP_MAX_GROESSE:
+    # ZIP-Metadaten (file_size) sind lügnerisch — zusätzlich real entpackt zählen:
+    gesamt = 0
+    for info in infos:
+        gesamt += _zaehle_entpackt(zf, info, max_groesse)
+    if gesamt > max_groesse:
         raise ValueError("entpackte Größe überschreitet 10 GB")
 
     basis = uploads_dir.resolve()
@@ -484,7 +530,7 @@ def _pruefe_backup_datenbank(zf) -> None:
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
         pfad = Path(tmp) / "pruefung.db"
-        pfad.write_bytes(zf.read("rechnungsfee.db"))
+        _kopiere_gestueckelt(zf, "rechnungsfee.db", pfad, _BACKUP_MAX_GROESSE)
         try:
             con = sqlite3.connect(str(pfad))
             try:
@@ -700,7 +746,7 @@ def _prüfe_wiederherstellung() -> None:
                         shutil.rmtree(uploads_dir)
                     for name, ziel in upload_entries:
                         ziel.parent.mkdir(parents=True, exist_ok=True)
-                        ziel.write_bytes(zf.read(name))
+                        _kopiere_gestueckelt(zf, name, ziel, _BACKUP_MAX_GROESSE)
                     print(f"[Wiederherstellung] {len(upload_entries)} Belege wiederhergestellt")
             marker_zip.unlink()
 

@@ -1305,7 +1305,7 @@ export function KundenPage() {
 
       {/* ── Rechte Spalte (Rechnungen oder Formular) ─────────────────── */}
       {!showForm && (
-        <div className="w-[28rem] shrink-0">
+        <div className={`${selected ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-hidden`}>
           {selected ? (
             <KundeRechnungen key={selected.id} kunde={selected} initialTab={initialDetailTab} />
           ) : (

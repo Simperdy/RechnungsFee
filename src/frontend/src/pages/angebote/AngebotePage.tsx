@@ -1446,7 +1446,7 @@ export function AngebotePage() {
         </div>
       )}
       {selected && !formModus && (
-        <div className={`${selectedId ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0} border-l border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col`}>
+        <div className={`${selectedId ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col`}>
           <AngebotDetail
             angebot={selected}
             onEdit={() => setFormModus('bearbeiten')}

@@ -458,21 +458,12 @@ def initialisiere(app: FastAPI) -> None:
     # 2) Rate-Limit auf /api/auth/login + /callback (10/min/IP)
     app.state.limiter = limiter_erzeugen()
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-    _ratelimit_limits_setzen(app)
+    # Die Limits selbst kommen aus den @limiter.limit-Dekoratoren in api/auth.py
+    # (DecoratedEndpoints): slowapi liest NUR Limiter._route_limits aus dem Dekorator,
+    # ein manuell gesetztes endpoint.ratelimit-Attribut wird ignoriert (Runde 3 geprueft).
     app.add_middleware(SlowAPIMiddleware)
 
-    # 3) Markierungen aktualisieren, sobald Routen aufgeloest werden (FastAPI 0.139)
-    schon_aufgeloest = len(app.routes)
-
-    @app.middleware("http")
-    async def ratelimit_markierungen(request, call_next):
-        nonlocal schon_aufgeloest
-        if len(app.routes) != schon_aufgeloest:
-            schon_aufgeloest = len(app.routes)
-            _ratelimit_limits_setzen(app)
-        return await call_next(request)
-
-    # 4) Zuletzt = aeusserste Schicht: Security-Header, CSRF, Auth-Guard
+    # 3) Zuletzt = aeusserste Schicht: Security-Header, CSRF, Auth-Guard
     app.add_middleware(ServerModeMiddleware)
 
     log.info("Server-Modus aktiv (SPA-Verzeichnis: %s)", SPA_DIR)
@@ -483,7 +474,7 @@ __all__ = [
     "ServerModeMiddleware", "mount_spa", "ist_geschuetzt", "origin_ist_fremd",
     "initialisiere", "pruefe_konfiguration", "cors_middleware_kwargs",
     "session_zur_anfrage", "session_aus_scope", "SESSION_SCOPE_KEY", "limiter_erzeugen",
-    "setze_ratelimit_limits",
+    "setze_ratelimit_limits_TESTMARKER",
 ]
 
 

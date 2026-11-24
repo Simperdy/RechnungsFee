@@ -66,8 +66,13 @@ function AppRoutes() {
     queryKey: ['auth-status'],
     queryFn: async () => {
       const res = await fetch('/api/auth/status')
-      if (!res.ok) return { authenticated: false }
-      return res.json() as Promise<{ authenticated: boolean }>
+      // Nur eine eindeutige 200-Antwort mit authenticated:false heisst "nicht angemeldet".
+      // 5xx/HTML/Netzwerkfehler sind echte Fehler - ein Redirect zurueck in den Login wuerde
+      // sonst eine Redirect-Schleife bis zum Rate-Limit (429) erzeugen.
+      if (!res.ok) return { authenticated: true }  // Fehlerpfad: Status nicht auswertbar
+      const json = (await res.json().catch(() => null)) as { authenticated?: boolean } | null
+      if (!json || typeof json.authenticated !== 'boolean') return { authenticated: true }
+      return json as { authenticated: boolean }
     },
     enabled: !isTauri(),
     retry: false,

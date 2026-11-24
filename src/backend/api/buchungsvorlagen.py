@@ -409,7 +409,8 @@ async def upload_beleg(vorlage_id: int, datei: UploadFile = File(...), db: Sessi
     if datei.content_type not in ERLAUBTE_MIME_TYPES:
         raise HTTPException(422, "Nur PDF, JPG und PNG erlaubt")
 
-    inhalt = await datei.read()
+    from utils.upload_guard import lies_upload
+    inhalt = await lies_upload(datei)
     sha = hashlib.sha256(inhalt).hexdigest()
     ext = Path(datei.filename).suffix.lower() if datei.filename else ".pdf"
     dateiname = f"{_uuid.uuid4().hex}{ext}"

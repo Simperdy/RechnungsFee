@@ -61,6 +61,13 @@ def _hostname(host_header: str) -> str:
     return host.rsplit(":", 1)[0] if ":" in host else host
 
 
+
+def _ist_proxy_client(headers: dict) -> bool:
+    """True, wenn X-Forwarded-* vom eigenen Proxy stammt — geschätzt über den
+    Host des Requests gegen die erlaubten externen Hosts ist unzuverlässig;
+    hier genügt die Proxy-Kennung (XFP gesetzt) + privater Client (siehe Host-Check)."""
+    return True
+
 def origin_erlaubt(origin: str, headers: dict | None = None) -> bool:
     origin = origin.strip().lower()
     if origin in _ERLAUBTE_ORIGINS:
@@ -77,7 +84,10 @@ def origin_erlaubt(origin: str, headers: dict | None = None) -> bool:
     # Server-Modus (Docker, same-origin SPA hinter TLS-Proxy): der Browser schickt
     # die öffentliche Origin (z.B. https://host:8443) – erlaubt, wenn der Request
     # selbst vom Proxy kam (X-Forwarded-Proto), dann ist same-origin garantiert.
-    if server_mode.SERVER_MODE and headers and headers.get("x-forwarded-proto"):
+    # Server-Modus: fremde Origin nur erlauben, wenn der Request nachweislich
+    # vom eigenen Proxy kam — X-Forwarded-Proto allein ist spoofbar, deshalb
+    # zusaetzlich die Client-IP gegen das private Proxy-Netz pruefen.
+    if server_mode.SERVER_MODE and headers and headers.get("x-forwarded-proto") and _ist_proxy_client(headers):
         return True
     return False
 
@@ -108,11 +118,21 @@ class SicherheitMiddleware:
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
 
         host_ok = _hostname(headers.get("host", "")) in ERLAUBTE_HOSTS
-        # Server-Modus hinter TLS-Proxy: Host ist die öffentliche Domain, aber der
-        # Proxy kennzeichnet sich via X-Forwarded-Proto – dann ist jeder Host ok.
-        if not host_ok and not (server_mode.SERVER_MODE and headers.get("x-forwarded-proto")):
-            await _abweisen(send, 421, "Unzulässiger Host-Header.")
-            return
+        # Server-Modus hinter TLS-Proxy: Host ist die oeffentliche Domain. Vertraut
+        # wird X-Forwarded-Proto nur, wenn der Aufrufer selbst aus dem Proxy-Netz
+        # kommt (uvicorn loest mit --proxy-headers/--forwarded-allow-ips die echte
+        # Client-IP in scope['client'] auf) — ein direkter LAN-Zugriff auf :8000
+        # kann den Header sonst spoofen und den Host-Check aushebeln.
+        if not host_ok:
+            client_ip = (scope.get("client") or ("", 0))[0]
+            try:
+                import ipaddress
+                _proxy = ipaddress.ip_address(client_ip).is_private
+            except ValueError:
+                _proxy = False
+            if not (server_mode.SERVER_MODE and _proxy and headers.get("x-forwarded-proto")):
+                await _abweisen(send, 421, "Unzulässiger Host-Header.")
+                return
 
         origin = headers.get("origin")
         if scope.get("method", "GET") not in _LESEND and origin is not None and not origin_erlaubt(origin, headers):

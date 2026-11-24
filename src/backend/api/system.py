@@ -28,7 +28,8 @@ async def ocr_debug(datei: UploadFile = File(...)):
     from PIL import Image
     import io
 
-    inhalt = await datei.read()
+    from utils.upload_guard import lies_upload
+    inhalt = await lies_upload(datei)
     tess = _finde_tesseract_binary()
     if not tess:
         return {"fehler": "Tesseract nicht gefunden", "text": ""}

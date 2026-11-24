@@ -120,3 +120,26 @@ def test_pruefe_wiederherstellung_entfernt_stale_wal_shm(tmp_path, monkeypatch):
     con = sqlite3.connect(str(db_path))
     assert con.execute("SELECT id FROM neu").fetchone()[0] == 42
     con.close()
+
+
+def test_zip_bombe_mit_gelogenen_metadaten_wird_abgelehnt(tmp_path):
+    """Regression: ZIP-Metadaten (file_size) lügen — real entpackte Bytes werden
+    gestueckelt gezaehlt und das Limit hart durchgesetzt (kein zf.read in RAM)."""
+    import io, zipfile
+    from main import _pruefe_backup_eintraege
+    _LIMIT = 1024 * 1024  # 1 MB Test-Limit statt 10 GB
+
+    # Entry behauptet 1 Byte, entpackt aber 5 MB (hochkomprimierbar)
+    daten = b"\0" * (5 * 1024 * 1024)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        info = zipfile.ZipInfo("uploads/bombe.bin")
+        info.file_size = 1  # gelogen
+        info.compress_type = zipfile.ZIP_DEFLATED
+        zf.writestr(info, daten)
+    buf.seek(0)
+
+    import pytest
+    with zipfile.ZipFile(buf) as zf:
+        with pytest.raises(ValueError):
+            _pruefe_backup_eintraege(zf, tmp_path / "uploads", max_groesse=_LIMIT)
