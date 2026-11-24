@@ -394,11 +394,23 @@ def initialisiere(app: FastAPI) -> None:
 
     # 1b) Abgelaufene Auth-Sessions regelmaessig aufraeumen (sonst waechst die
     # Tabelle unbegrenzt; GoBD-relevant ist nur die Pruefung bei jedem Zugriff).
-    from auth_sessions import purge_abgelaufen
-    from database.connection import SessionLocal
+    # WICHTIG: Dieses on_event wird bei Import (main.py: initialisiere()) registriert
+    # und laeuft damit VOR main.startup() -> Base.metadata.create_all(). Auf einem
+    # frischen Volumen existiert auth_sessions da noch nicht und purge crasht den
+    # Start. Deshalb Tabelle hier idempotent anlegen (gleiches Muster wie
+    # main._startup_auth_tabelle), bevor purge zugreift.
+    from auth_sessions import AuthSession, purge_abgelaufen
+    from database.connection import Base, SessionLocal, engine
+
+    def _auth_tabelle_sicher_anlegen() -> None:
+        try:
+            Base.metadata.create_all(bind=engine, tables=[AuthSession.__table__])
+        except Exception:
+            log.exception("Server-Modus: auth_sessions konnte nicht angelegt werden")
 
     @app.on_event("startup")
     def _purge_bei_startup() -> None:
+        _auth_tabelle_sicher_anlegen()
         db = SessionLocal()
         try:
             geloescht = purge_abgelaufen(db)

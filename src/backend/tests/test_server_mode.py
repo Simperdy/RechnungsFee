@@ -137,3 +137,63 @@ def test_mount_spa_inaktiv_ohne_server_mode(tmp_path, monkeypatch):
     client = TestClient(app)
     assert client.get("/kassenbuch").status_code == 404
     assert not any(getattr(r, "name", "") == "assets" for r in app.routes)
+
+
+def test_initialisiere_startup_auf_frischem_volumen_ohne_auth_tabelle(tmp_path, monkeypatch):
+    """Regression: initialisiere() registriert _purge_bei_startup bei Import und damit
+    VOR main.startup()/create_all. Auf einem frischen Volumen (keine auth_sessions-
+    Tabelle) darf der Startup trotzdem nicht crashen - die Tabelle wird idempotent
+    vor dem Purge angelegt (Bug: frischer Docker-Erststart starb mit
+    'no such table: auth_sessions')."""
+    import os
+    import sqlite3
+
+    daten = tmp_path / "server-data"
+    daten.mkdir()
+    monkeypatch.setenv("RECHNUNGSFEE_SERVER_MODE", "1")
+    monkeypatch.setenv("RECHNUNGSFEE_BASE_DIR", str(daten))
+    monkeypatch.setenv("SESSION_SECRET", "test-secret-mindestens-32-zeichen-lang!!")
+    monkeypatch.setenv("OIDC_ISSUER", "https://idp.example")
+    monkeypatch.setenv("OIDC_CLIENT_ID", "rechnungsfee")
+    monkeypatch.setenv("OIDC_REDIRECT_URI", "https://app.example/api/auth/callback")
+    monkeypatch.setenv("OIDC_ALLOWED_EMAILS", "a@example.org")
+
+    # connection wie in test_base_dir_folgt_env_override auf tmp-Volumen umbiegen
+    snap = _ConnectionSnapshot()
+    try:
+        importlib.reload(connection)
+        assert str(connection.BASE_DIR) == str(daten)
+
+        # server_mode.initialisiere nutzt database.connection.engine/SessionLocal -
+        # nach dem Reload zeigen die Namen in server_mode auf die alten Objekte,
+        # deshalb hier die frischen explizit patchen.
+        monkeypatch.setattr(server_mode, "SERVER_MODE", True)
+        app = FastAPI()
+
+        @app.get("/health")
+        def health():
+            return {"ok": True}
+
+        server_mode.initialisiere(app)
+        # Startup-Events ausloesen (TestClient macht das beim __enter__; hier manuell)
+        import anyio
+        async def _startup():
+            for h in app.router.on_startup:
+                r = h()
+                if hasattr(r, "__await__"):
+                    await r
+        anyio.from_thread.run(_startup) if False else None
+        with TestClient(app) as client:
+            assert client.get("/health").json() == {"ok": True}
+
+        # auth_sessions existiert jetzt im frischen Volumen
+        db_path = connection.DB_PATH
+        assert db_path.exists()
+        con = sqlite3.connect(str(db_path))
+        try:
+            con.execute("SELECT COUNT(*) FROM auth_sessions").fetchone()
+        finally:
+            con.close()
+    finally:
+        snap.restore()
+        importlib.reload(connection)
