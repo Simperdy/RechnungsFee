@@ -670,6 +670,15 @@ def _prüfe_wiederherstellung() -> None:
                 # und könnte nach dem Upload ausgetauscht worden sein (Security-Audit F1).
                 upload_entries = _pruefe_backup_eintraege(zf, uploads_dir)
                 if "rechnungsfee.db" in names:
+                    # WICHTIG: stale WAL/SHM der ALTEN DB zuerst entfernen, sonst liest
+                    # SQLite nach dem Ersetzen einen WAL, der nicht zur neuen DB gehoert
+                    # -> "database disk image is malformed" beim naechsten Start. Die DB
+                    # selbst ist ein sauberer Snapshot (backup-API nutzt sqlite .backup()).
+                    for suffix in ("-wal", "-shm"):
+                        alt = DB_PATH.with_name(DB_PATH.name + suffix)
+                        if alt.exists():
+                            alt.unlink()
+                            print(f"[Wiederherstellung] stale {suffix}-Datei entfernt")
                     zf.extract("rechnungsfee.db", APP_DATA_DIR)
                     print("[Wiederherstellung] Datenbank (ZIP) wiederhergestellt")
                 if upload_entries:
@@ -682,6 +691,10 @@ def _prüfe_wiederherstellung() -> None:
             marker_zip.unlink()
 
         elif marker_db.exists():
+            for suffix in ("-wal", "-shm"):
+                alt = DB_PATH.with_name(DB_PATH.name + suffix)
+                if alt.exists():
+                    alt.unlink()
             shutil.copy2(str(marker_db), str(DB_PATH))
             marker_db.unlink()
             print("[Wiederherstellung] Datenbank (lokales Backup) wiederhergestellt")

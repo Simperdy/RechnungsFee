@@ -69,3 +69,54 @@ def test_backup_wiederherstellen_ohne_db_in_zip_wird_abgelehnt(tmp_path, monkeyp
         asyncio.run(main.backup_wiederherstellen(datei=datei, passwort=""))
     assert "400" in str(exc_info.value) or "rechnungsfee.db" in str(exc_info.value)
     assert not marker_zip.exists()
+
+
+def test_pruefe_wiederherstellung_entfernt_stale_wal_shm(tmp_path, monkeypatch):
+    """Regression: Restore auf einem Volumen mit laufender alter DB liess stale
+    rechnungsfee.db-wal/-shm stehen. Nach dem Ersetzen der DB las SQLite einen WAL,
+    der nicht zur neuen DB gehoert -> 'database disk image is malformed' beim Start.
+    _prüfe_wiederherstellung() muss die Sidecar-Dateien vor dem Extract loeschen."""
+    import sqlite3
+
+    app_data = tmp_path / "profil"
+    app_data.mkdir()
+    db_path = app_data / "rechnungsfee.db"
+
+    # alte DB + stale WAL/SHM simulieren
+    con = sqlite3.connect(str(db_path))
+    con.execute("CREATE TABLE alt (id INTEGER)")
+    con.execute("INSERT INTO alt VALUES (1)")
+    con.commit()
+    con.close()
+    (app_data / "rechnungsfee.db-wal").write_bytes(b"stale-wal")
+    (app_data / "rechnungsfee.db-shm").write_bytes(b"stale-shm")
+
+    # Backup-ZIP mit gueltiger neuer DB
+    neue_db = tmp_path / "neu.db"
+    con = sqlite3.connect(str(neue_db))
+    con.execute("CREATE TABLE neu (id INTEGER)")
+    con.execute("INSERT INTO neu VALUES (42)")
+    con.commit()
+    con.close()
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.write(neue_db, "rechnungsfee.db")
+    marker = app_data / "restore_pending.zip"
+    marker.write_bytes(buf.getvalue())
+
+    monkeypatch.setattr(main, "RESTORE_MARKER_ZIP", marker)
+    monkeypatch.setattr(main, "RESTORE_MARKER_DB", app_data / "restore_pending.db")
+    monkeypatch.setattr(main, "APP_DATA_DIR", app_data)
+    monkeypatch.setattr(main, "DB_PATH", db_path)
+    # _backup_datenbank() schreibt ins backups/-Unterverzeichnis der echten DB -
+    # hier auf tmp umbiegen, damit nichts ins echte Profil landet
+    monkeypatch.setattr(main, "_backup_datenbank", lambda: None)
+
+    main._prüfe_wiederherstellung()
+
+    assert not marker.exists()
+    assert not (app_data / "rechnungsfee.db-wal").exists()
+    assert not (app_data / "rechnungsfee.db-shm").exists()
+    con = sqlite3.connect(str(db_path))
+    assert con.execute("SELECT id FROM neu").fetchone()[0] == 42
+    con.close()
