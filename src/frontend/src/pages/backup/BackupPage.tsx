@@ -334,12 +334,12 @@ function BackupTab() {
           {fehler && <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 text-sm text-red-700 dark:text-red-300">Fehler: {fehler}</div>}
           {erfolg && <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg px-4 py-3 text-sm text-green-700 dark:text-green-300">✓ {erfolg}</div>}
 
-          <div className="flex items-start gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
             <button onClick={handleBackup} disabled={laedt}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-medium text-sm px-5 py-2 rounded-lg transition-colors shrink-0">
+              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-medium text-sm px-5 py-2 rounded-lg transition-colors shrink-0 min-h-11 md:min-h-0">
               {laedt ? <><span className="animate-spin">⏳</span>Wird erstellt…</> : <>💾 Backup herunterladen</>}
             </button>
-            <p className="text-sm text-slate-500 dark:text-slate-400 pt-1.5">
+            <p className="text-sm text-slate-500 dark:text-slate-400 pt-1.5 min-w-0">
               Dateiname: <span className="font-mono text-slate-700 dark:text-slate-200 break-all">RechnungsFee-Backup-JJJJ-MM-TT.zip</span>
             </p>
           </div>
