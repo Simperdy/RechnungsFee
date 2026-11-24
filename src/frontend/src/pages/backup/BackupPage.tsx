@@ -245,7 +245,7 @@ function ExterneBackupEinstellungen() {
                       placeholder={passwortPlatzhalter(data?.backup_smb_passwort_gesetzt, smbPasswortEntfernen, 'SMB-Passwort')}
                       className={`${inputCls} pr-20`} />
                     <button type="button" onClick={() => setZeigSmbPasswort(z => !z)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2 py-1">
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2 min-h-11 md:min-h-0 py-1">
                       {zeigSmbPasswort ? 'Verbergen' : 'Anzeigen'}
                     </button>
                   </div>
@@ -273,7 +273,7 @@ function ExterneBackupEinstellungen() {
                 hatZiel ? 'Pflichtfeld – externes Backup ist immer verschlüsselt' : 'Wird benötigt sobald ein Ziel konfiguriert ist')}
               className={`${inputCls} pr-24 ${passwortFehlt ? 'border-red-400 focus:ring-red-400' : ''}`} />
             <button type="button" onClick={() => setZeigPasswort(z => !z)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2 py-1">
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2 min-h-11 md:min-h-0 py-1">
               {zeigPasswort ? 'Verbergen' : 'Anzeigen'}
             </button>
           </div>
@@ -385,7 +385,7 @@ function BackupTab() {
           ].map(({ os, pfad }) => (
             <div key={os} className="flex items-center gap-2 text-sm">
               <span className="text-xs bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-medium w-16 text-center shrink-0">{os}</span>
-              <code className="text-slate-600 dark:text-slate-300 font-mono text-xs">{pfad}</code>
+              <code className="text-slate-600 dark:text-slate-300 font-mono text-xs break-all min-w-0 flex-1">{pfad}</code>
             </div>
           ))}
         </div>
@@ -596,7 +596,7 @@ function WiederherstellungTab() {
           ].map(({ os, pfad }) => (
             <div key={os} className="flex items-center gap-2 text-sm">
               <span className="text-xs bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-medium w-16 text-center shrink-0">{os}</span>
-              <code className="text-slate-600 dark:text-slate-300 font-mono text-xs">{pfad}</code>
+              <code className="text-slate-600 dark:text-slate-300 font-mono text-xs break-all min-w-0 flex-1">{pfad}</code>
             </div>
           ))}
         </div>

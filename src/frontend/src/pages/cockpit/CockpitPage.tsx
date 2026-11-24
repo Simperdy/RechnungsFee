@@ -44,7 +44,7 @@ function InfoTooltip({ text, direction = 'down' }: { text: string; direction?: '
       </span>
       <span className={`
         pointer-events-none absolute ${box} z-50
-        w-64 rounded-lg bg-slate-800 dark:bg-slate-700 text-white text-xs px-3 py-2 shadow-xl
+        w-64 max-w-[80vw] rounded-lg bg-slate-800 dark:bg-slate-700 text-white text-xs px-3 py-2 shadow-xl
         opacity-0 group-hover:opacity-100 transition-opacity duration-150
       `}>
         {text}

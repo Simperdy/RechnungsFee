@@ -271,7 +271,7 @@ export function JournalPage() {
               onClick={() => handleJournalExport('pdf')}
               disabled={exportLaedt}
               title="Journal als PDF exportieren"
-              className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+              className="min-h-11 md:min-h-0 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
             >
               {exportLaedt ? '⏳' : '📄'} PDF
             </button>
@@ -280,7 +280,7 @@ export function JournalPage() {
               onClick={() => handleJournalExport('csv')}
               disabled={exportLaedt}
               title="Journal als CSV exportieren"
-              className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+              className="min-h-11 md:min-h-0 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
             >
               CSV
             </button>
@@ -291,7 +291,7 @@ export function JournalPage() {
                 onClick={() => handleKassenbuchExport('pdf')}
                 disabled={kassenbuchLaedt}
                 title="Kassenbuch als PDF exportieren"
-                className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+                className="min-h-11 md:min-h-0 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
               >
                 {kassenbuchLaedt ? '⏳' : '📒'} Kassenbuch PDF
               </button>
@@ -300,7 +300,7 @@ export function JournalPage() {
                 onClick={() => handleKassenbuchExport('csv')}
                 disabled={kassenbuchLaedt}
                 title="Kassenbuch als CSV exportieren"
-                className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+                className="min-h-11 md:min-h-0 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
               >
                 CSV
               </button>

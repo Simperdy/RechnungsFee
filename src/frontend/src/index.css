@@ -50,3 +50,18 @@ html[data-theme="dark"] select option {
   background-color: #1e293b;
   color: #f1f5f9;
 }
+
+/* iOS zoomt bei Fokus automatisch, wenn Inputs < 16px Schrift haben.
+   Auf Mobile (bis sm) deshalb mindestens text-base (16px), ab sm wieder text-sm. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  font-size: 16px;
+}
+@media (min-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 0.875rem; /* text-sm */
+  }
+}
