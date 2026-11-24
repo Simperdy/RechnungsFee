@@ -660,6 +660,17 @@ def _prüfe_wiederherstellung() -> None:
     import zipfile
     print("[Wiederherstellung] Pending-Marker gefunden – stelle wieder her …")
     try:
+        # WICHTIG: Vor dem DB-Austausch die alte DB sauber checkpointen und die
+        # Engine-Verbindungen schliessen, sonst bleiben WAL/SHM der alten DB liegen
+        # (sqlite liest danach einen WAL, der nicht zur neuen DB gehoert ->
+        # "database disk image is malformed" beim naechsten Start).
+        try:
+            from database.connection import engine as _engine
+            with _engine.connect() as _c:
+                _c.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
+            _engine.dispose()
+        except Exception as _e:
+            print(f"[Wiederherstellung] WAL-Checkpoint der alten DB fehlgeschlagen (faellt nicht ins Gewicht): {_e}")
         _backup_datenbank()  # Sicherheitsbackup der aktuellen DB
 
         if marker_zip.exists():
