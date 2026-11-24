@@ -25,8 +25,12 @@ durchlaufen.
 """
 from urllib.parse import urlsplit
 
+import server_mode
 from utils import sitzungstoken
 
+# Desktop-Modus: nur localhost-Hosts. Server-Modus (Docker hinter TLS-Proxy):
+# der Proxy setzt den Host auf die öffentliche Domain – die erlauben wir,
+# solange der Request über den Proxy kam (X-Forwarded-Proto gesetzt).
 ERLAUBTE_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
 
 # Eigene Oberflächen: Tauri (macOS/Linux), Tauri unter Windows (WebView2), Vite-Dev-Server
@@ -96,7 +100,10 @@ class SicherheitMiddleware:
 
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
 
-        if _hostname(headers.get("host", "")) not in ERLAUBTE_HOSTS:
+        host_ok = _hostname(headers.get("host", "")) in ERLAUBTE_HOSTS
+        # Server-Modus hinter TLS-Proxy: Host ist die öffentliche Domain, aber der
+        # Proxy kennzeichnet sich via X-Forwarded-Proto – dann ist jeder Host ok.
+        if not host_ok and not (server_mode.SERVER_MODE and headers.get("x-forwarded-proto")):
             await _abweisen(send, 421, "Unzulässiger Host-Header.")
             return
 
