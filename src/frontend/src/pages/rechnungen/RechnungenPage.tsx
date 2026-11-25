@@ -5799,7 +5799,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
               )}
               <button
                 onClick={() => { setFormModus('neu'); setSelectedId(null); setImportPrefill(null); setImportPostfachId(null) }}
-                className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors max-sm:w-full max-sm:min-h-11"
               >
                 {lieferscheinModus ? '+ Neuer Lieferschein' : istAbschlagSeite ? '+ Neue Abschlagsrechnung' : '+ Neue Rechnung'}
               </button>
@@ -5882,7 +5882,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
               placeholder={lieferscheinModus ? 'Nummer, Partner oder Rechnung suchen…' : 'Nummer oder Partner suchen…'}
               value={suche}
               onChange={(e) => setSuche(e.target.value)}
-              className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 w-56"
+              className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 w-full sm:w-56"
             />
 
             {/* Status-Filter */}
@@ -6029,12 +6029,12 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                     ) : (
                       <>
                         <th
-                          className="px-5 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200"
+                          className="hidden md:table-cell px-5 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200"
                           onClick={() => setSortFaellig(s => s === 'asc' ? 'desc' : s === 'desc' ? null : 'asc')}
                         >
                           Fällig bis {sortFaellig === 'asc' ? '↑' : sortFaellig === 'desc' ? '↓' : ''}
                         </th>
-                        <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide" title="mit MwSt">Brutto</th>
+                        <th className="hidden md:table-cell px-5 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide" title="mit MwSt">Brutto</th>
                       </>
                     )}
                     <th className="px-5 py-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Status</th>
@@ -6073,7 +6073,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                           )}
                         </td>
                       )}
-                      <td className="px-5 py-3 text-slate-500 dark:text-slate-400">{formatDatum(r.datum)}</td>
+                      <td className="px-3 md:px-5 py-3 text-slate-500 dark:text-slate-400">{formatDatum(r.datum)}</td>
                       <td className="px-5 py-3 font-mono text-xs text-slate-400 dark:text-slate-500">
                         {r.rechnungsnummer ?? '—'}
                         {r.dokument_typ === 'Gutschrift' && <span className="ml-1.5 text-[10px] text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded px-1">Gutschrift</span>}
@@ -6119,7 +6119,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                         </td>
                       ) : (
                         <>
-                          <td className="px-5 py-3 whitespace-nowrap">
+                          <td className="hidden md:table-cell px-5 py-3 whitespace-nowrap">
                             {r.faellig_am ? (
                               <span className={`text-sm font-medium ${
                                 r.zahlungsstatus !== 'bezahlt' && !r.storniert && !r.verrechnet_in_rechnung_id && r.faellig_am < heuteIso()
@@ -6139,7 +6139,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                               </span>
                             ) : <span className="text-slate-300 dark:text-slate-600">—</span>}
                           </td>
-                          <td className="px-5 py-3 text-right font-medium text-slate-800 dark:text-slate-100">
+                          <td className="hidden md:table-cell px-5 py-3 text-right font-medium text-slate-800 dark:text-slate-100">
                             {formatEuro(r.brutto_gesamt)}
                           </td>
                         </>

@@ -262,9 +262,9 @@ export function JournalPage() {
     <div className="md:h-full md:flex md:flex-col">
       {/* Kopf + Filter – auf Mobile Teil des Seitenflusses, damit die ganze Seite scrollt */}
       <div className="md:shrink-0 px-4 md:px-6 pt-4 md:pt-6 pb-3 md:pb-4">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Journal</h2>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:[&>button]:flex-1">
           {/* Journal-Export immer sichtbar */}
           <div className="flex rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600">
             <button
@@ -308,13 +308,13 @@ export function JournalPage() {
           )}
           <button
             onClick={() => setShowAbschluss(true)}
-            className="border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
+            className="border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 max-sm:flex-1 max-sm:min-h-11"
           >
             Tagesabschluss
           </button>
           <button
             onClick={() => setShowBuchung(true)}
-            className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700"
+            className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 max-sm:flex-1 max-sm:min-h-11"
           >
             + Neue Buchung
           </button>
@@ -332,7 +332,7 @@ export function JournalPage() {
           onChange={(e) => setSuche(e.target.value)}
           placeholder="Suchen: Text, Belegnr., Betrag…"
           aria-label="Journal durchsuchen"
-          className={`min-w-[200px] rounded-lg px-3 py-1.5 text-sm focus:outline-none border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 placeholder:text-slate-400 ${
+          className={`w-full sm:min-w-[200px] rounded-lg px-3 py-1.5 text-sm focus:outline-none border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 placeholder:text-slate-400 ${
             suche ? 'ring-2 ring-blue-500' : 'focus:ring-2 focus:ring-blue-500'
           }`}
         />
