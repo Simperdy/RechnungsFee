@@ -509,7 +509,7 @@ export function JournalPage() {
       )}
 
       {/* Liste – mobil normaler Fluss (Seite scrollt in AppLayout), Desktop eigener Scroller */}
-      <div className="md:flex-1 md:overflow-y-auto md:min-h-0 px-4 md:px-6 pb-6">
+      <div className="md:flex-1 md:overflow-y-auto md:min-h-0 px-4 md:px-6 pb-6 max-md:pb-24">
       <div className="md:bg-white md:dark:bg-slate-800 md:rounded-xl md:border md:border-slate-200 md:dark:border-slate-700 md:overflow-hidden">
         {isLoading ? (
           <p className="text-slate-400 dark:text-slate-500 text-sm p-5">Lade…</p>
