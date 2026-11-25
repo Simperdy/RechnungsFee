@@ -167,6 +167,32 @@ for (const p of ['/', '/journal', '/rechnungen', '/kunden']) {
   check(`Bottom-Nav sichtbar auf ${p}`, nav);
 }
 
+
+// ── Konsistenz-Audit: Schriftgrößen, Button-Größen, Header-Positionen über alle 4 Seiten ──
+const audit = {};
+for (const p of ['/', '/journal', '/rechnungen', '/kunden']) {
+  await page.goto(BASE + p, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1200);
+  audit[p] = await page.evaluate(() => {
+    const h2 = document.querySelector('h2');
+    const h2cs = h2 ? getComputedStyle(h2) : null;
+    const btns = [...document.querySelectorAll('button')].filter(b => { const r = b.getBoundingClientRect(); return r.width > 20 && r.height > 20 && r.top < 220; }).map(b => { const cs = getComputedStyle(b); const r = b.getBoundingClientRect(); return {t: b.textContent.trim().slice(0,18), fs: cs.fontSize, h: Math.round(r.height), top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right)}; });
+    const nav = document.querySelector('[data-testid="mobile-bottom-nav"]');
+    return {path: location.pathname,
+      h2: h2 ? {text: h2.textContent, fs: h2cs.fontSize, fw: h2cs.fontWeight} : null,
+      headerButtons: btns.slice(0, 6),
+      navBottom: nav ? Math.round(nav.getBoundingClientRect().bottom) : null,
+      navH: nav ? Math.round(nav.getBoundingClientRect().height) : null};
+  });
+}
+console.log(JSON.stringify(audit, null, 1));
+// Assertions: h2 überall gleiche Größe, Nav überall gleiche Position/Höhe
+const h2sizes = new Set(Object.values(audit).map(a => a.h2 && a.h2.fs));
+const navbottoms = new Set(Object.values(audit).map(a => a.navBottom));
+check('Audit: h2-Schriftgröße auf allen 4 Seiten gleich', h2sizes.size === 1, [...h2sizes].join(','));
+check('Audit: Bottom-Nav gleiche Position auf allen Seiten', navbottoms.size === 1, [...navbottoms].join(','));
+await shot('10-audit');
+
 await browser.close();
 const failed = results.filter(r => !r.ok);
 console.log(`\n=== ERGEBNIS: ${results.length - failed.length}/${results.length} bestanden ===`);

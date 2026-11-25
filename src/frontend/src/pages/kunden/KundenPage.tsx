@@ -1072,8 +1072,8 @@ export function KundenPage() {
               >
                 <span className="material-symbols-outlined text-xl">upload_file</span>
               </button>
-              <button onClick={openCreate} className="min-h-11 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700">
-                + Neu
+              <button onClick={openCreate} className="min-h-11 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700 max-sm:w-full">
+                + Neue Kunden
               </button>
             </div>
           </div>
