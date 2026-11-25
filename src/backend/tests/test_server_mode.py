@@ -230,6 +230,8 @@ def test_proxy_netz_ist_auf_proxy_sensitive_eingeschraenkt():
     assert _ist_proxy_client({"client": ("192.168.66.203", 50000)}) is False  # LAN-Host direkt
     assert _ist_proxy_client({"client": ("10.9.9.9", 50000)}) is False          # anderes Docker-Netz
     assert "172.16.15.0/24" in _PROXY_NETZE
+    assert "172.16.16.0/24" in _PROXY_NETZE  # proxy_public (NPM)
+    assert _ist_proxy_client({"client": ("172.16.16.8", 50000)}) is True
 
 
 def test_ungueltige_sid_wird_im_cache_gehalten():

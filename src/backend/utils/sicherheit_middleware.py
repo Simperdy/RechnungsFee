@@ -64,7 +64,7 @@ def _hostname(host_header: str) -> str:
 
 # Vertrauensbereich für Forwarded-Header — muss zu --forwarded-allow-ips im
 # Dockerfile passen (NPM im proxy_sensitive-Netz 172.16.15.0/24 + Loopback).
-_PROXY_NETZE = ("127.0.0.1", "172.16.15.0/24")
+_PROXY_NETZE = ("127.0.0.1", "172.16.15.0/24", "172.16.16.0/24")  # proxy_sensitive + proxy_public (NPM)
 
 
 def _ist_proxy_client(scope: dict) -> bool:
