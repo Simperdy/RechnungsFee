@@ -90,21 +90,28 @@ def lade_config(env: dict[str, str] | None = None) -> ServerAuthConfig:
             "Siehe src/backend/.env.server.example (nur Schluessel, keine Werte)."
         )
     issuer = quelle["OIDC_ISSUER"].strip()
-    # Lokale Tests erlaubt: http://localhost ODER http://<beliebige-IP> (z. B. LAN-IP
-    # mit Stub-IdP im selben Netz). Produktion: https-Pflicht bleibt bestehen, weil
-    # nur https:// und explizit http://localhost|127.*|192.168.*|10.*|172.16-31.*
-    # als "lokal" gelten.
+    # Produktion: https-Pflicht. http:// nur fuer localhost/Loopback oder mit
+    # expliziter Dev-Option RECHNUNGSFEE_OIDC_HTTP_LAN=1 auch fuer private LAN-IPs
+    # (Stub-IdP im Heimnetz) — sonst wuerde z. B. http://192.168.1.20:9999 im
+    # Produktivbetrieb akzeptiert (Token ueber Klartext-HTTP im LAN).
+    import os as _os
     import ipaddress
     from urllib.parse import urlsplit as _urlsplit
     _host = _urlsplit(issuer).hostname or ""
     try:
         _ip = ipaddress.ip_address(_host)
-        _lokal = _ip.is_private or _ip.is_loopback
+        _loopback = _ip.is_loopback
+        _privat = _ip.is_private
     except ValueError:
-        _lokal = _host == "localhost" or _host.endswith(".localhost")
-    if not (issuer.startswith("https://") or _lokal):
+        _loopback = _host == "localhost" or _host.endswith(".localhost")
+        _privat = False
+    _http_ok = issuer.startswith("https://") or _loopback or (
+        _privat and issuer.startswith("http://") and _os.environ.get("RECHNUNGSFEE_OIDC_HTTP_LAN") == "1"
+    )
+    if not _http_ok:
         raise AuthKonfigFehler(
-            f"Server-Modus: OIDC_ISSUER muss https sein (oder http://localhost/<private IP> fuer lokale Tests), ist {issuer!r}"
+            "Server-Modus: OIDC_ISSUER muss https:// sein (http nur fuer localhost, "
+            "private LAN-IPs zusaetzlich nur mit RECHNUNGSFEE_OIDC_HTTP_LAN=1), ist " + repr(issuer)
         )
     emails = frozenset(e.strip().lower() for e in quelle["OIDC_ALLOWED_EMAILS"].split(",") if e.strip())
     if not emails:

@@ -535,3 +535,25 @@ async def test_rate_limit_ohne_initialisiere_schlaegt_nicht_fehl(app):
     """Ohne Limiter (Desktop-Modus / Mini-App) darf der Login weiterlaufen."""
     async with _client(app) as c:
         assert (await c.get("/api/auth/login")).status_code == 302
+
+
+def test_lade_config_http_private_ip_nur_mit_dev_option(monkeypatch):
+    """http://<private LAN-IP> ist nur mit RECHNUNGSFEE_OIDC_HTTP_LAN=1 erlaubt
+    (sonst Klartext-OIDC im Produktivbetrieb moeglich)."""
+    basis = {
+        "OIDC_ISSUER": "http://192.168.66.203:9999",
+        "OIDC_CLIENT_ID": CLIENT_ID,
+        "OIDC_REDIRECT_URI": REDIRECT_URI,
+        "OIDC_ALLOWED_EMAILS": ERLAUBT,
+        "SESSION_SECRET": GEHEIM,
+    }
+    monkeypatch.delenv("RECHNUNGSFEE_OIDC_HTTP_LAN", raising=False)
+    with pytest.raises(auth_modul.AuthKonfigFehler, match="OIDC_ISSUER"):
+        auth_modul.lade_config(basis)
+    monkeypatch.setenv("RECHNUNGSFEE_OIDC_HTTP_LAN", "1")
+    cfg = auth_modul.lade_config(basis)  # jetzt erlaubt (Stub-IdP im LAN)
+    assert cfg.issuer == "http://192.168.66.203:9999"
+    # localhost bleibt ohne Option erlaubt
+    basis["OIDC_ISSUER"] = "http://localhost:9999"
+    monkeypatch.delenv("RECHNUNGSFEE_OIDC_HTTP_LAN", raising=False)
+    assert auth_modul.lade_config(basis).issuer == "http://localhost:9999"

@@ -666,7 +666,7 @@ function KundeDokumente({ kundeId }: { kundeId: number }) {
 // Rechts: Rechnungspanel
 // ---------------------------------------------------------------------------
 
-function KundeRechnungen({ kunde, initialTab }: { kunde: Kunde; initialTab?: 'kontokorrent' }) {
+function KundeRechnungen({ kunde, initialTab, onClose }: { kunde: Kunde; initialTab?: 'kontokorrent'; onClose?: () => void }) {
   const navigate = useNavigate()
   const [offeneRechnung, setOffeneRechnung] = useState<number | null>(null)
   const [tab, setTab] = useState<'rechnungen' | 'angebote' | 'dokumente' | 'kontokorrent'>(initialTab ?? 'rechnungen')
@@ -700,6 +700,11 @@ function KundeRechnungen({ kunde, initialTab }: { kunde: Kunde; initialTab?: 'ko
   return (
     <div className="h-full flex flex-col">
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 shrink-0 space-y-2">
+        {onClose && (
+          <button type="button" onClick={onClose} className="md:hidden text-sm text-blue-600 dark:text-blue-400 font-medium">
+            ← Zurück zur Liste
+          </button>
+        )}
         {/* Tabs */}
         <div className="flex gap-1">
           <button onClick={() => setTab('rechnungen')}
@@ -1064,7 +1069,7 @@ export function KundenPage() {
 
       {/* ── Linke Spalte (breit) ─────────────────────────────────────── */}
       <div
-        className={`${showForm ? (manuell ? 'shrink-0' : 'w-1/3 min-w-[260px] shrink-0') : 'flex-1'} flex flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 transition-all`}
+        className={`${showForm ? (manuell ? 'shrink-0' : 'w-1/3 min-w-[260px] shrink-0') : 'flex-1'} ${(selected || showForm) ? 'hidden md:flex' : 'flex'} flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 transition-all`}
         style={showForm && manuell ? { width: splitterBreite, minWidth: '220px' } : undefined}
       >
 
@@ -1305,9 +1310,9 @@ export function KundenPage() {
 
       {/* ── Rechte Spalte (Rechnungen oder Formular) ─────────────────── */}
       {!showForm && (
-        <div className={`${selected ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-hidden`}>
+        <div className={`${selected ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-hidden ${selected ? 'fixed inset-0 z-40 bg-white dark:bg-slate-900 md:static md:z-auto' : ''}`}>
           {selected ? (
-            <KundeRechnungen key={selected.id} kunde={selected} initialTab={initialDetailTab} />
+            <KundeRechnungen key={selected.id} kunde={selected} initialTab={initialDetailTab} onClose={() => setSelected(null)} />
           ) : (
             <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500 text-sm">
               Kunden auswählen
