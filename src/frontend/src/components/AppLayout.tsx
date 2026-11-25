@@ -562,8 +562,8 @@ export function AppLayout() {
 
       {/* Hauptinhalt */}
       <main ref={mainRef} className="flex-1 min-w-0 overflow-auto flex flex-col pb-16 md:pb-0">
-        <div className="md:hidden flex items-center gap-3 border-b border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-          <button type="button" aria-label="Navigation öffnen" aria-controls="app-navigation" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen(true)} className="rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-600">☰ Menü</button>
+        {/* Mobile Header: nur Titel — Navigation läuft über die Bottom-Nav (4 Hauptpunkte) */}
+        <div className="md:hidden flex items-center justify-center border-b border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
           <span className="text-sm font-semibold">RechnungsFee</span>
         </div>
         {/* Update-Banner */}
