@@ -62,9 +62,20 @@ def _hostname(host_header: str) -> str:
 
 
 
-# Vertrauensbereich für Forwarded-Header — muss zu --forwarded-allow-ips im
-# Dockerfile passen (NPM im proxy_sensitive-Netz 172.16.15.0/24 + Loopback).
-_PROXY_NETZE = ("127.0.0.1", "172.16.15.0/24", "172.16.16.0/24")  # proxy_sensitive + proxy_public (NPM)
+# Vertrauensbereich für Forwarded-Header — muss zu RECHNUNGSFEE_PROXY_NETZE
+# (Env, Default siehe Dockerfile) passen. Komma-separierte IPs/CIDRs.
+import os as _os
+_DEFAULT_PROXY_NETZE = "127.0.0.1,172.16.15.0/24,172.16.16.0/24"  # Loopback + NPM proxy_sensitive/proxy_public
+
+
+def _proxy_netze_aus_env() -> tuple:
+    """RECHNUNGSFEE_PROXY_NETZE (komma-separiert) oder Default — muss zu
+    --forwarded-allow-ips im Dockerfile passen (dort expandiert die Shell)."""
+    roh = _os.environ.get("RECHNUNGSFEE_PROXY_NETZE", _DEFAULT_PROXY_NETZE)
+    return tuple(n.strip() for n in roh.split(",") if n.strip())
+
+
+_PROXY_NETZE = _proxy_netze_aus_env()
 
 
 def _ist_proxy_client(scope: dict) -> bool:

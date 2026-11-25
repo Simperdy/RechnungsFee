@@ -244,3 +244,15 @@ def test_ungueltige_sid_wird_im_cache_gehalten():
     assert server_mode.session_zur_anfrage(Headers({"cookie": f"rf_session={sid}"})) is None
     from auth_sessions import sid_hash
     assert sid_hash(sid) in server_mode._UNGUELTIG_CACHE
+
+
+def test_proxy_netze_per_env_ueberschreibbar(monkeypatch):
+    """RECHNUNGSFEE_PROXY_NETZE aus der Env gewinnt gegen den Default —
+    andere Netze (z. B. anderes Proxy-Setup) ohne Code-Aenderung moeglich."""
+    # Modul NICHT reloaden (main.app haelt die alte Klassen-Identitaet) —
+    # stattdessen die Env-Funktion direkt testen.
+    from utils.sicherheit_middleware import _proxy_netze_aus_env
+    monkeypatch.setenv("RECHNUNGSFEE_PROXY_NETZE", "127.0.0.1,10.99.0.0/16")
+    assert _proxy_netze_aus_env() == ("127.0.0.1", "10.99.0.0/16")
+    monkeypatch.delenv("RECHNUNGSFEE_PROXY_NETZE", raising=False)
+    assert _proxy_netze_aus_env() == ("127.0.0.1", "172.16.15.0/24", "172.16.16.0/24")
