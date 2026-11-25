@@ -79,12 +79,13 @@ _PROXY_NETZE = _proxy_netze_aus_env()
 
 
 def _ist_proxy_client(scope: dict) -> bool:
-    """True, wenn der Request nachweislich vom eigenen Proxy kam.
+    """True, wenn der TCP-Peer (scope['client']) ein vertrauter Proxy ist.
 
-    uvicorn loest mit --proxy-headers/--forwarded-allow-ips die echte Client-IP
-    in scope['client'] auf. Wir vertrauen X-Forwarded-* nur, wenn diese IP im
-    Proxy-Vertrauensbereich liegt — ein direkter LAN/Docker-Zugriff auf :8000
-    (anderer Container in einem anderen privaten Netz) kann die Header sonst spoofen."""
+    Das ist NICHT die Client-IP aus X-Forwarded-For — die prueft uvicorn selbst
+    gegen --forwarded-allow-ips (gleiche Liste wie RECHNUNGSFEE_PROXY_NETZE).
+    Hier geht es nur um die Peer-Adresse des TCP-Connections: nur wer wirklich
+    der Proxy ist, darf X-Forwarded-Proto/-For setzen, sonst spoofen beliebige
+    LAN-Clients die Header."""
     import ipaddress
     client_ip = (scope.get("client") or ("", 0))[0]
     try:
