@@ -5715,7 +5715,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
   )
 
   return (
-    <div className="flex h-full">
+    <div className="flex md:h-full">
       {zeigPostfach && (
         <PostfachDialog
           meldung={postfachMeldung}
@@ -5965,7 +5965,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
         )}
 
         {/* Tabelle */}
-        <div ref={listContainerRef} tabIndex={0} className="flex-1 overflow-y-auto min-h-0 px-6 pb-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-sm">
+        <div ref={listContainerRef} tabIndex={0} className="md:flex-1 md:overflow-y-auto md:min-h-0 px-4 md:px-6 pb-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-sm">
           {lieferscheinModus && lsFilterRechnungId != null && (
             <div className="mb-3 flex items-center gap-3 bg-teal-50 dark:bg-teal-950 border border-teal-200 dark:border-teal-800 rounded-xl px-4 py-2.5">
               <span className="text-sm text-teal-700 dark:text-teal-300 flex-1">
@@ -6225,7 +6225,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
       )}
 
       {!formModus && (
-        <div className="w-[28rem] shrink-0 h-full overflow-hidden">
+        <div className="md:w-[28rem] md:shrink-0 md:h-full overflow-hidden ${selectedRechnung ? 'fixed inset-0 z-40 bg-white dark:bg-slate-900 md:static md:z-auto' : 'hidden md:block'}">
           {selectedRechnung ? (
             <RechnungDetail
               key={`${selectedId ?? 0}-${detailVersion}`}

@@ -1065,7 +1065,7 @@ export function KundenPage() {
   const mutationError = createMutation.error || updateMutation.error
 
   return (
-    <div className="flex h-full">
+    <div className="flex md:h-full">
 
       {/* ── Linke Spalte (breit) ─────────────────────────────────────── */}
       <div
@@ -1101,8 +1101,8 @@ export function KundenPage() {
         </div>
 
         {/* Tabelle */}
-        <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="md:flex-1 md:overflow-y-auto md:min-h-0 px-4 md:px-6 pb-6">
+          <div className="md:bg-white md:dark:bg-slate-800 md:rounded-xl md:border md:border-slate-200 md:dark:border-slate-700 overflow-x-auto">
           {isLoading ? (
             <p className="text-slate-400 dark:text-slate-500 text-sm p-5">Lade…</p>
           ) : !gefiltert.length ? (
