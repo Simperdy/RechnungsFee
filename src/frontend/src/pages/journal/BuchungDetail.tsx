@@ -112,14 +112,14 @@ export function BuchungDetail({ eintrag: e, bereitsStorniert, onClose, onBearbei
 
   return (
     <tr>
-      <td colSpan={7} className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-4 py-4">
+      <td colSpan={7} className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-4 py-4 max-sm:px-3 overflow-hidden">
 
         {/* Aktionsleiste – waagerecht als erste Zeile */}
         {istRechnungsBuchung ? (
           <div className="mb-4 flex items-start gap-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
             <span className="shrink-0 mt-0.5">🧾</span>
             <span>
-              Diese Buchung gehört zu Rechnung <strong>{e.rechnung_nr ?? `#${e.rechnung_id}`}</strong> und kann nur über die Rechnung verwaltet werden.
+              Diese Buchung gehört zu Rechnung <strong className="break-all">{e.rechnung_nr ?? `#${e.rechnung_id}`}</strong> und kann nur über die Rechnung verwaltet werden.
               Drucken, Mail und Storno sind hier gesperrt.
             </span>
           </div>
@@ -253,11 +253,11 @@ export function BuchungDetail({ eintrag: e, bereitsStorniert, onClose, onBearbei
         )}
 
         {/* Betragsdetails + Kundendaten */}
-        <div className="flex gap-6">
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
           <div className="flex-1 text-sm space-y-1">
             {e.kategorie_name && (
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                <span>Kategorie</span>
+                <span className="shrink-0 mr-2">Kategorie</span>
                 <span className="text-slate-700 dark:text-slate-200">{e.kategorie_name}</span>
               </div>
             )}
@@ -284,7 +284,7 @@ export function BuchungDetail({ eintrag: e, bereitsStorniert, onClose, onBearbei
             </div>
           </div>
 
-          <div className="w-52 text-sm">
+          <div className="w-full sm:w-52 text-sm min-w-0">
             {e.kunde_name ? (
               <div className="space-y-0.5">
                 <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Kunde</p>

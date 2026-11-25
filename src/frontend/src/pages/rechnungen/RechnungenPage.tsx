@@ -5758,9 +5758,9 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
         <div className="p-6 pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 max-sm:w-full">{lieferscheinModus ? 'Lieferscheine' : istAbschlagSeite ? 'Abschlagsrechnungen' : 'Rechnungen'}</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 max-sm:w-full max-sm:[&>div]:flex-1 max-sm:[&>button]:flex-1">
               {!lieferscheinModus && (
-                <div className="flex rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600">
+                <div className="flex rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600 max-sm:flex-1 max-sm:[&>button]:min-h-11 max-sm:[&>button]:flex-1">
                   <button
                     onClick={() => handleRechnungenExport('pdf')}
                     disabled={exportLaedt}
