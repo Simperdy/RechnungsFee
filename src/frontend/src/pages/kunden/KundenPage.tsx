@@ -650,7 +650,7 @@ function KundeDokumente({ kundeId }: { kundeId: number }) {
 // Rechts: Rechnungspanel
 // ---------------------------------------------------------------------------
 
-function KundeRechnungen({ kunde, initialTab }: { kunde: Kunde; initialTab?: 'kontokorrent' }) {
+function KundeRechnungen({ kunde, initialTab, onClose }: { kunde: Kunde; initialTab?: 'kontokorrent'; onClose?: () => void }) {
   const navigate = useNavigate()
   const [offeneRechnung, setOffeneRechnung] = useState<number | null>(null)
   const [tab, setTab] = useState<'rechnungen' | 'angebote' | 'dokumente' | 'kontokorrent'>(initialTab ?? 'rechnungen')
@@ -684,6 +684,10 @@ function KundeRechnungen({ kunde, initialTab }: { kunde: Kunde; initialTab?: 'ko
   return (
     <div className="h-full flex flex-col">
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 shrink-0 space-y-2">
+        <div className="flex items-center gap-2 md:hidden">
+          <button onClick={onClose} aria-label="Zurück" className="min-h-11 min-w-11 flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-lg leading-none">←</button>
+          <span className="font-semibold text-slate-800 dark:text-slate-100 truncate">{kundeName(kunde)}</span>
+        </div>
         {/* Tabs */}
         <div className="flex gap-1">
           <button onClick={() => setTab('rechnungen')}
@@ -1328,7 +1332,7 @@ export function KundenPage() {
       {!showForm && (
         <div className={`${selected ? 'fixed inset-0 z-40 bg-white dark:bg-slate-900 md:static md:z-auto' : 'hidden md:block'} flex-1 md:flex-none w-full md:w-[28rem] shrink-0 min-h-0 overflow-y-auto`}>
           {selected ? (
-            <KundeRechnungen key={selected.id} kunde={selected} initialTab={initialDetailTab} />
+            <KundeRechnungen key={selected.id} kunde={selected} initialTab={initialDetailTab} onClose={() => setSelected(null)} />
           ) : (
             <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500 text-sm">
               Kunden auswählen
@@ -1339,7 +1343,7 @@ export function KundenPage() {
 
       {/* ── Formular-Panel ───────────────────────────────────────────── */}
       {showForm && (
-        <div className="w-full flex-1 border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-700 overflow-y-auto">
+        <div className="fixed inset-0 z-40 bg-white dark:bg-slate-900 md:static md:z-auto w-full flex-1 border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-700 overflow-y-auto">
           <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0">
             <h3 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               {editKunde ? 'Kunde bearbeiten' : 'Neuer Kunde'}
