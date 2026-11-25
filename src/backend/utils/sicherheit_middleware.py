@@ -65,7 +65,7 @@ def _hostname(host_header: str) -> str:
 # Vertrauensbereich für Forwarded-Header — muss zu RECHNUNGSFEE_PROXY_NETZE
 # (Env, Default siehe Dockerfile) passen. Komma-separierte IPs/CIDRs.
 import os as _os
-_DEFAULT_PROXY_NETZE = "127.0.0.1,172.16.15.0/24,172.16.16.0/24"  # Loopback + NPM proxy_sensitive/proxy_public
+_DEFAULT_PROXY_NETZE = "127.0.0.1,172.16.15.0/24,172.16.16.0/24,192.168.188.241/32"  # Loopback + NPM proxy_sensitive/proxy_public/lan_macvlan
 
 
 def _proxy_netze_aus_env() -> tuple:
@@ -78,21 +78,35 @@ def _proxy_netze_aus_env() -> tuple:
 _PROXY_NETZE = _proxy_netze_aus_env()
 
 
-def _ist_proxy_client(scope: dict) -> bool:
-    """True, wenn der TCP-Peer (scope['client']) ein vertrauter Proxy ist.
+def _ist_proxy_peer(scope: dict) -> bool:
+    """True, wenn der LETZTE Hop in X-Forwarded-For ein vertrauter Proxy-Peer ist.
 
-    Das ist NICHT die Client-IP aus X-Forwarded-For — die prueft uvicorn selbst
-    gegen --forwarded-allow-ips (gleiche Liste wie RECHNUNGSFEE_PROXY_NETZE).
-    Hier geht es nur um die Peer-Adresse des TCP-Connections: nur wer wirklich
-    der Proxy ist, darf X-Forwarded-Proto/-For setzen, sonst spoofen beliebige
-    LAN-Clients die Header."""
+    uvicorn ersetzt scope['client'] bei --proxy-headers durch den linken XFF-
+    Eintrag (die echte Client-IP) — deshalb pruefen wir nicht scope['client'],
+    sondern den RECHTEN XFF-Eintrag: das ist die IP, die der Proxy selbst als
+    seinen vorgelagerten Peer sah, also der Proxy selbst (NPM hat mehrere
+    Netz-IPs: proxy_sensitive .15.4, proxy_public .16.8, lan_macvlan .241).
+    Nur von solchen Peers duerfen X-Forwarded-Proto/-For stammen."""
     import ipaddress
-    client_ip = (scope.get("client") or ("", 0))[0]
+    headers = dict(scope.get("headers") or [])
+    xff = headers.get(b"x-forwarded-for", b"").decode("latin-1")
+    if not xff:
+        # Kein XFF: direkter Zugriff — nur Loopback gilt als eigener Proxy
+        peer = (scope.get("client") or ("", 0))[0]
+        try:
+            return ipaddress.ip_address(peer) in ipaddress.ip_network("127.0.0.1/32")
+        except ValueError:
+            return False
+    letzter = xff.split(",")[-1].strip()  # rechter Hop = naechster an uns = Proxy
     try:
-        ip = ipaddress.ip_address(client_ip)
+        ip = ipaddress.ip_address(letzter)
     except ValueError:
         return False
     return any(ip in ipaddress.ip_network(n) for n in _PROXY_NETZE)
+
+
+# Alias fuer bestehende Aufrufer
+_ist_proxy_client = _ist_proxy_peer
 
 def origin_erlaubt(origin: str, scope: dict | None = None) -> bool:
     origin = origin.strip().lower()

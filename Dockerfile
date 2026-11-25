@@ -58,5 +58,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 # und Loopback — nicht allen RFC1918-Netzen (sonst X-Forwarded-For/-Proto spoofbar).
 # Proxy-Vertrauensbereich als Env uebergebbar (Default: Loopback + NPM-Netze
 # proxy_sensitive/proxy_public). Compose setzt RECHNUNGSFEE_PROXY_NETZE.
-ENV RECHNUNGSFEE_PROXY_NETZE="127.0.0.1,172.16.15.0/24,172.16.16.0/24"
+ENV RECHNUNGSFEE_PROXY_NETZE="127.0.0.1,172.16.15.0/24,172.16.16.0/24,192.168.188.241/32"
 CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips \"$RECHNUNGSFEE_PROXY_NETZE\""]
