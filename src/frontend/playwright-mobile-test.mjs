@@ -132,6 +132,33 @@ if (await formClose.isVisible().catch(() => false)) {
 check('Kunden kein h-Overflow', !(await hOverflow()));
 await shot('07-kunden-nach-close');
 
+
+// ── Rechnungen: PDF/CSV Buttons vollständig im Bild ──
+await page.goto(BASE + '/rechnungen', { waitUntil: 'networkidle' });
+await page.waitForTimeout(1500);
+const exp = await page.evaluate(() => {
+  const pdf = [...document.querySelectorAll('button')].find(b => b.textContent.includes('PDF'));
+  const csv = [...document.querySelectorAll('button')].find(b => b.textContent.includes('CSV'));
+  const r = el => { if (!el) return null; const b = el.getBoundingClientRect(); return {text: el.textContent.trim(), right: Math.round(b.right), w: Math.round(b.width), imBild: b.width > 0 && b.right <= innerWidth + 1}; };
+  return {pdf: r(pdf), csv: r(csv), iw: innerWidth};
+});
+check('Rechnungen: PDF-Button ganz im Bild', !!(exp.pdf && exp.pdf.imBild), JSON.stringify(exp.pdf));
+check('Rechnungen: CSV-Button ganz im Bild & vollstaendig', !!(exp.csv && exp.csv.imBild && exp.csv.text.includes('CSV')), JSON.stringify(exp.csv));
+await shot('08-rechnungen-export');
+
+// ── Kassenbuch: Detail öffnen, kein horizontaler Überhang ──
+await page.goto(BASE + '/journal', { waitUntil: 'networkidle' });
+await page.waitForTimeout(1500);
+await page.locator('.md\\:hidden.space-y-2 button').first().tap();
+await page.waitForTimeout(1500);
+const jdet = await page.evaluate(() => {
+  const se = document.scrollingElement;
+  const scroller = [...document.querySelectorAll('div')].find(d => ['auto','scroll'].includes(getComputedStyle(d).overflowY) && d.scrollWidth > d.clientWidth + 2);
+  return {hOverflow: se.scrollWidth > innerWidth + 2, innerOverflow: !!scroller, iw: innerWidth, seW: se.scrollWidth};
+});
+check('Kassenbuch: Detail kein horizontaler Ueberhang', !jdet.hOverflow && !jdet.innerOverflow, JSON.stringify(jdet));
+await shot('09-journal-detail');
+
 // ── Bottom-Nav auf allen Seiten ──
 for (const p of ['/', '/journal', '/rechnungen', '/kunden']) {
   await page.goto(BASE + p, { waitUntil: 'networkidle' });
