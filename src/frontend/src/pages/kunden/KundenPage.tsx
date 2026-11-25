@@ -1105,11 +1105,11 @@ export function KundenPage() {
                     </div>
                   )}
                   <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
-                    <button type="button" onClick={() => setSelected(selected?.id === k.id ? null : k)}
+                    <button type="button" data-testid="kunde-details" onClick={(e) => { e.stopPropagation(); setSelected(selected?.id === k.id ? null : k); }}
                       className="flex-1 min-h-11 text-sm font-medium border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
                       Details
                     </button>
-                    <button type="button" onClick={() => openEdit(k)}
+                    <button type="button" data-testid="kunde-bearbeiten" onClick={(e) => { e.stopPropagation(); openEdit(k); }}
                       className="flex-1 min-h-11 text-sm font-medium border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
                       Bearbeiten
                     </button>
@@ -1326,7 +1326,7 @@ export function KundenPage() {
 
       {/* ── Rechte Spalte (Rechnungen oder Formular) ─────────────────── */}
       {!showForm && (
-        <div className="flex-1 md:flex-none w-full md:w-[28rem] shrink-0 min-h-0 overflow-y-auto">
+        <div className={`${selected ? 'fixed inset-0 z-40 bg-white dark:bg-slate-900 md:static md:z-auto' : 'hidden md:block'} flex-1 md:flex-none w-full md:w-[28rem] shrink-0 min-h-0 overflow-y-auto`}>
           {selected ? (
             <KundeRechnungen key={selected.id} kunde={selected} initialTab={initialDetailTab} />
           ) : (

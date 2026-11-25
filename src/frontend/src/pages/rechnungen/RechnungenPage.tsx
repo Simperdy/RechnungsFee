@@ -6225,7 +6225,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
       )}
 
       {!formModus && (
-        <div className="md:w-[28rem] md:shrink-0 md:h-full overflow-hidden ${selectedRechnung ? 'fixed inset-0 z-40 bg-white dark:bg-slate-900 md:static md:z-auto' : 'hidden md:block'}">
+        <div className="hidden md:block md:w-[28rem] md:shrink-0 md:h-full overflow-hidden ${selectedRechnung ? 'md:static' : ''} ${selectedRechnung ? 'fixed inset-0 z-40 bg-white dark:bg-slate-900 md:static md:z-auto' : ''}">
           {selectedRechnung ? (
             <RechnungDetail
               key={`${selectedId ?? 0}-${detailVersion}`}
