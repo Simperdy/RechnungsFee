@@ -1069,7 +1069,7 @@ export function KundenPage() {
 
       {/* ── Linke Spalte (breit) ─────────────────────────────────────── */}
       <div
-        className={`${showForm ? (manuell ? 'shrink-0' : 'w-1/3 min-w-[260px] shrink-0') : 'flex-1'} ${(selected || showForm) ? 'hidden md:flex' : 'flex'} flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 transition-all`}
+        className={`${showForm ? (manuell ? 'md:shrink-0' : 'md:w-1/3 md:min-w-[260px] md:shrink-0') : 'md:flex-1'} w-full ${(selected || showForm) ? 'hidden md:flex' : 'flex'} flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 transition-all`}
         style={showForm && manuell ? { width: splitterBreite, minWidth: '220px' } : undefined}
       >
 

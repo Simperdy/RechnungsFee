@@ -5752,7 +5752,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
       )}
       {/* Linke Spalte */}
       <div
-        className={`${formModus ? (manuell ? 'shrink-0' : 'w-1/3 min-w-[260px] shrink-0') : 'flex-1'} flex flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 min-h-0 transition-all`}
+        className={`${formModus ? (manuell ? 'md:shrink-0' : 'md:w-1/3 md:min-w-[260px] md:shrink-0') : 'md:flex-1'} w-full flex flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 min-h-0 transition-all ${selectedRechnung || formModus ? 'hidden md:flex' : ''}`}
         style={formModus && manuell ? { width: splitterBreite, minWidth: '220px' } : undefined}
       >
         <div className="p-6 pb-4">
@@ -6000,7 +6000,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
               </button>
             </div>
           )}
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-x-auto md:overflow-hidden">
             {isLoading ? (
               <p className="p-5 text-slate-400 dark:text-slate-500 text-sm">Lade Rechnungen…</p>
             ) : listeSortiert.length === 0 ? (
