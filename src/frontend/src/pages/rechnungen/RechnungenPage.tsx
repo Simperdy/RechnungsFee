@@ -5848,14 +5848,14 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                 type="month"
                 value={monat}
                 onChange={(e) => setMonat(e.target.value)}
-                className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
               />
             )}
             {filterModus === 'datum' && (
               <DateInput
                 value={datum}
                 onChange={setDatum}
-                className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
               />
             )}
             {filterModus === 'zeitraum' && (
@@ -5863,14 +5863,14 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                 <DateInput
                   value={datumVon}
                   onChange={setDatumVon}
-                  className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
                 />
                 <span className="text-slate-400 dark:text-slate-500 text-sm">bis</span>
                 <DateInput
                   value={datumBis}
                   min={datumVon}
                   onChange={setDatumBis}
-                  className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
             )}
@@ -5890,7 +5890,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
               <select
                 value={lsAbrechnungFilter}
                 onChange={(e) => setLsAbrechnungFilter(e.target.value as typeof lsAbrechnungFilter)}
-                className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
               >
                 <option value="">Alle Status</option>
                 <option value="offen">Nicht abgerechnet</option>

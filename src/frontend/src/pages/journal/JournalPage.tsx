@@ -520,7 +520,62 @@ export function JournalPage() {
               : 'Keine Buchungen gefunden.'}
           </p>
         ) : (
-          <table className="w-full text-sm">
+          <>
+          {/* Mobil: Karten statt enger Tabelle */}
+          <div className="md:hidden space-y-2">
+            {eintraegeGefiltert!.map((e) => {
+              const istAktiv = aktiverEintragId === e.id
+              const bereitsStorniert = !!e.storniert
+              return (
+                <div key={e.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggleEintrag(e.id)}
+                    className={`w-full text-left min-h-11 px-4 py-3 rounded-xl border transition-colors ${
+                      istAktiv
+                        ? 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 active:bg-slate-50 dark:active:bg-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="min-w-0 text-sm text-slate-700 dark:text-slate-200">
+                        {e.beschreibung}
+                        {e.steuerbefreiung_grund && (
+                          <span className="block text-xs text-slate-400 dark:text-slate-500">({e.steuerbefreiung_grund})</span>
+                        )}
+                        {e.storniert && (
+                          <span className="ml-1.5 text-xs bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 rounded px-1">storniert</span>
+                        )}
+                      </span>
+                      <span className={`shrink-0 text-sm font-semibold ${e.art === 'Einnahme' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {e.art === 'Einnahme' ? '+' : '−'}{formatEuro(e.brutto_betrag)}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-slate-400 dark:text-slate-500">
+                      <span>{formatDatum(e.datum)}</span>
+                      <span className="font-mono">{e.belegnr}</span>
+                      <span>{e.zahlungsart}</span>
+                    </div>
+                  </button>
+                  {istAktiv && (
+                    <div className="mt-1">
+                      <BuchungDetail
+                        eintrag={e}
+                        bereitsStorniert={bereitsStorniert}
+                        onClose={() => setAktiverEintragId(null)}
+                        onBearbeiten={(eintrag) => {
+                          setAktiverEintragId(null)
+                          setBearbeitenEintrag(eintrag)
+                          setShowBuchung(true)
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <table className="hidden md:table w-full text-sm">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-left">
                 <th
@@ -585,9 +640,6 @@ export function JournalPage() {
                           >
                             🧾 {e.rechnung_nr} ↗
                           </button>
-                        )}
-                        {e.kategorie_name && (
-                          <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">· {e.kategorie_name}</span>
                         )}
                         {e.steuerbefreiung_grund && (
                           <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">({e.steuerbefreiung_grund})</span>
@@ -655,6 +707,8 @@ export function JournalPage() {
               })}
             </tbody>
           </table>
+          </>
+
         )}
       </div>
       </div>{/* Ende Tabellen-Wrapper */}
