@@ -221,19 +221,17 @@ def test_session_zur_anfrage_sid_format_vorfilter():
     assert session_zur_anfrage(Headers({"cookie": "rf_session=" + "A" * 44})) is None  # zu lang
 
 
-def test_proxy_peer_prueft_rechten_xff_hop():
-    """Regression: uvicorn ersetzt scope['client'] durch den linken XFF-Eintrag
-    (echte Client-IP). Der Proxy-Peer ist der RECHTE XFF-Hop (IP, die der Proxy
-    selbst sah) — z. B. NPM mit macvlan-IP 192.168.188.241."""
+def test_proxy_peer_ein_xff_hop_ist_proxy():
+    """Regression: NPM ($proxy_add_x_forwarded_for) haengt genau EINEN Hop an
+    (die Client-IP). uvicorn ersetzt scope['client'] durch diesen Hop. Ein
+    einzelner XFF-Eintrag = Request kam direkt vom Proxy. Mehrere Hops: der
+    rechte muss in RECHNUNGSFEE_PROXY_NETZE liegen. Kein XFF: nur Loopback."""
     from utils.sicherheit_middleware import _ist_proxy_peer, _PROXY_NETZE
     h = lambda xff: {"client": ("10.0.0.9", 50000), "headers": [(b"x-forwarded-for", xff.encode())]}
-    # XFF "client-ip, proxy-ip" -> rechter Hop = Proxy
-    assert _ist_proxy_peer(h("10.0.0.9, 172.16.15.4")) is True    # NPM proxy_sensitive
-    assert _ist_proxy_peer(h("10.0.0.9, 172.16.16.8")) is True    # NPM proxy_public
-    assert _ist_proxy_peer(h("10.0.0.9, 192.168.188.241")) is True if "192.168.188.241/32" in _PROXY_NETZE else True
-    assert _ist_proxy_peer(h("10.0.0.9, 192.168.188.213")) is False  # iPhone-IP als "Proxy" -> fremd
-    assert _ist_proxy_peer(h("10.0.0.9, 10.9.9.9")) is False        # fremder Docker-Container
-    assert _ist_proxy_peer({"client": ("127.0.0.1", 1)}) is True    # kein XFF, Loopback direkt
+    assert _ist_proxy_peer(h("192.168.188.213")) is True          # 1 Hop = NPM-Request mit Client-iPhone
+    assert _ist_proxy_peer(h("10.0.0.9, 172.16.15.4")) is True     # gekettet, rechter Hop = NPM proxy_sensitive
+    assert _ist_proxy_peer(h("10.0.0.9, 10.9.9.9")) is False        # gekettet, rechter Hop fremd
+    assert _ist_proxy_peer({"client": ("127.0.0.1", 1)}) is True    # kein XFF, Loopback
     assert _ist_proxy_peer({"client": ("192.168.66.203", 1)}) is False  # kein XFF, LAN direkt
     assert "172.16.15.0/24" in _PROXY_NETZE and "172.16.16.0/24" in _PROXY_NETZE
 
@@ -259,4 +257,4 @@ def test_proxy_netze_per_env_ueberschreibbar(monkeypatch):
     monkeypatch.setenv("RECHNUNGSFEE_PROXY_NETZE", "127.0.0.1,10.99.0.0/16")
     assert _proxy_netze_aus_env() == ("127.0.0.1", "10.99.0.0/16")
     monkeypatch.delenv("RECHNUNGSFEE_PROXY_NETZE", raising=False)
-    assert _proxy_netze_aus_env() == ("127.0.0.1", "172.16.15.0/24", "172.16.16.0/24", "192.168.188.241/32")
+    assert _proxy_netze_aus_env() == ("127.0.0.1", "172.16.15.0/24", "172.16.16.0/24")
