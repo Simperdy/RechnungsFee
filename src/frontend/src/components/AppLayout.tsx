@@ -561,7 +561,7 @@ export function AppLayout() {
       </aside>
 
       {/* Hauptinhalt */}
-      <main ref={mainRef} className="flex-1 min-w-0 overflow-auto flex flex-col pb-16 md:pb-0">
+      <main ref={mainRef} className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden flex flex-col pb-16 md:pb-0 md:overflow-hidden">
         {/* Mobile Header: nur Titel — Navigation läuft über die Bottom-Nav (4 Hauptpunkte) */}
         <div className="md:hidden flex items-center justify-center border-b border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
           <span className="text-sm font-semibold">RechnungsFee</span>
@@ -680,7 +680,8 @@ export function AppLayout() {
         )}
 
         <div className="flex-1 min-h-0 flex">
-          <div ref={inhaltRef} className="flex-1 overflow-y-auto h-full">
+          {/* Mobil: Seite scrollt in <main> (voller Fluss inkl. Header); Desktop: eigener Scroller */}
+          <div ref={inhaltRef} className="flex-1 md:overflow-y-auto md:h-full">
             <Outlet />
           </div>
         </div>
