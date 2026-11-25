@@ -263,7 +263,7 @@ export function JournalPage() {
       {/* Kopf + Filter – auf Mobile Teil des Seitenflusses, damit die ganze Seite scrollt */}
       <div className="md:shrink-0 px-4 md:px-6 pt-4 md:pt-6 pb-3 md:pb-4">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Journal</h2>
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 max-sm:w-full">Journal</h2>
         <div className="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:[&>button]:flex-1">
           {/* Journal-Export immer sichtbar */}
           <div className="flex rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600">

@@ -5757,7 +5757,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
       >
         <div className="p-6 pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{lieferscheinModus ? 'Lieferscheine' : istAbschlagSeite ? 'Abschlagsrechnungen' : 'Rechnungen'}</h2>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 max-sm:w-full">{lieferscheinModus ? 'Lieferscheine' : istAbschlagSeite ? 'Abschlagsrechnungen' : 'Rechnungen'}</h2>
             <div className="flex gap-2">
               {!lieferscheinModus && (
                 <div className="flex rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600">
