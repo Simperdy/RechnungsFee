@@ -219,3 +219,26 @@ def test_session_zur_anfrage_sid_format_vorfilter():
     assert session_zur_anfrage(Headers({"cookie": "rf_session=garbage"})) is None
     assert session_zur_anfrage(Headers({"cookie": "rf_session=" + "A" * 43})) is None  # formal ok, DB sagt nein
     assert session_zur_anfrage(Headers({"cookie": "rf_session=" + "A" * 44})) is None  # zu lang
+
+
+def test_proxy_netz_ist_auf_proxy_sensitive_eingeschraenkt():
+    """Regression: _ist_proxy_client darf nicht alle privaten Netze erlauben —
+    nur Loopback + proxy_sensitive (172.16.15.0/24, passend zu Dockerfile)."""
+    from utils.sicherheit_middleware import _ist_proxy_client, _PROXY_NETZE
+    assert _ist_proxy_client({"client": ("172.16.15.10", 50000)}) is True
+    assert _ist_proxy_client({"client": ("127.0.0.1", 50000)}) is True
+    assert _ist_proxy_client({"client": ("192.168.66.203", 50000)}) is False  # LAN-Host direkt
+    assert _ist_proxy_client({"client": ("10.9.9.9", 50000)}) is False          # anderes Docker-Netz
+    assert "172.16.15.0/24" in _PROXY_NETZE
+
+
+def test_ungueltige_sid_wird_im_cache_gehalten():
+    """Cookie-Spam mit formal gueltiger, aber unbekannter SID darf nicht jeden
+    Request in die DB schicken (Negative-Cache)."""
+    import server_mode
+    from starlette.datastructures import Headers
+    server_mode._UNGUELTIG_CACHE.clear()
+    sid = "A" * 43
+    assert server_mode.session_zur_anfrage(Headers({"cookie": f"rf_session={sid}"})) is None
+    from auth_sessions import sid_hash
+    assert sid_hash(sid) in server_mode._UNGUELTIG_CACHE

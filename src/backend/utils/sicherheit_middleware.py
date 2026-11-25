@@ -62,19 +62,25 @@ def _hostname(host_header: str) -> str:
 
 
 
+# Vertrauensbereich für Forwarded-Header — muss zu --forwarded-allow-ips im
+# Dockerfile passen (NPM im proxy_sensitive-Netz 172.16.15.0/24 + Loopback).
+_PROXY_NETZE = ("127.0.0.1", "172.16.15.0/24")
+
+
 def _ist_proxy_client(scope: dict) -> bool:
     """True, wenn der Request nachweislich vom eigenen Proxy kam.
 
     uvicorn loest mit --proxy-headers/--forwarded-allow-ips die echte Client-IP
-    in scope['client'] auf. Wir vertrauen X-Forwarded-* nur, wenn diese IP aus
-    dem privaten Proxy-Netz kommt — ein direkter LAN/Docker-Zugriff auf :8000
-    (anderer Container im selben Netz) kann die Header sonst spoofen."""
+    in scope['client'] auf. Wir vertrauen X-Forwarded-* nur, wenn diese IP im
+    Proxy-Vertrauensbereich liegt — ein direkter LAN/Docker-Zugriff auf :8000
+    (anderer Container in einem anderen privaten Netz) kann die Header sonst spoofen."""
     import ipaddress
     client_ip = (scope.get("client") or ("", 0))[0]
     try:
-        return ipaddress.ip_address(client_ip).is_private
+        ip = ipaddress.ip_address(client_ip)
     except ValueError:
         return False
+    return any(ip in ipaddress.ip_network(n) for n in _PROXY_NETZE)
 
 def origin_erlaubt(origin: str, scope: dict | None = None) -> bool:
     origin = origin.strip().lower()
@@ -135,12 +141,7 @@ class SicherheitMiddleware:
         # Client-IP in scope['client'] auf) — ein direkter LAN-Zugriff auf :8000
         # kann den Header sonst spoofen und den Host-Check aushebeln.
         if not host_ok:
-            client_ip = (scope.get("client") or ("", 0))[0]
-            try:
-                import ipaddress
-                _proxy = ipaddress.ip_address(client_ip).is_private
-            except ValueError:
-                _proxy = False
+            _proxy = _ist_proxy_client(scope)
             if not (server_mode.SERVER_MODE and _proxy and headers.get("x-forwarded-proto")):
                 await _abweisen(send, 421, "Unzulässiger Host-Header.")
                 return

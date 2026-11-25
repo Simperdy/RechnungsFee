@@ -54,4 +54,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 # darf nie direkt vom Host erreichbar sein - sonst liessen sich X-Forwarded-For/
 # X-Forwarded-Proto spoofen. Im Server-Modus setzt das Backend das Secure-Flag
 # sowieso hart (api/auth.py::ist_https).
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"]
+# Forwarded-Header nur vom konkreten Proxy-Netz (NPM in proxy_sensitive, 172.16.15.0/24)
+# und Loopback — nicht allen RFC1918-Netzen (sonst X-Forwarded-For/-Proto spoofbar).
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "127.0.0.1,172.16.15.0/24"]

@@ -141,6 +141,9 @@ def _session_factory():
     return SessionLocal()
 
 
+_UNGUELTIG_CACHE: dict[str, float] = {}
+
+
 def session_zur_anfrage(headers: Headers):
     """Liest das Session-Cookie (``rf_session``) und liefert die gueltige Session-
     Zeile oder None. Pruefung und Sliding Renewal macht ``auth_sessions.get_session``."""
@@ -159,9 +162,22 @@ def session_zur_anfrage(headers: Headers):
     import re as _re
     if not _re.fullmatch(r"[A-Za-z0-9_-]{43}", sid):
         return None
+    # Negative-Cache: ein sid_hash, der vor <60 s schon als ungueltig erkannt wurde,
+    # landet nicht erneut in der DB (DoS-Schutz gegen Cookie-Spam-Streams).
+    from auth_sessions import sid_hash as _sid_hash
+    import time as _time
+    h = _sid_hash(sid)
+    _ts = _UNGUELTIG_CACHE.get(h)
+    if _ts is not None and _time.time() - _ts < 60:
+        return None
     db = _session_factory()
     try:
-        return get_session(db, sid)
+        sitzung = get_session(db, sid)
+        if sitzung is None:
+            _UNGUELTIG_CACHE[h] = _time.time()
+            if len(_UNGUELTIG_CACHE) > 4096:  # Bounded: aelteste Eintraege verwerfen
+                _UNGUELTIG_CACHE.clear()
+        return sitzung
     finally:
         db.close()
 
