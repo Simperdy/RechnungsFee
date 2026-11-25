@@ -681,7 +681,7 @@ export function AppLayout() {
 
         <div className="flex-1 min-h-0 flex min-w-0">
           {/* Mobil: Seite scrollt in <main> (voller Fluss inkl. Header); Desktop: eigener Scroller */}
-          <div ref={inhaltRef} className="flex-1 md:overflow-y-auto md:h-full">
+          <div ref={inhaltRef} className="flex-1 min-w-0 md:overflow-y-auto md:h-full">
             <Outlet />
           </div>
         </div>
