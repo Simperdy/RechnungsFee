@@ -414,11 +414,11 @@ export function JournalPage() {
         </select>
 
         {/* Kategorie + Nur-bebuchte-Toggle als Button-Group */}
-        <div className="flex">
+        <div className="flex max-sm:w-full max-sm:[&>select]:flex-1">
           <select
             value={kategorieId}
             onChange={(e) => setKategorieId(e.target.value)}
-            className={`rounded-l-lg px-3 py-1.5 text-sm focus:outline-none border border-r-0 border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 transition-shadow ${
+            className={`rounded-l-lg px-2 py-1.5 text-xs sm:text-sm w-full sm:w-auto focus:outline-none border border-r-0 border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 transition-shadow ${
               kategorieId !== ''
                 ? 'ring-2 ring-blue-500'
                 : 'focus:ring-2 focus:ring-blue-500'
@@ -432,7 +432,7 @@ export function JournalPage() {
           <button
             onClick={() => { setNurBebuchte(!nurBebuchte); setKategorieId('') }}
             title="Nur Kategorien anzeigen, die mindestens eine Buchung haben"
-            className={`rounded-r-lg px-3 py-1.5 text-sm border transition-colors whitespace-nowrap ${
+            className={`rounded-r-lg px-2 py-1.5 text-xs sm:text-sm border transition-colors shrink-0 ${
               nurBebuchte
                 ? 'bg-blue-600 text-white border-blue-600'
                 : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'

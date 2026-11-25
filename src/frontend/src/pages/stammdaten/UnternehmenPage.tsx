@@ -59,7 +59,7 @@ function TabNav({ active, onChange }: { active: TabId; onChange: (t: TabId) => v
           key={t.id}
           type="button"
           onClick={() => onChange(t.id)}
-          className={`px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+          className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
             active === t.id
               ? 'border-blue-600 text-blue-600 dark:text-blue-400'
               : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
