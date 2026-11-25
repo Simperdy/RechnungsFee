@@ -30,6 +30,7 @@ const buchhaltungNavOptional: { to: string; label: string; icon: string; zeigen:
 ]
 
 import type { Unternehmen, ZMPruefung } from '../api/client'
+import { MobileBottomNav } from './MobileBottomNav'
 
 // Issue #451: Postfach-Abruf beim Start nur einmal pro App-Sitzung
 let postfachStartAbrufErledigt = false
@@ -182,6 +183,9 @@ function CollapsibleSection({
           ))}
         </div>
       )}
+
+      {/* Bottom-Navigation nur auf Smartphones — Desktop hat die Sidebar */}
+      <MobileBottomNav />
     </div>
   )
 }
@@ -559,7 +563,7 @@ export function AppLayout() {
       </aside>
 
       {/* Hauptinhalt */}
-      <main ref={mainRef} className="flex-1 min-w-0 overflow-auto flex flex-col">
+      <main ref={mainRef} className="flex-1 min-w-0 overflow-auto flex flex-col pb-16 md:pb-0">
         <div className="md:hidden flex items-center gap-3 border-b border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
           <button type="button" aria-label="Navigation öffnen" aria-controls="app-navigation" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen(true)} className="rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-600">☰ Menü</button>
           <span className="text-sm font-semibold">RechnungsFee</span>
