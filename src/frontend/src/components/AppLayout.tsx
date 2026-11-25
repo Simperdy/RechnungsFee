@@ -184,8 +184,6 @@ function CollapsibleSection({
         </div>
       )}
 
-      {/* Bottom-Navigation nur auf Smartphones — Desktop hat die Sidebar */}
-      <MobileBottomNav />
     </div>
   )
 }
@@ -687,6 +685,9 @@ export function AppLayout() {
           </div>
         </div>
       </main>
+
+      {/* Bottom-Navigation nur auf Smartphones — Desktop hat die Sidebar */}
+      <MobileBottomNav />
 
       {/* Tagesabschluss-Dialog */}
       {abschlussDialog && (
