@@ -292,11 +292,7 @@ function KundeDetail({
   }
 
   return (
-<<<<<<< HEAD
-    <div style={detailBreite.style} className={`${detailBreite.breiteKlasse} shrink-0 border-l border-slate-200 dark:border-slate-700 h-full overflow-auto`}>
-=======
     <div className="flex flex-col md:block w-full md:w-[28rem] shrink-0 border-l border-slate-200 dark:border-slate-700 h-full overflow-auto">
->>>>>>> feat/server-mode
       <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
         <div>
           <p className="font-semibold text-slate-800 dark:text-slate-100">{kunde.kunde_name}</p>

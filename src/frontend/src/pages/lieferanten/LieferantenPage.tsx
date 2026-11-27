@@ -798,16 +798,9 @@ export function LieferantenPage() {
         />
       )}
 
-<<<<<<< HEAD
-      {/* ── Rechte Spalte (Detail oder Formular) ─────────────────────── */}
-      {!showForm && <DetailTrennlinie detail={detailBreite} />}
-      {!showForm && (
-        <div style={detailBreite.style} className={`${detailBreite.breiteKlasse} shrink-0`}>
-=======
       {/* ── Rechte Spalte (Detail) — auf Mobile nach Auswahl als eigene Ansicht ── */}
       {!showForm && (
         <div className={`${selected ? 'flex' : 'hidden md:flex'} ${selected ? 'fixed inset-0 z-40 md:static md:z-auto bg-white dark:bg-slate-900 md:bg-transparent' : ''} flex-1 md:flex-none w-full md:w-[28rem] shrink-0 min-h-0 overflow-y-auto flex-col`}>
->>>>>>> feat/server-mode
           {selected ? (
             <LieferantDetail key={selected.id} lieferant={selected} initialTab={initialDetailTab} onClose={() => setSelected(null)} />
           ) : (

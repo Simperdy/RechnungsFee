@@ -2,14 +2,6 @@ import { useState, useEffect } from 'react'
 import { ImportDialog } from '../../components/ImportDialog'
 import { useAnsicht } from '../../hooks/useAnsicht'
 import { useSplitterBreite } from '../../hooks/useSplitterBreite'
-<<<<<<< HEAD
-import { useDetailBreite } from '../../hooks/useDetailBreite'
-import { DetailTrennlinie } from '../../components/DetailTrennlinie'
-import { DsgvoMailButton } from '../../components/DsgvoMailButton'
-import { PartnerVerlauf } from '../../components/DokumentVerlauf'
-import { leitwegIdFehler } from '../../utils/leitwegId'
-=======
->>>>>>> feat/server-mode
 import { DateInput } from '../../components/DateInput'
 import { UstIdnrPruefung } from '../../components/UstIdnrPruefung'
 import { istEuLand } from '../../utils/laender'
@@ -872,24 +864,8 @@ const schema = z.object({
   skonto_prozent: z.number().min(0).max(100).nullable().optional(),
   skonto_tage: z.number().int().min(1).max(365).nullable().optional(),
 }).superRefine((data, ctx) => {
-<<<<<<< HEAD
-  // Issue #530: Pflichtangaben für die XRechnung an öffentliche Auftraggeber
-  if (data.oeffentlicher_auftraggeber) {
-    const fehler = leitwegIdFehler(data.leitweg_id)
-    if (fehler) ctx.addIssue({ code: 'custom', path: ['leitweg_id'], message: fehler })
-    if (!data.email?.trim()) ctx.addIssue({ code: 'custom', path: ['email'], message: 'Pflichtfeld für öffentliche Auftraggeber (XRechnung)' })
-  }
-  if (!data.zugferd_aktiv && !data.oeffentlicher_auftraggeber) return
-  // Freiberufler/Selbstständige als Kunden haben oft keinen Firmennamen - die E-Rechnung nimmt dann
-  // Vor- und Nachname als Käufername (zugferd.py::_kunde_name). Keine Steuernummer nötig: die des
-  // Käufers kommt in EN 16931 nicht vor, die USt-IdNr. nur bei §13b/ig. Lieferung.
-  if (!data.firmenname?.trim() && !(data.vorname?.trim() && data.nachname?.trim())) {
-    ctx.addIssue({ code: 'custom', path: ['firmenname'], message: 'Für ZUGFeRD Firmenname oder Vor- und Nachname angeben' })
-  }
-=======
   if (!data.zugferd_aktiv) return
   if (!data.firmenname?.trim()) ctx.addIssue({ code: 'custom', path: ['firmenname'], message: 'Pflichtfeld für ZUGFeRD' })
->>>>>>> feat/server-mode
   if (!data.strasse?.trim()) ctx.addIssue({ code: 'custom', path: ['strasse'], message: 'Pflichtfeld für ZUGFeRD' })
   if (!data.plz?.trim()) ctx.addIssue({ code: 'custom', path: ['plz'], message: 'Pflichtfeld für ZUGFeRD' })
   if (!data.ort?.trim()) ctx.addIssue({ code: 'custom', path: ['ort'], message: 'Pflichtfeld für ZUGFeRD' })
@@ -995,16 +971,8 @@ export function KundenPage() {
   const watchLand = useWatch({ control, name: 'land' })
   const watchUstIdnrValidiert = useWatch({ control, name: 'ust_idnr_validiert' })
   const watchUstIdnrValidierungDatum = useWatch({ control, name: 'ust_idnr_validierung_datum' })
-<<<<<<< HEAD
-  const watchOeffentlich = useWatch({ control, name: 'oeffentlicher_auftraggeber' })
-  const { data: unternehmenStamm } = useQuery({ queryKey: ['unternehmen'], queryFn: getUnternehmen, staleTime: 1000 * 60 * 5 })
-  // Issue #530: Schalter nur sichtbar, wenn die Funktion an ist – oder der Kunde schon so markiert ist
-  const zeigOeffentlich = !!unternehmenStamm?.oeffentliche_auftraggeber_aktiv || !!editKunde?.oeffentlicher_auftraggeber
-  const zugferdAutoAktiv = !!(watchFirmenname?.trim() && watchUstIdnr?.trim()) || !!watchOeffentlich
-=======
   const zugferdAutoAktiv = !!(watchFirmenname?.trim() && watchUstIdnr?.trim())
   const zugferdOhneUstId = !!(watchZugferd && !watchUstIdnr?.trim())
->>>>>>> feat/server-mode
   // Drittland: weder Deutschland noch EU-Mitglied (Issue #315) - dort gilt keine USt-IdNr.,
   // sondern je nach Land eine andere Steuer-/Unternehmens-ID
   const istDrittland = !!watchLand && watchLand !== 'DE' && !istEuLand(watchLand)
@@ -1376,11 +1344,7 @@ export function KundenPage() {
       {/* ── Rechte Spalte (Rechnungen oder Formular) ─────────────────── */}
       {!showForm && <DetailTrennlinie detail={detailBreite} />}
       {!showForm && (
-<<<<<<< HEAD
-        <div style={detailBreite.style} className={`${detailBreite.breiteKlasse} shrink-0`}>
-=======
         <div className={`${selected ? 'fixed inset-0 z-40 bg-white dark:bg-slate-900 md:static md:z-auto' : 'hidden md:block'} flex-1 md:flex-none w-full md:w-[28rem] shrink-0 min-h-0 overflow-y-auto`}>
->>>>>>> feat/server-mode
           {selected ? (
             <KundeRechnungen key={selected.id} kunde={selected} initialTab={initialDetailTab} onClose={() => setSelected(null)} />
           ) : (

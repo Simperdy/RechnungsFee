@@ -1510,43 +1510,6 @@ export function Dashboard() {
       case 'kacheln':
         return (
           <div key="kacheln">
-<<<<<<< HEAD
-            <p className="text-xs text-slate-400 dark:text-slate-500 mb-2 pl-1 flex items-center gap-1.5">
-              Zahlungen {kachelZeitraum} · brutto
-              <InfoTooltip side="bottom" text={KACHELN_HINWEIS} />
-              <button
-                type="button"
-                onClick={() => setZeigUeberleitung(true)}
-                className="ml-2 text-blue-500 hover:text-blue-700 dark:hover:text-blue-300"
-              >
-                Woher kommt der Unterschied zum Cockpit?
-              </button>
-            </p>
-            {zeigUeberleitung && (
-              <UeberleitungDialog
-                {...kachelDatumsbereich()}
-                zeitraumLabel={kachelZeitraum}
-                onClose={() => setZeigUeberleitung(false)}
-                onKategorie={(z, seite) => {
-                  setZeigUeberleitung(false)
-                  zeigeImJournal(seite === 'eingaenge' ? 'Einnahme' : 'Ausgabe', z.kategorie_id !== null ? String(z.kategorie_id) : '')
-                }}
-              />
-            )}
-            <div className="grid grid-cols-3 gap-4 mb-2">
-              <button type="button" onClick={() => zeigeImJournal('Einnahme')} title={kachelTitel} className={kachelKlasse}>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Zahlungseingänge</p>
-                <p className="text-2xl font-bold text-green-600">{loaded ? formatEuro(einnahmen) : '—'}</p>
-              </button>
-              <button type="button" onClick={() => zeigeImJournal('Ausgabe')} title={kachelTitel} className={kachelKlasse}>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Zahlungsausgänge</p>
-                <p className="text-2xl font-bold text-red-600">{loaded ? formatEuro(ausgaben) : '—'}</p>
-              </button>
-              <button type="button" onClick={() => zeigeImJournal('')} title={kachelTitel} className={kachelKlasse}>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Saldo</p>
-                <p className={`text-2xl font-bold ${saldo >= 0 ? 'text-blue-600' : 'text-red-700'}`}>{loaded ? formatEuro(saldo) : '—'}</p>
-              </button>
-=======
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-2">
               <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 sm:p-5">
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-1 truncate" title="Betriebseinnahmen">Betriebseinnahmen</p>
@@ -1560,7 +1523,6 @@ export function Dashboard() {
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-1">Saldo</p>
                 <p className={`text-xl sm:text-2xl font-bold whitespace-nowrap ${saldo >= 0 ? 'text-blue-600' : 'text-red-700'}`}>{loaded ? formatEuro(saldo) : '—'}</p>
               </div>
->>>>>>> feat/server-mode
             </div>
             {hatPrivatbuchungen ? (
               <p className="text-xs text-slate-400 dark:text-slate-500 mb-6 pl-1">

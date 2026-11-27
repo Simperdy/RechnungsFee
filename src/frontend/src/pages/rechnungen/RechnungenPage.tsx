@@ -6475,16 +6475,9 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
         </div>
       )}
 
-<<<<<<< HEAD
-      {/* Detail-Panel nur bei Auswahl, sonst Liste durchgehend (wie die übrigen Listen) */}
-      {!formModus && selectedRechnung && <DetailTrennlinie detail={detailBreite} />}
-      {!formModus && selectedRechnung && (
-        <div className={`${detailBreite.breiteKlasse} shrink-0 h-full overflow-hidden`} style={detailBreite.style}>
-=======
       {!formModus && (
         <div className={`${selectedRechnung ? 'fixed inset-0 z-40 bg-white dark:bg-slate-900 md:static md:z-auto' : 'hidden md:block'} md:w-[28rem] md:shrink-0 md:h-full overflow-hidden`}>
           {selectedRechnung ? (
->>>>>>> feat/server-mode
             <RechnungDetail
               key={`${selectedId ?? 0}-${detailVersion}`}
               rechnung={selectedRechnung}

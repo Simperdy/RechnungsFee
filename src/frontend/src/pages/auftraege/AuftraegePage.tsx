@@ -1507,11 +1507,7 @@ export function AuftraegePage() {
 
       {selAuftrag && !zeigFormular && <DetailTrennlinie detail={detailBreite} />}
       {selAuftrag && !zeigFormular && (
-<<<<<<< HEAD
-        <div style={detailBreite.style} className={`${detailBreite.breiteKlasse} shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col`}>
-=======
         <div className={`${selAuftrag ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0} border-l border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col`}>
->>>>>>> feat/server-mode
           <AuftragDetail
             auftrag={selAuftrag}
             onEdit={() => handleEdit(selAuftrag)}

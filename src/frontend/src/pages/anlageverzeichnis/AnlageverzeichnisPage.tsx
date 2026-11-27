@@ -371,13 +371,8 @@ export function AnlageverzeichnisPage() {
             </div>
             <div className="flex gap-2 items-center w-full sm:w-auto">
               <select value={jahr} onChange={e => setJahr(parseInt(e.target.value))}
-<<<<<<< HEAD
-                className="border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm dark:bg-slate-700 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {buchungsjahre.map(y => (
-=======
                 className="border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm dark:bg-slate-700 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-11 md:min-h-0">
                 {Array.from({ length: 6 }, (_, i) => AKTUELLES_JAHR - i).map(y => (
->>>>>>> feat/server-mode
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>
@@ -479,11 +474,7 @@ export function AnlageverzeichnisPage() {
       {/* Rechte Spalte – Detail */}
       {formModus === null && selGut && <DetailTrennlinie detail={detailBreite} />}
       {formModus === null && selGut && (
-<<<<<<< HEAD
-        <div style={detailBreite.style} className={`${detailBreite.breiteKlasse} shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-y-auto p-5`}>
-=======
         <div className={`${selId ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0} border-l border-slate-200 dark:border-slate-700 overflow-y-auto p-5`}>
->>>>>>> feat/server-mode
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="font-semibold text-slate-800 dark:text-slate-100 text-sm">{selGut.bezeichnung}</h2>
