@@ -337,10 +337,6 @@ def anonymisiere_kunde(kunde_id: int, db: Session = Depends(get_db)):
         .count()
     )
 
-    # Issue #596: Mailadressen/Betreffe im Dokumentverlauf entfernen
-    from utils.dokument_verlauf import anonymisiere as _verlauf_anonymisieren
-    _verlauf_anonymisieren(db, kunde_id=kunde_id)
-
     # Rechnungen: kunde_id entfernen, Name als partner_freitext sichern
     rechnungen = db.query(Rechnung).filter(Rechnung.kunde_id == kunde_id).all()
     for r in rechnungen:
@@ -987,8 +983,8 @@ def kontokorrent_mail(
         empfaenger.append(data.cc)
     msg = _build_message(unt, data.an, data.cc, data.betreff, data.text,
                          attachments=[(pdf_bytes, dateiname)])
-    hinweis = _sende(unt, msg, empfaenger, db)  # db fehlte seit #336 (TypeError → „Failed to fetch“, #537)
-    return {"ok": True, "hinweis": hinweis}
+    _sende(unt, msg, empfaenger, db)  # db fehlte seit #336 (TypeError → „Failed to fetch“, #537)
+    return {"ok": True}
 
 
 @router.get("/{kunde_id}", response_model=KundeResponse)

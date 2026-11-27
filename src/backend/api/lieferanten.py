@@ -222,10 +222,6 @@ def anonymisiere_lieferant(lieferant_id: int, db: Session = Depends(get_db)):
         t for t in [lieferant.vorname, lieferant.nachname] if t
     ) or f"Lieferant #{lieferant_id}"
 
-    # Issue #596: Mailadressen/Betreffe im Dokumentverlauf entfernen
-    from utils.dokument_verlauf import anonymisiere as _verlauf_anonymisieren
-    _verlauf_anonymisieren(db, lieferant_id=lieferant_id)
-
     rechnungen = db.query(Rechnung).filter(Rechnung.lieferant_id == lieferant_id).all()
     for r in rechnungen:
         if not r.partner_freitext:
@@ -503,8 +499,8 @@ def kontokorrent_mail_lieferant(
         empfaenger.append(data.cc)
     msg = _build_message(unt, data.an, data.cc, data.betreff, data.text,
                          attachments=[(pdf_bytes, dateiname)])
-    hinweis = _sende(unt, msg, empfaenger, db)  # db fehlte seit #336 (TypeError → „Failed to fetch“, #537)
-    return {"ok": True, "hinweis": hinweis}
+    _sende(unt, msg, empfaenger, db)  # db fehlte seit #336 (TypeError → „Failed to fetch“, #537)
+    return {"ok": True}
 
 
 @router.get("/{lieferant_id}", response_model=LieferantResponse)

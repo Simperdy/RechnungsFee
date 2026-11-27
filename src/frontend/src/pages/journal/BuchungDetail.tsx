@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  stornoJournaleintrag, getUnternehmen, getJournalBelegUrl, getJournalAnhangUrl, journalBelege, openUrl, isTauri, type JournalEintrag,
+  stornoJournaleintrag, getUnternehmen, getJournalBelegUrl, getJournalAnhangUrl, openUrl, isTauri, type JournalEintrag,
 } from '../../api/client'
 import { InfoTooltip } from '../../components/InfoTooltip'
-import { sendeUeberThunderbird, ThunderbirdNichtGefundenError } from '../../utils/thunderbirdVersand'
 
 function BelegnrKopieren({ belegnr }: { belegnr: string }) {
   const [kopiert, setKopiert] = useState(false)
@@ -87,28 +86,6 @@ export function BuchungDetail({ eintrag: e, bereitsStorniert, onClose, onBearbei
     const email = e.kunde_email || mailAdresse.trim()
     if (!email) {
       setZeigMailEingabe(true)
-      return
-    }
-
-    // Issue #582: Thunderbird (falls aktiviert) mit Buchungsbeleg und allen angehängten Belegen
-    if (unternehmen?.thunderbird_aktiv) {
-      try {
-        let text = `anbei der Beleg vom ${datum}.\n\nBeleg-Nr.: ${e.belegnr}\nBetrag: ${formatEuro(e.brutto_betrag)}`
-        if (unternehmen.mail_signatur) text += `\n\n${unternehmen.mail_signatur}`
-        const anhaenge = [
-          { url: await getJournalBelegUrl(e.id, false, true), dateiname: `Beleg_${e.belegnr}.pdf` },
-          ...await Promise.all(journalBelege(e).map(async (a) => ({
-            url: await getJournalAnhangUrl(e.id, a.anhang_id || undefined), dateiname: a.original_name,
-          }))),
-        ]
-        await sendeUeberThunderbird({ an: email, betreff: `Beleg ${e.belegnr}`, text, anhaenge })
-      } catch (err) {
-        window.alert(err instanceof ThunderbirdNichtGefundenError
-          ? 'Thunderbird wurde nicht gefunden. Prüfe die Installation oder schalte den Thunderbird-Versand in den Einstellungen aus.'
-          : err instanceof Error ? err.message : 'Unbekannter Fehler beim Thunderbird-Versand')
-      }
-      setZeigMailEingabe(false)
-      setMailAdresse('')
       return
     }
 
@@ -196,23 +173,17 @@ export function BuchungDetail({ eintrag: e, bereitsStorniert, onClose, onBearbei
 
         {/* Issue #569: angehängten Beleg (Quittung, Vertrag …) ansehen - „PDF öffnen“ zeigt nur
             den von RechnungsFee erzeugten Buchungsbeleg */}
-        {/* Issue #568 Stufe 2: alle angehängten Belege */}
-        {journalBelege(e).length > 0 && (
-          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-            <span className="text-slate-500 dark:text-slate-400">
-              📎 {journalBelege(e).length === 1 ? 'Angehängter Beleg:' : 'Angehängte Belege:'}
-            </span>
-            {journalBelege(e).map((a) => (
-              <button
-                key={a.anhang_id || a.id}
-                type="button"
-                onClick={async () => openUrl(await getJournalAnhangUrl(e.id, a.anhang_id || undefined))}
-                className="text-blue-600 dark:text-blue-400 hover:underline truncate text-left"
-                title="Angehängten Beleg ansehen"
-              >
-                {a.original_name}
-              </button>
-            ))}
+        {e.beleg_id && (
+          <div className="mb-3 flex items-center gap-2 text-sm">
+            <span className="text-slate-500 dark:text-slate-400">📎 Angehängter Beleg:</span>
+            <button
+              type="button"
+              onClick={async () => openUrl(await getJournalAnhangUrl(e.id))}
+              className="text-blue-600 dark:text-blue-400 hover:underline truncate text-left"
+              title="Angehängten Beleg ansehen"
+            >
+              {e.beleg?.original_name ?? 'ansehen'}
+            </button>
           </div>
         )}
 

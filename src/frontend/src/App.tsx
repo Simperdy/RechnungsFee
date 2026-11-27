@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
-import { getSetupStatus, getProfilStart, isTauri } from './api/client'
+import { getSetupStatus, isTauri } from './api/client'
 import { SetupWizard } from './pages/setup/SetupWizard'
-import { ProfilStart } from './components/ProfilStart'
 import { AppLayout } from './components/AppLayout'
 import { Dashboard } from './pages/dashboard/Dashboard'
 import { JournalPage } from './pages/journal/JournalPage'
@@ -54,24 +53,12 @@ import { AnsichtPage } from './pages/einstellungen/AnsichtPage'
 import { AnsichtContext, useAnsichtState } from './hooks/useAnsicht'
 
 function AppRoutes() {
-  const qc = useQueryClient()
-  // Issue #593: zuerst Passwort/Profilauswahl – bis dahin sperrt das Backend alles andere (423)
-  const { data: start, isLoading: startLaedt } = useQuery({
-    queryKey: ['profil-start'],
-    queryFn: getProfilStart,
-    retry: 20,
-    retryDelay: 500,
-    staleTime: Infinity,
-  })
-  const startOffen = !!start && (start.gesperrt || start.auswahl_anzeigen)
-  const { data: status, isLoading: statusLaedt } = useQuery({
+  const { data: status, isLoading } = useQuery({
     queryKey: ['setup-status'],
     queryFn: getSetupStatus,
     retry: 20,
     retryDelay: 500,
-    enabled: !!start && !startOffen,
   })
-  const isLoading = startLaedt || (!!start && !startOffen && statusLaedt)
 
   // Server-Modus (Web, nicht Tauri): ohne gültige Session direkt zum OIDC-Login –
   // auch vor dem Setup, sonst sieht man den Wizard ohne Auth.
@@ -118,15 +105,6 @@ function AppRoutes() {
           )}
         </div>
       </div>
-    )
-  }
-
-  if (start && startOffen) {
-    return (
-      <ProfilStart
-        start={start}
-        onFertig={() => qc.setQueryData(['profil-start'], { ...start, gesperrt: false, auswahl_anzeigen: false })}
-      />
     )
   }
 

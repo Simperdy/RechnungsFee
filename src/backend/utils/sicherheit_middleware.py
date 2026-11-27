@@ -25,10 +25,8 @@ durchlaufen.
 """
 from urllib.parse import urlsplit
 
-
 import server_mode
 from utils import sitzungstoken
- feat/server-mode
 
 # Desktop-Modus: nur localhost-Hosts. Server-Modus (Docker hinter TLS-Proxy):
 # der Proxy setzt den Host auf die öffentliche Domain – die erlauben wir,
@@ -191,13 +189,6 @@ class SicherheitMiddleware:
             )
         ):
             await _abweisen(send, 401, "Sitzungstoken fehlt oder ist ungültig.")
-            return
-
-        # Issue #593: Profil mit Passwort, noch nicht entsperrt
-        if profil_zugang.gesperrt() and not profil_zugang.erlaubt_wenn_gesperrt(
-            scope.get("method", "GET"), scope.get("path", "")
-        ):
-            await _abweisen(send, 423, "Profil ist gesperrt – bitte zuerst das Passwort eingeben.")
             return
 
         laenge = headers.get("content-length", "")

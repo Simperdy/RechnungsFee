@@ -36,9 +36,9 @@ logging.root.setLevel(logging.INFO)
 logging.root.addHandler(_log_handler)
 # ─────────────────────────────────────────────────────────────────────────────
 from database.seed import run_all_seeds, DURCHLAUFENDE_POSTEN_BESCHREIBUNG
-from api import unternehmen, konten, kategorien, setup, journal, kunden, lieferanten, tagesabschluss, nummernkreise, export, rechnungen, backup, artikel, artikel_gruppen, ust_saetze, pdf_vorlagen, eks, system, ustva, zm, euer, dokumentenpakete, mail, wiederkehrend, buchungsvorlagen, anlageverzeichnis, datev, anlage_s, anlage_g, fristen_api, guv, bank_templates, bank_import, auto_filter, forderungen, cockpit, datenmigration, kontenuebersicht, schnellbuchungen, mahnwesen, profile, kontokorrent, inventurliste, postfach, rechnungen_import, verlauf
+from api import unternehmen, konten, kategorien, setup, journal, kunden, lieferanten, tagesabschluss, nummernkreise, export, rechnungen, backup, artikel, artikel_gruppen, ust_saetze, pdf_vorlagen, eks, system, ustva, zm, euer, dokumentenpakete, mail, wiederkehrend, buchungsvorlagen, anlageverzeichnis, datev, anlage_s, anlage_g, fristen_api, guv, bank_templates, bank_import, auto_filter, forderungen, cockpit, datenmigration, kontenuebersicht, schnellbuchungen, mahnwesen, profile, kontokorrent, inventurliste, postfach, rechnungen_import
 
-SCHEMA_VERSION = 203
+SCHEMA_VERSION = 195
 
 # Security-Audit F10: API-Dokumentation (komplette Endpunktliste) nur im Entwicklungsmodus,
 # nicht im ausgelieferten PyInstaller-Sidecar (sys.frozen) und nicht im
@@ -127,7 +127,6 @@ app.include_router(cockpit.router)
 app.include_router(datenmigration.router)
 app.include_router(mahnwesen.router)
 app.include_router(rechnungen_import.router)
-app.include_router(verlauf.router)
 
 # OIDC-Auth (nur Server-Modus; im Desktop-Modus keine Import-/Laufzeitwirkung)
 if server_mode.SERVER_MODE:
@@ -806,7 +805,6 @@ def _run_migrations() -> None:
             # (identisches Muster wie beim journal-Trigger oben, Issue #268-Folgefehler).
             "protect_vorsteuer_ansprueche_update",
             "protect_vorsteuer_ansprueche_delete",
-            "protect_journal_anhaenge_delete",  # Issue #568
         ]:
             conn.execute(text(f"DROP TRIGGER IF EXISTS {trigger}"))
         conn.commit()
@@ -4638,144 +4636,6 @@ def _run_migrations() -> None:
             conn.commit()
             print("[Migration] Schema auf Version 195 (Issue #562: unternehmen.pdf_artikelnummer)")
 
-    if version < 196:
-        with engine.connect() as conn:
-            # Community-Frage: importierte/extern erstellte Rechnungen dürfen gemahnt werden. Eine
-            # im Altsystem bereits verschickte Mahnstufe samt Datum wird festgehalten, damit die
-            # Zählung nicht wieder bei der Zahlungserinnerung anfängt.
-            _r196 = {r[1] for r in conn.execute(text("PRAGMA table_info(rechnungen)")).fetchall()}
-            for name, typ in [("altsystem_mahnstufe", "INTEGER NOT NULL DEFAULT 0"),
-                              ("altsystem_gemahnt_am", "DATE")]:
-                if _r196 and name not in _r196:
-                    conn.execute(text(f"ALTER TABLE rechnungen ADD COLUMN {name} {typ}"))
-            conn.execute(text("PRAGMA user_version = 196"))
-            conn.commit()
-            print("[Migration] Schema auf Version 196 (rechnungen.altsystem_mahnstufe, altsystem_gemahnt_am)")
-
-    if version < 197:
-        with engine.connect() as conn:
-            # Issue #568 Stufe 2: mehrere Belege je Journalbuchung. Bestehende Belege werden als
-            # erster Anhang übernommen - nur INSERT in die neue Tabelle, die (ggf. versiegelte)
-            # journal-Zeile selbst bleibt unverändert.
-            conn.execute(text(
-                "CREATE TABLE IF NOT EXISTS journal_anhaenge ("
-                " id INTEGER PRIMARY KEY,"
-                " journal_id INTEGER NOT NULL REFERENCES journal(id),"
-                " beleg_id INTEGER NOT NULL REFERENCES belege(id),"
-                " erstellt_am DATETIME DEFAULT CURRENT_TIMESTAMP)"
-            ))
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_journal_anhaenge_journal_id ON journal_anhaenge (journal_id)"))
-            _j197 = {r[1] for r in conn.execute(text("PRAGMA table_info(journal)")).fetchall()}
-            if "beleg_id" in _j197:
-                conn.execute(text(
-                    "INSERT INTO journal_anhaenge (journal_id, beleg_id) "
-                    "SELECT j.id, j.beleg_id FROM journal j "
-                    "WHERE j.beleg_id IS NOT NULL "
-                    "AND NOT EXISTS (SELECT 1 FROM journal_anhaenge a WHERE a.journal_id = j.id AND a.beleg_id = j.beleg_id) "
-                    "ORDER BY j.id"
-                ))
-            conn.execute(text("PRAGMA user_version = 197"))
-            conn.commit()
-            print("[Migration] Schema auf Version 197 (Issue #568: journal_anhaenge)")
-
-    if version < 198:
-        with engine.connect() as conn:
-            # Issue #592: Rechnungspostfach regelmäßig im Hintergrund abrufen, solange die App läuft
-            # (0 = aus, sonst 15/30/60 Minuten) - neue Rechnungen zeigt das Dashboard an
-            _u198 = {r[1] for r in conn.execute(text("PRAGMA table_info(unternehmen)")).fetchall()}
-            if _u198 and "imap_intervall_minuten" not in _u198:
-                conn.execute(text("ALTER TABLE unternehmen ADD COLUMN imap_intervall_minuten INTEGER NOT NULL DEFAULT 0"))
-            conn.execute(text("PRAGMA user_version = 198"))
-            conn.commit()
-            print("[Migration] Schema auf Version 198 (Issue #592: imap_intervall_minuten)")
-
-    if version < 199:
-        with engine.connect() as conn:
-            # Issue #594: Leistungsdatum je Position (Sammelrechnung) und Schalter für die Spalte
-            # „Datum“. Die Spalten „Pos.“ und „Datum“ hängen jetzt in beiden Vorlagen an den
-            # Schaltern - „Sandra grün“ (Vorlage 1) hatte beide bisher immer. Wer sie nutzt,
-            # bekommt beide Schalter eingeschaltet, damit sich das Bild nicht ungefragt ändert.
-            _p199 = {r[1] for r in conn.execute(text("PRAGMA table_info(rechnungspositionen)")).fetchall()}
-            if _p199 and "leistungsdatum" not in _p199:
-                conn.execute(text("ALTER TABLE rechnungspositionen ADD COLUMN leistungsdatum DATE"))
-            _u199 = {r[1] for r in conn.execute(text("PRAGMA table_info(unternehmen)")).fetchall()}
-            if _u199 and "pdf_positionsdatum" not in _u199:
-                conn.execute(text("ALTER TABLE unternehmen ADD COLUMN pdf_positionsdatum BOOLEAN NOT NULL DEFAULT 0"))
-                conn.execute(text(
-                    "UPDATE unternehmen SET pdf_positionsnummern = 1, pdf_positionsdatum = 1 WHERE pdf_vorlage = 1"
-                ))
-            conn.execute(text("PRAGMA user_version = 199"))
-            conn.commit()
-            print("[Migration] Schema auf Version 199 (Issue #594: Leistungsdatum je Position)")
-
-    if version < 200:
-        with engine.connect() as conn:
-            # Issue #596: Tabelle dokument_verlauf legt normalerweise create_all() an – hier zusätzlich
-            # (checkfirst), damit der Block auch auf Teil-Schemata läuft. Für den Altbestand wird kein
-            # Verlauf erfunden – nur je ausgegebenem Dokument ein Eintrag „ausgegeben“ zum bekannten
-            # Zeitpunkt der ersten Ausgabe (Weg unbekannt) und je versendeter Mahnung einer je
-            # gemahnter Rechnung.
-            from database.models import DokumentVerlauf
-            DokumentVerlauf.__table__.create(conn, checkfirst=True)
-            _tab200 = {r[0] for r in conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))}
-            _r200 = {r[1] for r in conn.execute(text("PRAGMA table_info(rechnungen)")).fetchall()}
-            if {"ausgegeben_am", "ist_entwurf", "kunde_id", "lieferant_id"} <= _r200:
-                conn.execute(text("""
-                    INSERT INTO dokument_verlauf (zeitpunkt, rechnung_id, kunde_id, lieferant_id, art, kanal, kopie)
-                    SELECT r.ausgegeben_am, r.id, r.kunde_id, r.lieferant_id, 'ausgegeben', 'unbekannt', 0
-                    FROM rechnungen r
-                    WHERE r.ausgegeben_am IS NOT NULL AND r.ist_entwurf = 0
-                      AND NOT EXISTS (SELECT 1 FROM dokument_verlauf v WHERE v.rechnung_id = r.id)
-                """))
-            if {"mahnungen", "mahnungen_rechnungen"} <= _tab200:
-                conn.execute(text("""
-                    INSERT INTO dokument_verlauf (zeitpunkt, rechnung_id, mahnung_id, kunde_id, art, kanal, kopie)
-                    SELECT m.versendet_am, mr.rechnung_id, m.id, m.kunde_id, 'mahnung_gesendet', 'unbekannt', 0
-                    FROM mahnungen m JOIN mahnungen_rechnungen mr ON mr.mahnung_id = m.id
-                    WHERE m.status IN ('versendet', 'storniert') AND m.versendet_am IS NOT NULL
-                      AND NOT EXISTS (SELECT 1 FROM dokument_verlauf v WHERE v.mahnung_id = m.id)
-                """))
-            conn.execute(text("PRAGMA user_version = 200"))
-            conn.commit()
-            print("[Migration] Schema auf Version 200 (Issue #596: Dokumentverlauf)")
-
-    if version < 201:
-        with engine.connect() as conn:
-            # Issue #596: Kopie gesendeter Mails per IMAP im Ordner „Gesendet“ (Opt-in)
-            _u201 = {r[1] for r in conn.execute(text("PRAGMA table_info(unternehmen)")).fetchall()}
-            for name, typ in [
-                ("gesendet_imap_aktiv", "BOOLEAN NOT NULL DEFAULT 0"),
-                ("gesendet_imap_host", "VARCHAR(200)"),
-                ("gesendet_imap_port", "INTEGER NOT NULL DEFAULT 993"),
-            ]:
-                if _u201 and name not in _u201:
-                    conn.execute(text(f"ALTER TABLE unternehmen ADD COLUMN {name} {typ}"))
-            conn.execute(text("PRAGMA user_version = 201"))
-            conn.commit()
-            print("[Migration] Schema auf Version 201 (Issue #596: Ablage im Ordner Gesendet)")
-
-    if version < 202:
-        with engine.connect() as conn:
-            # Issue #597: Abschlagsrechnung aus Angebot/Auftrag – Verknüpfung auf der Abschlagsrechnung
-            _r202 = {r[1] for r in conn.execute(text("PRAGMA table_info(rechnungen)")).fetchall()}
-            if _r202 and "abschlag_zu_dokument_id" not in _r202:
-                conn.execute(text(
-                    "ALTER TABLE rechnungen ADD COLUMN abschlag_zu_dokument_id INTEGER REFERENCES rechnungen(id)"
-                ))
-            conn.execute(text("PRAGMA user_version = 202"))
-            conn.commit()
-            print("[Migration] Schema auf Version 202 (Issue #597: Abschlag aus Angebot/Auftrag)")
-
-    if version < 203:
-        with engine.connect() as conn:
-            # Issue #604: Kontoinhaber je Konto (Empfänger im QR-Code/E-Rechnung), leer = wie bisher
-            _k203 = {r[1] for r in conn.execute(text("PRAGMA table_info(konten)")).fetchall()}
-            if _k203 and "kontoinhaber" not in _k203:
-                conn.execute(text("ALTER TABLE konten ADD COLUMN kontoinhaber VARCHAR(70)"))
-            conn.execute(text("PRAGMA user_version = 203"))
-            conn.commit()
-            print("[Migration] Schema auf Version 203 (Issue #604: Kontoinhaber je Konto)")
-
 
 def _migrate_kategorien() -> None:
     """EKS-Zuordnungen auf offizielles Formular (04/2025) bringen und fehlende Kategorien eintragen."""
@@ -5250,16 +5110,6 @@ def _setup_gobd_triggers() -> None:
                 'GoBD-Verstoß: Einträge im Änderungsprotokoll können nicht gelöscht werden.');
         END
         """,
-        # Issue #568 Stufe 2: Anhang einer festgeschriebenen Buchung bleibt erhalten
-        """
-        CREATE TRIGGER IF NOT EXISTS protect_journal_anhaenge_delete
-        BEFORE DELETE ON journal_anhaenge
-        WHEN (SELECT immutable FROM journal WHERE id = OLD.journal_id) = 1
-        BEGIN
-            SELECT RAISE(ABORT,
-                'GoBD-Verstoß: Belege einer festgeschriebenen Buchung können nicht entfernt werden.');
-        END
-        """,
     ]
     with engine.connect() as conn:
         for trigger_sql in triggers:
@@ -5288,8 +5138,6 @@ def _migrate_signaturen_sicher() -> None:
 
 @app.on_event("startup")
 def startup():
-    from utils import profil_zugang
-    profil_zugang.initialisiere()   # Issue #593: Freigabeschein verbrauchen, ggf. sperren
     _prüfe_wiederherstellung()   # Vor create_all – DB muss ggf. erst ersetzt werden
     Base.metadata.create_all(bind=engine)
     if server_mode.SERVER_MODE:

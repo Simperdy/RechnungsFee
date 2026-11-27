@@ -16,11 +16,9 @@ from utils.pdf_rechnung_base import (
     L_MARGIN, R_MARGIN, PAGE_W, NUTZ_W,
     ADRESS_Y, HEADER_LINE_Y, BLOCK_X, BLOCK_W, FOOTER_H,
     _find_dejavu_dir, _person_bezeichnung, _logo_abmessungen, _adresszeilen,
-    art_nr_spalte, art_nr_anzeige, ohne_ust_spalte, ist_abschlag_abzug,
-    pos_datum_spalten, positionsdatum,
+    art_nr_spalte, art_nr_anzeige,
 )
 from utils.pdf_shared import epc_qr_bytes
-from utils.kontoinhaber import zahlungsempfaenger
 
 
 def _kunden_name(r) -> str:
@@ -70,35 +68,18 @@ class RechnungPDF(RechnungPDFBase):
                 headers = ["Beschreibung", "Menge", "Einheit", "Einzelpreis", "USt %", "Brutto"]
                 aligns  = ["L",            "R",     "L",       "R",           "R",     "R"]
 
-        # Issue #586: Kleinunternehmer (§ 19 UStG) weisen keine Umsatzsteuer aus - keine Spalte
-        # „USt %“ (0 % stünde für steuerfreie Umsätze), ihre Breite geht an die Beschreibung, und
-        # der Betrag heißt weder Netto noch Brutto
-        ohne_ust = ohne_ust_spalte(self._unt, r) and not ist_lieferschein
-        if ohne_ust:
-            i_ust = headers.index("USt %")
-            col_w[int(hat_artikelcode)] += col_w[i_ust]
-            for liste in (col_w, headers, aligns):
-                del liste[i_ust]
-            headers[-1] = "Betrag"
-
         # Issue #475: optionale Spalte "Pos." ganz links - die Breite geht von der Beschreibung ab,
         # damit die Tabelle und der Summenblock unverändert bündig bleiben
-        # Issue #594: Spalte "Datum" danach, ebenfalls von der Beschreibung
-        mit_pos, mit_datum = pos_datum_spalten(self._unt, vorlage1=False)
-        POS_W, DATUM_W = 9, 20  # 20 mm: Datum plus Abstand zur Beschreibung
-        if mit_datum:
-            col_w[int(hat_artikelcode)] -= DATUM_W
-            col_w   = [DATUM_W] + col_w
-            headers = ["Datum"] + headers
-            aligns  = ["L"] + aligns
+        mit_pos = bool(self._unt.get("pdf_positionsnummern"))
+        POS_W = 9
         if mit_pos:
-            col_w[int(mit_datum) + int(hat_artikelcode)] -= POS_W
+            col_w[int(hat_artikelcode)] -= POS_W
             col_w   = [POS_W] + col_w
             headers = ["Pos."] + headers
             aligns  = ["R"] + aligns
 
         # code_idx/desc_idx: Index der Artikelcode-/Beschreibungs-Spalte; other_x: X-Start der Mengenspalte
-        code_idx = int(mit_pos) + int(mit_datum)
+        code_idx = int(mit_pos)
         desc_idx = code_idx + int(hat_artikelcode)
         other_x  = L_MARGIN + sum(col_w[:desc_idx + 1])
 
@@ -126,16 +107,12 @@ class RechnungPDF(RechnungPDFBase):
             if mit_pos:
                 # dieselbe Nummer wie in der E-Rechnung (line_id) und in Vorlage 1
                 self.cell(col_w[0], DESC_H, str(pos.position_nr), align="R")
-            if mit_datum:
-                self.cell(col_w[int(mit_pos)], DESC_H, positionsdatum(pos, r), align="L")
             if hat_artikelcode:
                 self.multi_cell(col_w[code_idx], DESC_H, art_nr_anzeige(pos, self._unt),
                                 new_x="RIGHT", new_y="TOP", align="L")
 
         DESC_H = 3.5  # Zeilenhöhe Beschreibung – bleibt kompakt für mehrzeilige Texte
         for pos in r.positionen:
-            if ist_abschlag_abzug(pos):
-                continue  # Issue #600: Abzug steht im Summenblock
             # Issue #462: Position vollständig auf die nächste Seite, wenn sie nicht mehr passt
             _beschr = [(col_w[desc_idx], pos.beschreibung)]
             if hat_artikelcode and getattr(pos, "artikel", None):
@@ -173,9 +150,8 @@ class RechnungPDF(RechnungPDFBase):
                 netto_ges_vor = pos.netto * pos.menge * _sign
                 netto_ges_eff = (pos.brutto - pos.ust_betrag) * _sign
                 self.cell(col_w[desc_idx + 3], ROW_H, _fmt_euro(pos.netto), align="R")
-                if not ohne_ust:
-                    self.cell(col_w[desc_idx + 4], ROW_H, ust_label, align="R")
-                self.cell(col_w[-1], ROW_H, _fmt_euro(netto_ges_vor), align="R")
+                self.cell(col_w[desc_idx + 4], ROW_H, ust_label, align="R")
+                self.cell(col_w[desc_idx + 5], ROW_H, _fmt_euro(netto_ges_vor), align="R")
             else:
                 # pos.netto ist bei eingabemodus="brutto" bereits der eingegebene Brutto-
                 # Einzelpreis (Issue #332) - KEINE Umrechnung mit dem USt-Satz mehr nötig/zulässig,
@@ -185,9 +161,8 @@ class RechnungPDF(RechnungPDFBase):
                 brutto_ges_vor = ep_brutto * pos.menge * _sign
                 brutto_ges_eff = pos.brutto * _sign
                 self.cell(col_w[desc_idx + 3], ROW_H, _fmt_euro(ep_brutto), align="R")
-                if not ohne_ust:
-                    self.cell(col_w[desc_idx + 4], ROW_H, ust_label,            align="R")
-                self.cell(col_w[-1], ROW_H, _fmt_euro(brutto_ges_vor), align="R")
+                self.cell(col_w[desc_idx + 4], ROW_H, ust_label,            align="R")
+                self.cell(col_w[desc_idx + 5], ROW_H, _fmt_euro(brutto_ges_vor), align="R")
             self.set_xy(L_MARGIN, row_y + DESC_OFFSET)
             _pos_und_code(pos)
             self.multi_cell(col_w[desc_idx], DESC_H, pos.beschreibung or "",
@@ -326,7 +301,9 @@ class RechnungPDF(RechnungPDFBase):
 
                     qr_aktiv = unt.get("qr_zahlung_aktiv", False)
                     if qr_aktiv:
-                        empf = zahlungsempfaenger(unt)  # Issue #604: Kontoinhaber aus Einstellungen → Konten
+                        empf = unt.get("firmenname") or " ".join(
+                            p for p in [unt.get("vorname"), unt.get("nachname")] if p
+                        )
                         # Skonto-QR bestimmen
                         sk_proz = getattr(r, "skonto_prozent", None)
                         sk_tage = getattr(r, "skonto_tage",    None)

@@ -1,18 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAnsicht } from '../../hooks/useAnsicht'
 import { useSplitterBreite } from '../../hooks/useSplitterBreite'
-import { useDetailBreite } from '../../hooks/useDetailBreite'
-import { DetailTrennlinie } from '../../components/DetailTrennlinie'
 import { DateInput } from '../../components/DateInput'
 import { letzteZahlungsdatumWahl, merkeZahlungsdatumWahl } from '../../utils/zahlungsdatumWahl'
-import { letzteZahlungsart, merkeZahlungsart } from '../../utils/zahlungsartWahl'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   getProformas, getKunden, getUstSaetze, getUnternehmen,
   createRechnung, updateRechnung, deleteRechnung,
   rechnungAusProforma,
-  openUrl, getApiBase, isTauri, openInPdfWindow, downloadPdfForMail, meldeVerlauf,
+  openUrl, getApiBase, isTauri, openInPdfWindow, downloadPdfForMail,
   getDokumentenPakete, oeffnePaketVorschau,
   type Rechnung, type ArtikelSuche,
   dokumentPdfUrl,
@@ -27,7 +24,6 @@ import { LieferadresseAuswahl, RechnungsadresseAuswahl } from '../../components/
 import { KundeErstellenModal } from '../../components/KundeErstellenModal'
 import { useRechnungVorschau } from '../../hooks/useRechnungVorschau'
 import type { RechnungVorschauRequest } from '../../api/client'
-import MarkdownTextfeld from '../../components/MarkdownTextfeld'
 
 // ---------------------------------------------------------------------------
 // Hilfsfunktionen
@@ -57,7 +53,6 @@ interface Pos {
   ust_satz: string
   rabatt_prozent?: string
   artikel_id?: number
-  leistungsdatum?: string  // Issue #594
 }
 
 function leerePos(): Pos {
@@ -98,7 +93,7 @@ function formatMenge(v: string | number): string {
 }
 
 function PositionenTabelle({
-  positionen, onChange, ustSaetze, onArtikelWahl, eingabeModus, summen, istKleinunternehmer, mitDatum,
+  positionen, onChange, ustSaetze, onArtikelWahl, eingabeModus, summen, istKleinunternehmer,
 }: {
   positionen: Pos[]
   onChange: (p: Pos[]) => void
@@ -107,7 +102,6 @@ function PositionenTabelle({
   eingabeModus: EingabeModus
   summen: { netto: number; ust: number; brutto: number }
   istKleinunternehmer: boolean
-  mitDatum: boolean  // Issue #594: Leistungsdatum je Position
 }) {
   function update(i: number, field: keyof Pos, val: string) {
     onChange(positionen.map((p, idx) => idx === i ? { ...p, [field]: val } : p))
@@ -124,7 +118,6 @@ function PositionenTabelle({
       <table className="w-full text-xs">
         <thead className="bg-slate-50 dark:bg-slate-900">
           <tr>
-            {mitDatum && <th className="px-3 py-2 text-left text-slate-500 dark:text-slate-400 font-medium w-32">Datum</th>}
             <th className="px-3 py-2 text-left text-slate-500 dark:text-slate-400 font-medium">Beschreibung</th>
             <th className="px-3 py-2 text-right text-slate-500 dark:text-slate-400 font-medium w-16">Menge</th>
             <th className="px-3 py-2 text-left text-slate-500 dark:text-slate-400 font-medium w-20">Einheit</th>
@@ -139,12 +132,6 @@ function PositionenTabelle({
         <tbody>
           {positionen.map((pos, i) => (
             <tr key={i} className="border-t border-slate-100 dark:border-slate-700">
-              {mitDatum && (
-                <td className="px-2 py-1.5">
-                  <input type="date" value={pos.leistungsdatum ?? ''} aria-label="Leistungsdatum"
-                    onChange={e => update(i, 'leistungsdatum', e.target.value)} className={cellInput} />
-                </td>
-              )}
               <td className="px-2 py-1.5">
                 <ArtikelAutocomplete
                   value={pos.beschreibung}
@@ -207,7 +194,7 @@ function PositionenTabelle({
           {!istKleinunternehmer && (
             <>
               <tr>
-                <td colSpan={mitDatum ? 5 : 4} className="px-3 py-2 text-right text-slate-500 dark:text-slate-400" title="ohne MwSt">
+                <td colSpan={4} className="px-3 py-2 text-right text-slate-500 dark:text-slate-400" title="ohne MwSt">
                   Netto{eingabeModus === 'brutto' && <span className="text-slate-400 dark:text-slate-500"> (berechnet)</span>}
                 </td>
                 <td colSpan={3} className="px-3 py-2 text-right font-medium text-slate-700 dark:text-slate-200">
@@ -215,7 +202,7 @@ function PositionenTabelle({
                 </td>
               </tr>
               <tr className="border-t border-slate-100 dark:border-slate-700">
-                <td colSpan={mitDatum ? 5 : 4} className="px-3 py-2 text-right text-slate-500 dark:text-slate-400 text-xs">USt</td>
+                <td colSpan={4} className="px-3 py-2 text-right text-slate-500 dark:text-slate-400 text-xs">USt</td>
                 <td colSpan={3} className="px-3 py-2 text-right text-slate-600 dark:text-slate-300">
                   {summen.ust.toFixed(2).replace('.', ',')} €
                 </td>
@@ -223,7 +210,7 @@ function PositionenTabelle({
             </>
           )}
           <tr className="border-t border-slate-100 dark:border-slate-700">
-            <td colSpan={mitDatum ? 5 : 4} className="px-3 py-2 text-right font-semibold text-slate-700 dark:text-slate-200" title="mit MwSt">Brutto</td>
+            <td colSpan={4} className="px-3 py-2 text-right font-semibold text-slate-700 dark:text-slate-200" title="mit MwSt">Brutto</td>
             <td colSpan={3} className="px-3 py-2 text-right font-semibold text-slate-800 dark:text-slate-100">
               {summen.brutto.toFixed(2).replace('.', ',')} €
             </td>
@@ -331,7 +318,6 @@ function ProformaFormular({
         einzelpreis: String(p.netto),
         ust_satz: String(p.ust_satz),
         rabatt_prozent: p.rabatt_prozent && parseFloat(p.rabatt_prozent) > 0 ? String(parseFloat(p.rabatt_prozent)) : '',
-        leistungsdatum: p.leistungsdatum ?? '',
       }))
     }
     return [leerePos()]
@@ -402,7 +388,6 @@ function ProformaFormular({
           ust_satz: unternehmen?.ist_kleinunternehmer ? '0' : String(parseFloat(p.ust_satz) || 0),
           artikel_id: p.artikel_id,
           rabatt_prozent: rabatt > 0 ? rabatt : undefined,
-          leistungsdatum: p.leistungsdatum || undefined,
         }
       })
 
@@ -579,7 +564,6 @@ function ProformaFormular({
           eingabeModus={eingabeModus}
           summen={summen}
           istKleinunternehmer={unternehmen?.ist_kleinunternehmer ?? false}
-          mitDatum={!!unternehmen?.pdf_positionsdatum}
         />
       </div>
 
@@ -613,14 +597,14 @@ function ProformaFormular({
 
       <div>
         <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Einleitungstext</label>
-        <MarkdownTextfeld value={einleitungstext} onChange={setEinleitungstext} vorschau aria-label="Einleitungstext"
+        <textarea value={einleitungstext} onChange={e => setEinleitungstext(e.target.value)}
           rows={3} className={`${inputCls} resize-y`}
           placeholder="Erscheint vor der Positionstabelle. Leer = Standard aus den Einstellungen für Proforma-Rechnungen." />
       </div>
 
       <div>
         <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Schlusstext</label>
-        <MarkdownTextfeld value={schlusstext} onChange={setSchlusstext} vorschau aria-label="Schlusstext"
+        <textarea value={schlusstext} onChange={e => setSchlusstext(e.target.value)}
           rows={3} className={`${inputCls} resize-y`}
           placeholder="Erscheint nach den Positionen/Summen. Leer = Standard aus den Einstellungen für Proforma-Rechnungen." />
       </div>
@@ -694,7 +678,7 @@ function ProformaDetail({
   const [thunderbirdFehlerDetails, setThunderbirdFehlerDetails] = useState<{ programm: string; fehler: string }[]>([])
   const [thunderbirdLaeuft, setThunderbirdLaeuft] = useState(false)
   const [zeigZahlungsForm, setZeigZahlungsForm] = useState(false)
-  const [zahlungsart, setZahlungsart] = useState<string>(() => letzteZahlungsart('Bank'))
+  const [zahlungsart, setZahlungsart] = useState('Bank')
   const leistungsdatum = proforma.leistung_bis ?? proforma.leistung_von ?? null
   const [bezahltAm, setBezahltAm] = useState(() => {
     const wahl = letzteZahlungsdatumWahl()
@@ -724,8 +708,6 @@ function ProformaDetail({
     try {
       const base = await getApiBase()
       const url = dokumentPdfUrl(base, proforma)
-      // Issue #596: Ausgabe im Dokumentverlauf festhalten
-      if (!proforma.ist_entwurf) void meldeVerlauf(proforma.id, { art: 'pdf', kanal: 'druck', kopie: proforma.ausgegeben })
       if (isTauri()) {
         openInPdfWindow(url, `Proforma ${proforma.rechnungsnummer ?? ''}`)
       } else {
@@ -739,7 +721,6 @@ function ProformaDetail({
     try {
       const base = await getApiBase()
       const url = dokumentPdfUrl(base, proforma)
-      if (!proforma.ist_entwurf) void meldeVerlauf(proforma.id, { art: 'gedruckt', kanal: 'druck', kopie: proforma.ausgegeben })
       if (isTauri()) {
         openInPdfWindow(url, 'Proforma drucken')
       } else {
@@ -777,9 +758,6 @@ function ProformaDetail({
             ...(await paketAnhaenge(proforma.dokumentenpaket_id)),
           ],
         })
-        await meldeVerlauf(proforma.id, {
-          art: 'mail_uebergeben', kanal: 'thunderbird', kopie: proforma.ausgegeben, empfaenger: email, betreff,
-        })
         qc.invalidateQueries({ queryKey: ['proformas'] })
         setZeigMailEingabe(false)
         setMailAdresse('')
@@ -811,9 +789,6 @@ function ProformaDetail({
     } else {
       window.location.href = mailtoUrl
     }
-    await meldeVerlauf(proforma.id, {
-      art: 'mail_uebergeben', kanal: 'mailprogramm', kopie: proforma.ausgegeben, empfaenger: email, betreff,
-    })
     setZeigMailEingabe(false)
     setMailAdresse('')
     setZeigSmtpHinweis(true)
@@ -824,7 +799,6 @@ function ProformaDetail({
     if (!zeigZahlungsForm) { setZeigZahlungsForm(true); return }
     setKonvLaedt(true)
     try {
-      merkeZahlungsart(zahlungsart)
       const re = await rechnungAusProforma(proforma.id, { zahlungsart, bezahlt_am: bezahltAm })
       qc.invalidateQueries({ queryKey: ['proformas'] })
       navigate(`/rechnungen?id=${re.id}`)
@@ -1200,7 +1174,6 @@ export function ProformaPage() {
   const { einstellungen } = useAnsicht()
   const manuell = einstellungen.splitter === 'manuell'
   const [splitterBreite, startSplitterDrag] = useSplitterBreite('proforma', 33)
-  const detailBreite = useDetailBreite('proforma')
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [filterId, setFilterId] = useState<number | null>(null)
@@ -1466,7 +1439,6 @@ export function ProformaPage() {
       )}
 
       {/* Detail-Panel */}
-      {!formModus && selected && <DetailTrennlinie detail={detailBreite} />}
       {!formModus && selected && (
         <div className={`${selectedId ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0} border-l border-slate-200 dark:border-slate-700 overflow-y-auto`}>
           <ProformaDetail

@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { getJournal, getUnternehmen, updateUnternehmen, getKleinunternehmerUmsatz, getFaelligeRechnungen, pruefZM, getLagerwarnungListe, getFristen, getGUVSchwellenwert, getUeberzahlungen, ueberzahlungAnerkennen, getOffeneForderungen, forderungAusbuchen, getKategorien, getCockpit, getMahnwesenEinstellungen, getMahnungenFaellig, getPostfachEingang, type Rechnung, type Forderung, type CockpitDaten } from '../../api/client'
+import { getJournal, getUnternehmen, updateUnternehmen, getKleinunternehmerUmsatz, getFaelligeRechnungen, pruefZM, getLagerwarnungListe, getFristen, getGUVSchwellenwert, getUeberzahlungen, ueberzahlungAnerkennen, getOffeneForderungen, forderungAusbuchen, getKategorien, getCockpit, getMahnwesenEinstellungen, getMahnungenFaellig, type Rechnung, type Forderung, type CockpitDaten } from '../../api/client'
 import { DateInput } from '../../components/DateInput'
-import { InfoTooltip } from '../../components/InfoTooltip'
-import { UeberleitungDialog } from '../../components/UeberleitungDialog'
-import { dashboardFilter, journalFilter } from '../../store/filterStore'
+import { dashboardFilter } from '../../store/filterStore'
 import { useMxAuto } from '../../hooks/useAnsicht'
 
 function formatEuro(val: string | number): string {
@@ -340,58 +338,6 @@ function MahnungenFaelligWidget() {
         ))}
         {rest > 0 && (
           <button onClick={() => navigate('/mahnwesen')} className="text-xs text-amber-600 dark:text-amber-400 hover:underline">
-            + {rest} weitere
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Rechnungspostfach-Widget (Issue #592) – nicht übernommene Rechnungen aus dem Postfach
-// ---------------------------------------------------------------------------
-
-function PostfachWidget() {
-  const navigate = useNavigate()
-  const { data: unt } = useQuery({ queryKey: ['unternehmen'], queryFn: getUnternehmen, staleTime: 1000 * 60 * 5 })
-  const { data: eintraege } = useQuery({
-    queryKey: ['postfach-eingang'],
-    queryFn: getPostfachEingang,
-    enabled: !!unt?.postfach_aktiv,
-  })
-  if (!unt?.postfach_aktiv || !eintraege || eintraege.length === 0) return null
-
-  const oeffnen = () => navigate('/rechnungen?typ=eingang&postfach=1')
-  const ANGEZEIGT = 5
-  const rest = eintraege.length - ANGEZEIGT
-
-  return (
-    <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 p-4 mb-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-          📬 {eintraege.length === 1 ? '1 neue Rechnung' : `${eintraege.length} neue Rechnungen`} im Rechnungspostfach
-        </p>
-        <button onClick={oeffnen} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
-          Zum Postfach →
-        </button>
-      </div>
-      <div className="space-y-1.5">
-        {eintraege.slice(0, ANGEZEIGT).map(e => (
-          <button key={e.id} onClick={oeffnen} className="w-full flex items-center justify-between gap-2 text-xs text-left">
-            <span className="min-w-0 truncate">
-              <span className="font-medium text-blue-800 dark:text-blue-300">{e.absender || e.original_name}</span>
-              {e.betreff && <span className="text-blue-600 dark:text-blue-400 ml-1.5">{e.betreff}</span>}
-            </span>
-            {e.mail_datum && (
-              <span className="shrink-0 text-blue-600 dark:text-blue-400">
-                {new Date(e.mail_datum).toLocaleDateString('de-DE')}
-              </span>
-            )}
-          </button>
-        ))}
-        {rest > 0 && (
-          <button onClick={oeffnen} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
             + {rest} weitere
           </button>
         )}
@@ -855,9 +801,8 @@ const WIDGET_DEFS: Array<{ id: string; label: string; warnung: boolean; nurTrans
   { id: 'quicklinks',          label: 'Schnellzugriff',                     warnung: false },
   { id: 'zufluss_monitor',     label: 'Zufluss-Monitor (Transferleistungen)', warnung: false, nurTransferleistungen: true },
   { id: 'mahnwesen_faellig',   label: 'Mahnungen fällig',                   warnung: false, nurMahnwesen: true },
-  { id: 'postfach',            label: 'Rechnungspostfach',                  warnung: false },
   { id: 'cockpit_widget',      label: 'Cockpit (Monatsvergleich)',          warnung: false },
-  { id: 'kacheln',             label: 'Zahlungen (brutto) / Saldo',     warnung: false },
+  { id: 'kacheln',             label: 'Einnahmen / Ausgaben / Saldo',       warnung: false },
   { id: 'faellige',            label: 'Fällige Rechnungen',                 warnung: false },
   { id: 'letzte_buchungen',    label: 'Letzte Buchungen',                   warnung: false },
 ]
@@ -868,7 +813,7 @@ const DEFAULT_CONFIG: DashboardConfig = {
   widget_order: WIDGET_DEFS.map(w => w.id),
   widget_visibility: {
     ueberzahlung: true, lieferantenguthaben: true, lager: true,
-    quicklinks: true, zufluss_monitor: true, mahnwesen_faellig: true, postfach: true, faellige: true, letzte_buchungen: true,
+    quicklinks: true, zufluss_monitor: true, mahnwesen_faellig: true, faellige: true, letzte_buchungen: true,
   },
   quicklinks: [],
 }
@@ -886,16 +831,9 @@ function parseConfig(raw: string | null | undefined): DashboardConfig {
     const p = JSON.parse(raw) as Partial<DashboardConfig>
     const allIds = WIDGET_DEFS.map(w => w.id)
     const saved = Array.isArray(p.widget_order) ? p.widget_order.filter(id => allIds.includes(id)) : []
-    // Neue Widgets an ihrer Standardposition einsortieren (hinter ihrem Vorgänger aus WIDGET_DEFS)
-    // statt ans Ende - sonst landet z. B. das Postfach-Widget (Issue #592) unter „Letzte Buchungen“
-    const order = [...saved]
-    allIds.forEach((id, i) => {
-      if (order.includes(id)) return
-      const vorgaenger = allIds.slice(0, i).reverse().find(v => order.includes(v))
-      order.splice(vorgaenger ? order.indexOf(vorgaenger) + 1 : 0, 0, id)
-    })
+    const missing = allIds.filter(id => !saved.includes(id))
     return {
-      widget_order: order,
+      widget_order: [...saved, ...missing],
       widget_visibility: { ...DEFAULT_CONFIG.widget_visibility, ...(p.widget_visibility ?? {}) },
       quicklinks: Array.isArray(p.quicklinks) ? p.quicklinks : [],
     }
@@ -1196,28 +1134,6 @@ function trendPfeil(jetzt: number, vorjahr: number): { pfeil: string; farbe: str
   return { pfeil: '→', farbe: 'text-slate-400', diff: `±0 %` }
 }
 
-// Issue #603: Rechenwege von Cockpit-Widget und Kacheln offenlegen
-const COCKPIT_HINWEIS =
-  'Netto-Beträge (ohne Umsatzsteuer/Vorsteuer) des laufenden Monats, gerechnet wie die EÜR: ' +
-  'nur Kategorien mit EÜR-Zeile, ohne Anlagekäufe, ohne Umsatzsteuer-Zahlungen/-Erstattungen ans ' +
-  'Finanzamt und ohne Privatbuchungen.'
-const KACHELN_HINWEIS =
-  'Brutto-Beträge (mit Umsatzsteuer/Vorsteuer) aller Buchungen im gewählten Zeitraum, so wie das Geld ' +
-  'geflossen ist. Mitgezählt werden auch Anlagekäufe, Umsatzsteuer-Zahlungen/-Erstattungen und ' +
-  'Kategorien ohne EÜR-Zeile, nicht aber Privatbuchungen und durchlaufende Posten. Deshalb weichen die ' +
-  'Werte vom Cockpit (netto, nur EÜR-relevant) und von der EÜR ab.'
-
-function zeitraumText(modus: FilterModus, monat: string, datum: string, von: string, bis: string, jahr: number): string {
-  const de = (iso: string) => iso ? iso.split('-').reverse().join('.') : '…'
-  if (modus === 'monat') {
-    const [j, m] = monat.split('-').map(Number)
-    return new Date(j, (m || 1) - 1, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
-  }
-  if (modus === 'datum') return de(datum)
-  if (modus === 'zeitraum') return `${de(von)} – ${de(bis)}`
-  return String(jahr)
-}
-
 function CockpitWidget() {
   const navigate = useNavigate()
   const now      = new Date()
@@ -1265,11 +1181,8 @@ function CockpitWidget() {
     <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
       <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-            Cockpit
-            <InfoTooltip side="bottom" text={COCKPIT_HINWEIS} />
-          </h3>
-          <p className="text-xs text-slate-400 dark:text-slate-500">{monatLabel} (immer der laufende Monat) · netto</p>
+          <h3 className="font-semibold text-slate-700 dark:text-slate-200">Cockpit</h3>
+          <p className="text-xs text-slate-400 dark:text-slate-500">{monatLabel} · netto</p>
         </div>
         <button
           onClick={() => navigate('/cockpit')}
@@ -1406,38 +1319,6 @@ export function Dashboard() {
     .filter((e) => e.art === 'Ausgabe')
     .reduce((s, e) => s + parseFloat(e.brutto_betrag), 0)
   const saldo = einnahmen - ausgaben
-  const kachelZeitraum = zeitraumText(filterModus, monat, datum, datumVon, datumBis, aktivesJahr)
-
-  // Issue #603 Stufe 2: Kachel öffnet das Journal mit demselben Zeitraum (+ Art). Übrige
-  // Journal-Filter werden zurückgesetzt, damit nichts unbemerkt weiter filtert.
-  function zeigeImJournal(artFilter: '' | 'Einnahme' | 'Ausgabe', kategorieId = '') {
-    const istJahr = filterModus !== 'monat' && filterModus !== 'datum' && filterModus !== 'zeitraum'
-    Object.assign(journalFilter, {
-      modus: istJahr ? 'alle' : filterModus,
-      monat, datum, datumVon, datumBis,
-      jahr: aktivesJahr,
-      art: artFilter,
-      kategorieId,
-      zahlungsartTyp: '',
-      nurBebuchte: false,
-      suche: '',
-    })
-    navigate('/journal')
-  }
-  // Issue #603 Stufe 3: Datumsbereich der Kacheln für die Überleitung
-  function kachelDatumsbereich(): { von: string; bis: string } {
-    if (filterModus === 'monat') {
-      const [y, m] = monat.split('-').map(Number)
-      const letzter = new Date(y, m, 0).getDate()
-      return { von: `${monat}-01`, bis: `${monat}-${String(letzter).padStart(2, '0')}` }
-    }
-    if (filterModus === 'datum') return { von: datum, bis: datum }
-    if (filterModus === 'zeitraum') return { von: datumVon, bis: datumBis }
-    return { von: `${aktivesJahr}-01-01`, bis: `${aktivesJahr}-12-31` }
-  }
-  const [zeigUeberleitung, setZeigUeberleitung] = useState(false)
-  const kachelKlasse ='text-left w-full bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm transition-colors cursor-pointer'
-  const kachelTitel = 'Buchungen im Journal anzeigen (dort stehen zusätzlich Privatbuchungen und durchlaufende Posten, die hier nicht mitzählen)'
   const letzteEintraege = alle
 
   // §11b SGB II Zuflussprinzip: Einnahmen und Ausgaben brutto (tatsächlich geflossene Beträge)
@@ -1491,7 +1372,6 @@ export function Dashboard() {
       case 'mahnwesen_faellig':
         if (!zeigeMahnwesen) return null
         return (vis.mahnwesen_faellig ?? true) ? <MahnungenFaelligWidget key="mahnwesen_faellig" /> : null
-      case 'postfach': return (vis.postfach ?? true) ? <PostfachWidget key="postfach" /> : null
       case 'zufluss_monitor':
         if (!zeigeZuflussMonitor) return null
         if (!(vis.zufluss_monitor ?? true)) return null

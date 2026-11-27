@@ -71,12 +71,11 @@ def test_heute_faellige_rechnung_wird_nicht_mitgemahnt(db):
     assert mahnung.rechnung_ids == [ueberfaellig.id]
 
 
-def test_ueberfaellige_importierte_rechnung_wird_mitgemahnt(db):
-    """Seit Migration 196 sind importierte Rechnungen mahnbar (offene Forderung, nur kein neues PDF)."""
+def test_importierte_rechnung_wird_nicht_mitgemahnt(db):
     _get_or_create_einstellungen(db)
     ueberfaellig = _rechnung(db, "RE-1", HEUTE - timedelta(days=2))
-    alt = _rechnung(db, "ALT-1", HEUTE - timedelta(days=30), import_quelle="papierkram")
+    _rechnung(db, "ALT-1", HEUTE - timedelta(days=30), import_quelle="papierkram")
 
     mahnung = erstellen(MahnungErstellenRequest(rechnung_ids=[ueberfaellig.id], stufe=2), db)
 
-    assert set(mahnung.rechnung_ids) == {ueberfaellig.id, alt.id}
+    assert mahnung.rechnung_ids == [ueberfaellig.id]

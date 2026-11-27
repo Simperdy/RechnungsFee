@@ -6,14 +6,9 @@ Getrennt von den SQLAlchemy-Models (database/models.py).
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal, Optional, List
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from .schemas_rechnungen import BelegResponse
-
-
-class JournalAnhangResponse(BelegResponse):
-    """Issue #568 Stufe 2: ein Beleg einer Journalbuchung (anhang_id = journal_anhaenge.id)."""
-    anhang_id: int
 
 
 # ---------------------------------------------------------------------------
@@ -84,7 +79,6 @@ class UnternehmenBase(BaseModel):
     pdf_vorlage: int = 0
     pdf_positionsnummern: bool = False
     pdf_artikelnummer: bool = False  # Issue #562
-    pdf_positionsdatum: bool = False  # Issue #594
     einleitungstext: Optional[str] = None
     schlusstext: Optional[str] = None
     einleitungstext_angebot: Optional[str] = None
@@ -115,10 +109,6 @@ class UnternehmenBase(BaseModel):
     smtp_von_adresse: Optional[str] = None
     smtp_zertifikat_ignorieren: bool = False
     smtp_zertifikat_fingerprint: Optional[str] = None
-    # Issue #596: Kopie im Ordner „Gesendet“ per IMAP
-    gesendet_imap_aktiv: bool = False
-    gesendet_imap_host: Optional[str] = None
-    gesendet_imap_port: int = 993
     thunderbird_aktiv: bool = False
     postfach_aktiv: bool = False
     imap_host: Optional[str] = None
@@ -127,7 +117,6 @@ class UnternehmenBase(BaseModel):
     imap_user: Optional[str] = None
     imap_ordner: str = "INBOX"
     imap_beim_start: bool = False
-    imap_intervall_minuten: int = 0  # Issue #592: 0 = aus, sonst 15/30/60
     imap_zertifikat_ignorieren: bool = False
     imap_zertifikat_fingerprint: Optional[str] = None
     zugferd_anhaenge_aktiv: bool = False
@@ -166,13 +155,6 @@ class UnternehmenBase(BaseModel):
     bank_import_manuell: bool = False
     dashboard_config: Optional[str] = None
     datenmigration_aktiv: bool = False
-
-    @field_validator("imap_intervall_minuten")
-    @classmethod
-    def check_imap_intervall(cls, v: int) -> int:
-        if v not in (0, 15, 30, 60):
-            raise ValueError("Abrufintervall muss 0 (aus), 15, 30 oder 60 Minuten sein")
-        return v
 
     @field_validator("versteuerungsart")
     @classmethod
@@ -227,14 +209,7 @@ class UnternehmenBase(BaseModel):
             raise ValueError("Anzahl externer Backups muss zwischen 1 und 999 liegen")
         return v
 
-    @field_validator("gesendet_imap_port")
-    @classmethod
-    def check_gesendet_imap_port(cls, v: int) -> int:
-        if not 1 <= v <= 65535:
-            raise ValueError("IMAP-Port muss zwischen 1 und 65535 liegen")
-        return v
-
-    @field_validator("smtp_host", "smtp_user", "smtp_von_adresse", "imap_host", "imap_user", "gesendet_imap_host")
+    @field_validator("smtp_host", "smtp_user", "smtp_von_adresse", "imap_host", "imap_user")
     @classmethod
     def bereinige_mailzugang(cls, v: Optional[str]) -> Optional[str]:
         # Issue #537: unsichtbare Zeichen aus kopierten Zugangsdaten (sonst UnicodeEncodeError)
@@ -313,12 +288,6 @@ class KontoBase(BaseModel):
     kontotyp: str = "geschaeftlich" # geschaeftlich|mischkonto|privat
     ist_standard: bool = False
     datev_kontonummer: Optional[str] = None  # individuelles DATEV-Gegenkonto (z.B. 1200, 1210)
-    kontoinhaber: Optional[str] = Field(None, max_length=70)  # Issue #604, EPC-QR: max. 70 Zeichen
-
-    @field_validator("kontoinhaber")
-    @classmethod
-    def leer_ist_standard(cls, v: Optional[str]) -> Optional[str]:
-        return (v or "").strip() or None
 
     @model_validator(mode="after")
     def check_felder(self) -> "KontoBase":
@@ -363,7 +332,6 @@ class KontoUpdate(BaseModel):
     kontotyp: Optional[str] = None
     ist_standard: Optional[bool] = None
     datev_kontonummer: Optional[str] = None
-    kontoinhaber: Optional[str] = Field(None, max_length=70)  # "" = zurück auf Standard
     aktiv: Optional[bool] = None
 
 
@@ -462,7 +430,7 @@ class JournalEintragCreate(BaseModel):
     @field_validator("zahlungsart")
     @classmethod
     def check_zahlungsart(cls, v: str) -> str:
-        if v not in ("Bar", "Karte", "Bank", "PayPal", "Keine", "Privat"):  # Privat: Issue #470
+        if v not in ("Bar", "Karte", "Bank", "PayPal", "Keine"):
             raise ValueError("zahlungsart muss Bar, Karte, Bank, PayPal oder Keine sein")
         return v
 
@@ -518,8 +486,6 @@ class JournalEintragResponse(BaseModel):
     gruppe_id: Optional[int] = None
     beleg_id: Optional[int] = None
     beleg: Optional[BelegResponse] = None
-    # Issue #568 Stufe 2: alle Belege der Buchung (beleg = erster davon)
-    belege_anhaenge: List[JournalAnhangResponse] = []
     # Storno-Status (Issue #321) - bisher nur ueber String-Praefix "STORNO " in der
     # Beschreibung erkennbar; wird jetzt vom Server ausgewertet und mitgeliefert.
     storniert: bool = False               # True wenn eine Gegenbuchung existiert
@@ -537,10 +503,6 @@ class JournalEintragResponse(BaseModel):
         data = cls.model_validate(obj)
         if obj.beleg:
             data.beleg = BelegResponse.from_beleg(obj.beleg)
-        data.belege_anhaenge = [
-            JournalAnhangResponse(anhang_id=a.id, **BelegResponse.from_beleg(a.beleg).model_dump())
-            for a in getattr(obj, "anhaenge", None) or [] if a.beleg is not None
-        ]
         if obj.kunde:
             parts = [obj.kunde.firmenname or "", obj.kunde.vorname or "", obj.kunde.nachname or ""]
             data.kunde_name = " ".join(p for p in parts if p) or None
@@ -607,10 +569,6 @@ class SplitBuchungCreate(BaseModel):
     # sind ab Erstellung immutable, ein Beleg kann daher nicht wie bei Einzelbuchungen per
     # separatem Upload NACH der Erstellung angehaengt werden, sondern muss schon beim
     # Anlegen mitgegeben werden.
-    beleg_ids: List[int] = []  # Issue #568 Stufe 2: mehrere vorab hochgeladene Belege
-
-    def alle_beleg_ids(self) -> list[int]:
-        return list(dict.fromkeys(([self.beleg_id] if self.beleg_id else []) + list(self.beleg_ids)))
 
     @field_validator("art")
     @classmethod
@@ -622,7 +580,7 @@ class SplitBuchungCreate(BaseModel):
     @field_validator("zahlungsart")
     @classmethod
     def check_zahlungsart(cls, v: str) -> str:
-        if v not in ("Bar", "Karte", "Bank", "PayPal", "Keine", "Privat"):  # Privat: Issue #470
+        if v not in ("Bar", "Karte", "Bank", "PayPal", "Keine"):
             raise ValueError("zahlungsart muss Bar, Karte, Bank, PayPal oder Keine sein")
         return v
 

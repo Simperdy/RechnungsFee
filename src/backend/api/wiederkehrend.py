@@ -91,7 +91,7 @@ class EntwurfErgebnis(BaseModel):
     vorlage_id: int
     vorlage_bezeichnung: str
     rechnung_id: int
-    rechnungsnummer: str | None  # Issue #465: Entwurf ohne Nummer
+    rechnungsnummer: str
     preisaenderungen: list[Preisaenderung]
 
 
@@ -264,7 +264,7 @@ def _erstelle_entwurf(vorlage: Rechnungsvorlage, db: Session) -> tuple[int, str,
     # einer der (ggf. vergangenen) Periodentermine - die erscheinen stattdessen je Position als
     # Periodenhinweis, sobald mehrere Perioden gebündelt werden.
     rechnungsdatum = heute
-    rechnungsnummer = None  # Issue #465/#551: Nummer (ggf. eigener Kreis) erst beim Finalisieren
+    rechnungsnummer = _naechste_rechnungsnr(rechnungsdatum, db)
 
     rechnung = Rechnung(
         typ="ausgang",

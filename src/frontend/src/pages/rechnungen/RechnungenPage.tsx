@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { useAnsicht } from '../../hooks/useAnsicht'
 import { useSplitterBreite } from '../../hooks/useSplitterBreite'
-import { useDetailBreite } from '../../hooks/useDetailBreite'
-import { DetailTrennlinie } from '../../components/DetailTrennlinie'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { listen } from '@tauri-apps/api/event'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -13,19 +11,19 @@ import {
   getLieferscheine, rechnungAusLieferschein, sammelrechnungErstellen, lieferscheinAusRechnung,
   getLieferadressen, getOffeneAbschlaege, type OffenerAbschlag,
   getKunden, getLieferanten, getKategorien, getUnternehmen, getApiBase, isTauri, openUrl, openInPdfWindow, downloadPdfForMail,
-  getXRechnungUrl, speichereXRechnung, getEInvoiceAnsichtUrl, istXmlDatei,
+  getXRechnungUrl, speichereXRechnung,
   getRechnungenExportUrl, korrigiereZahlung,
   getUstSaetze, getKassenstand,
   uploadBeleg, setzeRechnungExternErstellt, getLetzterSteuerfall, getBelegUrl, getBelegPdfaUrl, deleteBeleg, analysiereRechnung, leseGedroppteDatei, dateiInSpeicher,
   getBuchungsvorlage, erledigtVorlage,
-  getMahnwesenEinstellungen, getRechnungMahnungen, setzeAltsystemMahnstufe,
+  getMahnwesenEinstellungen, getRechnungMahnungen,
   getZugferdAnhaenge, uploadZugferdAnhang, deleteZugferdAnhang,
   STEUERBEFREIUNGEN_4, type Rechnung, type RechnungCreate, type RechnungUpdate, type RechnungspositionCreate, type BarZahlungCreate, type BarZahlungResult,
   getPostfachEingang, postfachAbrufen, postfachVerwerfen, postfachUebernommen, postfachDateiPfad, ladePostfachDatei,
   type PostfachEintrag, type PostfachAbrufErgebnis,
   type ArtikelSuche, type ArtikelTyp, type AnalyseErgebnis, type LieferantVorschlag, type ZahlungSplitPosition, type ZahlungKompakt,
   type RechnungVorschauRequest,
-  dokumentPdfUrl, oeffnePaketVorschau, getDokumentenPakete, meldeVerlauf,
+  dokumentPdfUrl, oeffnePaketVorschau, getDokumentenPakete,
 } from '../../api/client'
 import { useRechnungVorschau } from '../../hooks/useRechnungVorschau'
 import { InfoTooltip } from '../../components/InfoTooltip'
@@ -35,7 +33,6 @@ import { KundeErstellenModal } from '../../components/KundeErstellenModal'
 import { ArtikelFormModal } from '../artikel/ArtikelPage'
 import { ArtikelAutocomplete } from '../../components/ArtikelAutocomplete'
 import { MailDialog } from '../../components/MailDialog'
-import { VersandSymbol, VerlaufListe } from '../../components/DokumentVerlauf'
 import { ThunderbirdInstallHinweis } from '../../components/ThunderbirdInstallHinweis'
 import { sendeUeberThunderbird, ThunderbirdNichtGefundenError, paketAnhaenge } from '../../utils/thunderbirdVersand'
 import { PaketMailtoWarnung } from '../../components/PaketMailtoWarnung'
@@ -46,10 +43,8 @@ import { useRechnungsdatumFrage } from '../../hooks/useRechnungsdatumFrage'
 import { getKontorahmenModus, katLabel, KONTORAHMEN_LS_KEY, type KontorahmenModus } from '../../utils/kontorahmen'
 import { istEuLand } from '../../utils/laender'
 import { letzteZahlungsdatumWahl, merkeZahlungsdatumWahl } from '../../utils/zahlungsdatumWahl'
-import { letzteZahlungsart, merkeZahlungsart } from '../../utils/zahlungsartWahl'
 import { LandCombobox } from '../../components/LandCombobox'
 import { rechnungenFilter, lieferscheinFilter, abschlagFilter } from '../../store/filterStore'
-import MarkdownTextfeld from '../../components/MarkdownTextfeld'
 
 // ---------------------------------------------------------------------------
 // Hilfsfunktionen
@@ -571,7 +566,7 @@ function ZahlungsDialog({
     if (wahl === 'leistungsdatum' && leistungsdatum) return leistungsdatum
     return heuteIso()
   })
-  const [zahlungsart, setZahlungsart] = useState<'Bar' | 'Karte' | 'PayPal' | 'Bank' | 'Privat'>(() => letzteZahlungsart())
+  const [zahlungsart, setZahlungsart] = useState<'Bar' | 'Karte' | 'PayPal' | 'Bank'>('Bar')
   const [beschreibung, setBeschreibung] = useState('')
   const [fehler, setFehler] = useState<string | null>(null)
 
@@ -702,7 +697,6 @@ function ZahlungsDialog({
       }
     }
 
-    merkeZahlungsart(zahlungsart)
     mutation.mutate(payload)
   }
 
@@ -862,10 +856,7 @@ function ZahlungsDialog({
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Zahlungsart</label>
             <div className="flex rounded-lg border border-slate-300 dark:border-slate-600 overflow-hidden text-sm">
-              {((rechnung.typ === 'eingang' && !istGutschrift
-                ? [['Bar', 'Bar'], ['Karte', 'Karte'], ['PayPal', 'PayPal'], ['Bank', 'Bank'], ['Privat', 'Privat bezahlt']]
-                : [['Bar', 'Bar'], ['Karte', 'Karte'], ['PayPal', 'PayPal'], ['Bank', 'Bank']]
-              ) as ['Bar' | 'Karte' | 'PayPal' | 'Bank' | 'Privat', string][]).map(([val, label]) => (
+              {([['Bar', 'Bar'], ['Karte', 'Karte'], ['PayPal', 'PayPal'], ['Bank', 'Bank']] as const).map(([val, label]) => (
                 <button
                   key={val}
                   type="button"
@@ -1072,83 +1063,6 @@ function ZahlungsDialog({
 // Rechnungs-Detail
 // ---------------------------------------------------------------------------
 
-// Importierte/extern erstellte Ausgangsrechnung: im Altsystem bereits verschickte Mahnstufe
-// festhalten, damit die Zählung dort weitergeht (Migration 196). Nur bis zur ersten Mahnung in
-// RechnungsFee änderbar.
-function AltsystemMahnstufe({ rechnung }: { rechnung: Rechnung }) {
-  const qc = useQueryClient()
-  const { data: einst } = useQuery({
-    queryKey: ['mahnwesen-einstellungen'],
-    queryFn: getMahnwesenEinstellungen,
-    staleTime: 1000 * 60 * 5,
-  })
-  const { data: mahnungen = [] } = useQuery({
-    queryKey: ['rechnung-mahnungen', rechnung.id],
-    queryFn: () => getRechnungMahnungen(rechnung.id),
-    enabled: !!einst?.aktiv,
-  })
-  const [stufe, setStufe] = useState(String(rechnung.altsystem_mahnstufe ?? 0))
-  const [datum, setDatum] = useState(rechnung.altsystem_gemahnt_am ?? '')
-  const [fehler, setFehler] = useState<string | null>(null)
-  const mut = useMutation({
-    mutationFn: () => setzeAltsystemMahnstufe(rechnung.id, Number(stufe), Number(stufe) > 0 ? (datum || null) : null),
-    onSuccess: () => {
-      setFehler(null)
-      qc.invalidateQueries({ queryKey: ['rechnungen'] })
-      qc.invalidateQueries({ queryKey: ['mahnwesen-kunden'] })
-      qc.invalidateQueries({ queryKey: ['mahnwesen-faellig'] })
-    },
-    onError: (e: Error) => setFehler(e.message),
-  })
-  if (!einst?.aktiv) return null
-  const stufen = [...(einst.mahnstufen ?? [])].sort((a, b) => a.stufe - b.stufe)
-  const bezeichnung = (n: number) => stufen.find((s) => s.stufe === n)?.bezeichnung ?? `Stufe ${n}`
-  if (mahnungen.length > 0) {
-    return rechnung.altsystem_mahnstufe ? (
-      <p className="mt-2 text-xs">
-        Im Altsystem bereits gemahnt: {bezeichnung(rechnung.altsystem_mahnstufe)}
-        {rechnung.altsystem_gemahnt_am && <> am {formatDatum(rechnung.altsystem_gemahnt_am)}</>}
-      </p>
-    ) : null
-  }
-  const geaendert = stufe !== String(rechnung.altsystem_mahnstufe ?? 0) || datum !== (rechnung.altsystem_gemahnt_am ?? '')
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-      <label htmlFor="altsystem-stufe">Im Altsystem bereits gemahnt:</label>
-      <select
-        id="altsystem-stufe"
-        value={stufe}
-        onChange={(e) => setStufe(e.target.value)}
-        className="border border-amber-300 dark:border-amber-700 rounded px-1.5 py-0.5 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
-      >
-        <option value="0">nein</option>
-        {stufen.map((s) => <option key={s.id} value={s.stufe}>{s.bezeichnung}</option>)}
-      </select>
-      {stufe !== '0' && (
-        <>
-          <span>am</span>
-          <DateInput
-            value={datum}
-            onChange={setDatum}
-            className="border border-amber-300 dark:border-amber-700 rounded px-1.5 py-0.5 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
-          />
-        </>
-      )}
-      {geaendert && (
-        <button
-          type="button"
-          onClick={() => mut.mutate()}
-          disabled={mut.isPending || (stufe !== '0' && !datum)}
-          className="rounded bg-amber-600 px-2 py-0.5 font-medium text-white hover:bg-amber-700 disabled:opacity-50"
-        >
-          Speichern
-        </button>
-      )}
-      {fehler && <p role="alert" className="w-full text-red-600 dark:text-red-400">{fehler}</p>}
-    </div>
-  )
-}
-
 function RechnungMahnungenSection({ rechnung, navigate }: { rechnung: Rechnung; navigate: ReturnType<typeof useNavigate> }) {
   const { data: einst } = useQuery({
     queryKey: ['mahnwesen-einstellungen'],
@@ -1280,7 +1194,7 @@ function RechnungDetail({
   const korrigiereZahlungMutation = useMutation({
     mutationFn: () => korrigiereZahlung(
       rechnung.id, korrigiereZahlungId!, korrigiereDatum, korrigiereBetrag || undefined,
-      (korrigiereZahlungsart || undefined) as 'Bar' | 'Karte' | 'Bank' | 'PayPal' | 'Privat' | undefined,
+      (korrigiereZahlungsart || undefined) as 'Bar' | 'Karte' | 'Bank' | 'PayPal' | undefined,
     ),
     onSuccess: (r) => {
       setKorrigiereZahlungId(null)
@@ -1297,10 +1211,6 @@ function RechnungDetail({
   async function _openBelegPdfa() {
     const url = await getBelegPdfaUrl(rechnung.id)
     await openUrl(url)
-  }
-  // Issue #598: E-Rechnung lesbar anzeigen (eigene Rechnung bzw. XML-Beleg)
-  async function _openEInvoiceAnsicht(pfad: string) {
-    await openUrl(await getEInvoiceAnsichtUrl(pfad))
   }
   const { data: unternehmen } = useQuery({ queryKey: ['unternehmen'], queryFn: getUnternehmen, staleTime: 1000 * 60 * 10 })
   // Kategorien für den Kategorie-Tooltip an den Positionen - bewusst alle (nicht nur aktive),
@@ -1505,7 +1415,6 @@ function RechnungDetail({
   async function handleDrucken() {
     const base = await getApiBase()
     const url = dokumentPdfUrl(base, rechnung)
-    if (!rechnung.ist_entwurf) void meldeVerlauf(rechnung.id, { art: 'gedruckt', kanal: 'druck', kopie: rechnung.ausgegeben })
     // Archivierung passiert serverseitig beim Laden der URL, unabhängig vom Aufrufer -
     // kurze Verzögerung damit die Liste den neuen "ausgegeben"-Status zuverlässig zeigt.
     setTimeout(() => qc.invalidateQueries({ queryKey: ['rechnungen'] }), 1500)
@@ -1519,21 +1428,16 @@ function RechnungDetail({
 
   async function handlePdfOeffnen() {
     const base = await getApiBase()
-    if (!rechnung.ist_entwurf) void meldeVerlauf(rechnung.id, { art: 'pdf', kanal: 'druck', kopie: rechnung.ausgegeben })
     setTimeout(() => qc.invalidateQueries({ queryKey: ['rechnungen'] }), 1500)
     _zeigePdf(dokumentPdfUrl(base, rechnung), 'Rechnung')
   }
 
-  /** stornorechnung=true: die Stornorechnung statt des Originals ansehen (Issue #595) */
-  async function handleAnsehen(stornorechnung = false) {
+  async function handleAnsehen() {
     const base = await getApiBase()
     if (isTauri()) {
-      openInPdfWindow(
-        `${base}/rechnungen/${rechnung.id}/pdf-ansehen${stornorechnung ? '?stornorechnung=true' : ''}`,
-        (stornorechnung ? rechnung.storno_rechnungsnummer : null) ?? rechnung.rechnungsnummer ?? 'Dokument',
-      )
+      openInPdfWindow(`${base}/rechnungen/${rechnung.id}/pdf-ansehen`, rechnung.rechnungsnummer ?? 'Dokument')
     } else {
-      window.open(dokumentPdfUrl(base, rechnung, `?nur_ansehen=true${stornorechnung ? '&stornorechnung=true' : ''}`), '_blank')
+      window.open(dokumentPdfUrl(base, rechnung, '?nur_ansehen=true'), '_blank')
     }
   }
 
@@ -1599,10 +1503,6 @@ function RechnungDetail({
             dateiname: `${rechnung.dokument_typ === 'Lieferschein' ? 'Lieferschein' : 'Rechnung'}_${rechnung.rechnungsnummer ?? rechnung.id}.pdf`,
           }, ...(await paketAnhaenge(rechnung.dokumentenpaket_id))],
         })
-        await meldeVerlauf(rechnung.id, {
-          art: 'mail_uebergeben', kanal: 'thunderbird', kopie: rechnung.ausgegeben,
-          empfaenger: email, betreff: subjectText,
-        })
         qc.invalidateQueries({ queryKey: ['rechnungen'] })
         setZeigMailEingabe(false)
         setMailAdresse('')
@@ -1646,11 +1546,6 @@ function RechnungDetail({
     } else {
       window.location.href = mailtoUrl
     }
-    await meldeVerlauf(rechnung.id, {
-      art: 'mail_uebergeben', kanal: 'mailprogramm', kopie: rechnung.ausgegeben,
-      empfaenger: email, betreff: subjectText,
-    })
-    qc.invalidateQueries({ queryKey: ['rechnungen'] })
     setZeigMailEingabe(false)
     setMailAdresse('')
     setZeigSmtpHinweis(true)
@@ -1662,7 +1557,7 @@ function RechnungDetail({
       {datumDialog}
       <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
         <div>
-          <p className="font-semibold text-slate-800 dark:text-slate-100">{rechnung.rechnungsnummer ?? (rechnung.ist_entwurf ? 'Entwurf – Nummer beim Finalisieren' : '(keine Nummer)')}</p>
+          <p className="font-semibold text-slate-800 dark:text-slate-100">{rechnung.rechnungsnummer ?? '(keine Nummer)'}</p>
           <p className="text-xs text-slate-400 dark:text-slate-500">{rechnung.typ === 'ausgang' ? 'Ausgangsrechnung' : 'Eingangsrechnung'}</p>
         </div>
         <button onClick={onClose} aria-label="Schließen" className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 text-2xl leading-none">×</button>
@@ -1674,8 +1569,7 @@ function RechnungDetail({
             {rechnung.import_quelle === 'extern'
               ? 'Extern erstellt – das Original liegt außerhalb von RechnungsFee.'
               : 'Importiert – Original im Altsystem.'}{' '}
-            Diese Rechnung bleibt als offener Posten sichtbar und kann gemahnt werden, aber nicht neu als PDF erzeugt oder versendet werden. Original und ggf. Berichtigung kannst du unten als Beleg anhängen – eine Mahnung schickt dann das Original als Rechnungsanhang mit.
-            {rechnung.typ === 'ausgang' && <AltsystemMahnstufe rechnung={rechnung} />}
+            Diese Rechnung bleibt als offener Posten sichtbar, kann aber nicht neu als PDF erzeugt, versendet oder gemahnt werden. Original und ggf. Berichtigung kannst du unten als Beleg anhängen.
           </div>
         )}
 
@@ -1687,7 +1581,7 @@ function RechnungDetail({
               onClick={() => {
                 const setzen = !rechnung.import_quelle
                 const frage = setzen
-                  ? 'Diese Rechnung als extern erstellt kennzeichnen? RechnungsFee erzeugt dafür dann kein eigenes PDF mehr und versendet sie nicht – maßgeblich ist dein Original. Mahnen bleibt möglich.'
+                  ? 'Diese Rechnung als extern erstellt kennzeichnen? RechnungsFee erzeugt dafür dann kein eigenes PDF mehr, versendet und mahnt sie nicht – maßgeblich ist dein Original.'
                   : 'Kennzeichnung „extern erstellt" entfernen? Danach kann RechnungsFee wieder ein eigenes PDF erzeugen und versenden.'
                 if (window.confirm(frage)) externMutation.mutate(setzen)
               }}
@@ -1701,30 +1595,7 @@ function RechnungDetail({
 
         {/* Aktionsleiste */}
         <div className="flex flex-wrap gap-2">
-          {rechnung.typ === 'eingang' && !rechnung.import_quelle ? (
-            // Issue #591: Eingangsrechnung = Dokument des Lieferanten - kein eigenes Rechnungs-PDF,
-            // kein Druck als „Original“, kein Versand. Mit Beleg das Original, sonst ein Erfassungsblatt.
-            rechnung.beleg ? (
-              <button
-                onClick={_openBeleg}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
-              >
-                📄 Original öffnen
-              </button>
-            ) : (
-              <button
-                onClick={async () => {
-                  const url = dokumentPdfUrl(await getApiBase(), rechnung)
-                  if (isTauri()) openInPdfWindow(url, 'Erfassungsblatt')
-                  else window.open(url, '_blank')
-                }}
-                title="Internes Blatt mit den erfassten Daten – das Original des Lieferanten ist noch nicht als Beleg angehängt"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
-              >
-                📄 Erfassungsblatt
-              </button>
-            )
-          ) : rechnung.import_quelle ? (
+          {rechnung.import_quelle ? (
             <span className="self-center text-xs text-amber-700 dark:text-amber-300">
               PDF- und Mailversand gesperrt – {rechnung.import_quelle === 'extern' ? 'Original extern erstellt' : 'Original im Altsystem'}
             </span>
@@ -1738,19 +1609,11 @@ function RechnungDetail({
           ) : (
             <>
               <button
-                onClick={() => handleAnsehen()}
+                onClick={handleAnsehen}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
               >
-                👁 {rechnung.storniert && rechnung.dokument_typ === 'Rechnung' ? 'Original ansehen' : 'Ansehen'}
+                👁 Ansehen
               </button>
-              {rechnung.storniert && rechnung.dokument_typ === 'Rechnung' && (
-                <button
-                  onClick={() => handleAnsehen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
-                >
-                  👁 Stornorechnung ansehen
-                </button>
-              )}
               <button
                 onClick={handleDrucken}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
@@ -1840,14 +1703,13 @@ function RechnungDetail({
           {rechnung.zahlungsstatus === 'uneinbringlich' && rechnung.dokument_typ !== 'Lieferschein' && (
             <span className="self-center text-xs text-slate-400 dark:text-slate-500 italic">Uneinbringlich ausgebucht</span>
           )}
-          {rechnung.storniert && rechnung.dokument_typ === 'Rechnung' && !rechnung.ersatzrechnung_id && (
+          {rechnung.storniert && rechnung.typ === 'ausgang' && rechnung.dokument_typ === 'Rechnung' && !rechnung.ersatzrechnung_id && (
             <button
               onClick={() => ersatzrechnungMutation.mutate()}
               disabled={ersatzrechnungMutation.isPending}
-              title={rechnung.typ === 'eingang' ? 'Entwurf mit Lieferant, Positionen und Kategorie aus dieser Rechnung – Rechnungsnummer des Lieferanten, Datum und Beleg trägst du ein' : undefined}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-green-300 dark:border-green-700 rounded-lg hover:bg-green-50 dark:hover:bg-green-950 text-green-700 dark:text-green-400 font-medium disabled:opacity-50"
             >
-              {ersatzrechnungMutation.isPending ? '…' : rechnung.typ === 'eingang' ? '→ Korrigierte Rechnung erfassen' : '→ Ersatzrechnung erstellen'}
+              {ersatzrechnungMutation.isPending ? '…' : '→ Ersatzrechnung erstellen'}
             </button>
           )}
           {rechnung.typ === 'ausgang' && rechnung.dokument_typ === 'Rechnung' && !zeigStornoEingabe && !zeigForderungsausfall && (
@@ -2188,26 +2050,10 @@ function RechnungDetail({
               </span>
             </div>
           )}
-          {/* Issue #596: was wann mit dem Dokument passiert ist */}
-          {rechnung.typ === 'ausgang' && !rechnung.ist_entwurf && (
-            <details className="pt-1">
-              <summary className="cursor-pointer text-slate-500 dark:text-slate-400 select-none">
-                Verlauf ({rechnung.verlauf?.length ?? 0})
-              </summary>
-              <div className="mt-2">
-                <VerlaufListe eintraege={[...(rechnung.verlauf ?? [])].reverse()} />
-              </div>
-            </details>
-          )}
           {rechnung.typ === 'ausgang' && rechnung.kunde_zugferd_aktiv && !rechnung.ist_entwurf && !rechnung.kunde_oeffentlich && (
             <div className="flex justify-between">
               <span className="text-slate-500 dark:text-slate-400">E-Rechnung</span>
-              <span className="flex items-center gap-2">
-                <button type="button" onClick={() => _openEInvoiceAnsicht(`/rechnungen/${rechnung.id}/xrechnung/ansicht`)}
-                  title="Zeigt lesbar an, was in den E-Rechnungsdaten (XML) dieser Rechnung steht"
-                  className="text-xs text-violet-700 dark:text-violet-300 hover:underline">Daten ansehen</button>
-                <span className="text-xs px-2 py-0.5 rounded border bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-800">ZUGFeRD ✓</span>
-              </span>
+              <span className="text-xs px-2 py-0.5 rounded border bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-800">ZUGFeRD ✓</span>
             </div>
           )}
           {/* Issue #530: öffentlicher Auftraggeber – Original ist die XRechnung-XML (Upload ins Portal) */}
@@ -2224,9 +2070,6 @@ function RechnungDetail({
                 className="text-xs px-2 py-0.5 rounded border bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-800 dark:hover:bg-violet-900">
                 ⬇ XRechnung (XML)
               </button>
-              <button type="button" onClick={() => _openEInvoiceAnsicht(`/rechnungen/${rechnung.id}/xrechnung/ansicht`)}
-                title="Zeigt lesbar an, was in der XRechnung steht"
-                className="text-xs text-violet-700 dark:text-violet-300 hover:underline">Ansehen</button>
             </div>
           )}
           {rechnung.storniert && rechnung.storno_datum && (
@@ -2600,14 +2443,12 @@ function RechnungDetail({
                           <input
                             type="number"
                             step="0.01"
-                            min="0"
+                            min="0.01"
                             value={korrigiereBetrag}
                             onChange={(e) => setKorrigiereBetrag(e.target.value)}
-                            title="0 € nimmt die Zahlung zurück (Storno ohne Neubuchung)"
-                            aria-label="Betrag (0 = Zahlung zurücknehmen)"
                             className="w-24 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                           />
-                          {['Bar', 'Karte', 'Bank', 'PayPal', 'Privat'].includes(z.zahlungsart) && (
+                          {['Bar', 'Karte', 'Bank', 'PayPal'].includes(z.zahlungsart) && (
                             <select
                               value={korrigiereZahlungsart}
                               onChange={(e) => setKorrigiereZahlungsart(e.target.value)}
@@ -2619,16 +2460,10 @@ function RechnungDetail({
                               <option value="Karte">Karte</option>
                               <option value="Bank">Bank</option>
                               <option value="PayPal">PayPal</option>
-                              {z.art === 'Ausgabe' && <option value="Privat">Privat bezahlt</option>}
                             </select>
                           )}
                           <button
-                            onClick={() => {
-                              // Issue #567-Folgefund: 0 € = Zahlung zurücknehmen (nur Storno)
-                              if (parseFloat(korrigiereBetrag.replace(',', '.')) === 0
-                                && !window.confirm('Zahlung zurücknehmen? RechnungsFee bucht dafür ein Storno, eine neue Zahlung wird nicht angelegt. Die Rechnung ist danach um diesen Betrag wieder offen.')) return
-                              korrigiereZahlungMutation.mutate()
-                            }}
+                            onClick={() => korrigiereZahlungMutation.mutate()}
                             disabled={korrigiereZahlungMutation.isPending}
                             className="bg-blue-600 text-white rounded-lg px-3 py-1 text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
                           >
@@ -2766,12 +2601,6 @@ function RechnungDetail({
                     {rechnung.beleg.dateigroesse ? `${Math.round(rechnung.beleg.dateigroesse / 1024)} KB · ` : ''}
                     {rechnung.beleg.hochgeladen_am.slice(0, 10)}
                   </span>
-                  {istXmlDatei(rechnung.beleg.mime_type, rechnung.beleg.original_name) && (
-                    <button onClick={() => _openEInvoiceAnsicht(`/rechnungen/${rechnung.id}/beleg/ansicht`)}
-                      className="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:underline">
-                      🧾 Lesbar anzeigen
-                    </button>
-                  )}
                 </div>
                 {/* Issue #575: nach dem Finalisieren ist der Beleg festgeschrieben (GoBD) */}
                 {belegFestgeschrieben ? (
@@ -2998,7 +2827,6 @@ type Positionszeile = {
   art_minusbestand_erlaubt?: boolean
   art_typ?: ArtikelTyp  // Artikel-Typ (artikel/dienstleistung/fremdleistung) - fuer ig.Lieferung/Reverse-Charge-Erkennung
   abschlag_rechnung_id?: number  // Issue #419: markiert eine automatisch generierte Abzugszeile
-  leistungsdatum?: string  // Issue #594: Leistungsdatum der Position (JJJJ-MM-TT)
   leistung_von_abschlag_id?: number  // Issue #419: markiert eine aus der Abschlagsrechnung übernommene Leistungsposition (nur Frontend, verhindert doppeltes Übernehmen - wird nicht ans Backend gesendet)
 }
 
@@ -3157,7 +2985,6 @@ function RechnungForm({
         kategorie_id: p.kategorie_id != null ? String(p.kategorie_id) : undefined,
         differenzbesteuerung: p.differenzbesteuerung ?? false,
         art_typ: (p.artikel_typ as ArtikelTyp | null) ?? undefined,
-        leistungsdatum: p.leistungsdatum ?? '',
       }))
     }
     // Plain-PDF-Prefill: Brutto/Netto-Betrag und USt-Satz aus Texterkennung vorfüllen
@@ -3582,8 +3409,6 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
     || positionen.some((p) => p.differenzbesteuerung || p.abschlag_rechnung_id)
   )
   const zeigeKatSpalte = typ === 'eingang' || !ausgangKatGesperrt
-  // Issue #594: Leistungsdatum je Position (Schalter unter Einstellungen → Rechnungsvorlagen)
-  const zeigeDatum = typ === 'ausgang' && !!unternehmen?.pdf_positionsdatum
 
   // Summenberechnung (Issue #332): das Formular rechnet nicht mehr selbst, sondern fragt beim
   // Backend dieselbe Berechnung ab die auch beim Speichern läuft (debounced) - siehe
@@ -3606,8 +3431,6 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
       rabatt_prozent: parseFloat((p.rabatt_prozent ?? '').replace(',', '.')) || undefined,
       // Issue #459: Kategorie mitschicken - bei §13b/ig. Erwerb zählt die USt nicht zum Rechnungsbetrag
       kategorie_id: p.kategorie_id ? parseInt(p.kategorie_id) : undefined,
-      // Issue #597: Abzugszeilen bleiben vom Rechnungsrabatt ausgenommen - wie beim Speichern
-      abschlag_rechnung_id: p.abschlag_rechnung_id,
     })),
     kategorie_id: kategorieId ? parseInt(kategorieId) : undefined,
     eingabemodus: eingabeModus,
@@ -3842,7 +3665,6 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
           differenzbesteuerung: istDiff,
           rabatt_prozent: rabatt > 0 ? rabatt : undefined,
           abschlag_rechnung_id: p.abschlag_rechnung_id,
-          leistungsdatum: p.leistungsdatum || undefined,
         } as RechnungspositionCreate
       }),
       rabatt_prozent: rechnungRabattNum > 0 && rechnungRabattModus === 'prozent' ? rechnungRabattNum : undefined,
@@ -3917,7 +3739,7 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
             value={rechnungsnummer}
             onChange={(e) => setRechnungsnummer(e.target.value)}
             className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
-            placeholder="wird beim Finalisieren automatisch vergeben"
+            placeholder="wird automatisch vergeben"
           />
         </div>
         <div>
@@ -4644,7 +4466,6 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
           <table className="w-full text-xs">
             <thead className="bg-slate-50 dark:bg-slate-900">
               <tr>
-                {zeigeDatum && <th className="px-3 py-2 text-left text-slate-500 dark:text-slate-400 font-medium w-32">Datum</th>}
                 <th className="px-3 py-2 text-left text-slate-500 dark:text-slate-400 font-medium">Beschreibung</th>
                 <th className="px-3 py-2 text-right text-slate-500 dark:text-slate-400 font-medium w-16">Menge</th>
                 <th className="px-3 py-2 text-left text-slate-500 dark:text-slate-400 font-medium w-20">Einheit</th>
@@ -4672,7 +4493,6 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
                   // als "–" ausgeblendet, der tatsächliche Abzugsbetrag (bereits das fertige
                   // Vorzeichen-Ergebnis aus Netto × Menge) steht stattdessen klar in einer Zahl.
                   <tr key={i} className="border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400">
-                    {zeigeDatum && <td className="px-3 py-1.5"></td>}
                     <td className="px-3 py-1.5 italic whitespace-pre-wrap">{pos.beschreibung}</td>
                     <td className="px-3 py-1.5 text-right">–</td>
                     <td className="px-3 py-1.5">–</td>
@@ -4697,13 +4517,6 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
                   </tr>
                 ) : (
                 <tr key={i} className="border-t border-slate-100 dark:border-slate-700">
-                  {zeigeDatum && (
-                    <td className="px-2 py-1.5">
-                      <input type="date" value={pos.leistungsdatum ?? ''} aria-label="Leistungsdatum"
-                        onChange={(e) => updatePosition(i, 'leistungsdatum', e.target.value)}
-                        className="w-full border-0 outline-none bg-transparent text-slate-700 dark:text-slate-200 text-xs" />
-                    </td>
-                  )}
                   <td className={`px-2 py-1.5 ${fehlerRing(positionenFehlen && !pos.beschreibung.trim())}`}>
                     <ArtikelAutocomplete
                       value={pos.beschreibung}
@@ -4828,20 +4641,20 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
               {!sperreUstAufNull && (
                 <>
                   <tr>
-                    <td colSpan={(zeigeKatSpalte ? 6 : 5) + (zeigeDatum ? 1 : 0)} className="px-3 py-2 text-right text-slate-500 dark:text-slate-400 text-xs" title="ohne MwSt">
+                    <td colSpan={zeigeKatSpalte ? 6 : 5} className="px-3 py-2 text-right text-slate-500 dark:text-slate-400 text-xs" title="ohne MwSt">
                       Netto{eingabeModus === 'brutto' && <span className="text-slate-400 dark:text-slate-500"> (berechnet)</span>}
                     </td>
                     <td colSpan={2} className="px-3 py-2 text-right font-medium text-slate-700 dark:text-slate-200">{formatEuro(anzeigeSummen.netto)}</td>
                   </tr>
                   <tr>
-                    <td colSpan={(zeigeKatSpalte ? 6 : 5) + (zeigeDatum ? 1 : 0)} className="px-3 py-2 text-right text-slate-500 dark:text-slate-400 text-xs">USt</td>
+                    <td colSpan={zeigeKatSpalte ? 6 : 5} className="px-3 py-2 text-right text-slate-500 dark:text-slate-400 text-xs">USt</td>
                     <td colSpan={2} className="px-3 py-2 text-right text-slate-600 dark:text-slate-300">{formatEuro(anzeigeSummen.ust)}</td>
                   </tr>
                 </>
               )}
               {rechnungRabattNum > 0 && (
                 <tr>
-                  <td colSpan={(zeigeKatSpalte ? 6 : 5) + (zeigeDatum ? 1 : 0)} className="px-3 py-2 text-right text-slate-500 dark:text-slate-400 text-xs">
+                  <td colSpan={zeigeKatSpalte ? 6 : 5} className="px-3 py-2 text-right text-slate-500 dark:text-slate-400 text-xs">
                     Zwischensumme Brutto
                   </td>
                   <td colSpan={2} className="px-3 py-2 text-right text-slate-600 dark:text-slate-300">{formatEuro(summen.brutto)}</td>
@@ -4849,7 +4662,7 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
               )}
               {rechnungRabattNum > 0 && (
                 <tr>
-                  <td colSpan={(zeigeKatSpalte ? 6 : 5) + (zeigeDatum ? 1 : 0)} className="px-3 py-2 text-right text-slate-400 dark:text-slate-500 text-xs">
+                  <td colSpan={zeigeKatSpalte ? 6 : 5} className="px-3 py-2 text-right text-slate-400 dark:text-slate-500 text-xs">
                     {rechnungRabattModus === 'betrag' ? 'Abzug' : `Rabatt ${rechnungRabattNum} %`}
                   </td>
                   <td colSpan={2} className="px-3 py-2 text-right text-slate-400 dark:text-slate-500 text-xs">
@@ -4860,7 +4673,7 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
                 </tr>
               )}
               <tr>
-                <td colSpan={(zeigeKatSpalte ? 6 : 5) + (zeigeDatum ? 1 : 0)} className="px-3 py-2 text-right font-semibold text-slate-700 dark:text-slate-200" title="mit MwSt">
+                <td colSpan={zeigeKatSpalte ? 6 : 5} className="px-3 py-2 text-right font-semibold text-slate-700 dark:text-slate-200" title="mit MwSt">
                   Brutto{eingabeModus === 'netto' && <span className="text-slate-400 dark:text-slate-500 font-normal"> (berechnet)</span>}
                 </td>
                 <td colSpan={2} className="px-3 py-2 text-right font-bold text-slate-800 dark:text-slate-100">{formatEuro(anzeigeSummen.brutto)}</td>
@@ -4926,15 +4739,16 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
       {typ === 'ausgang' && (
         <div>
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Einleitungstext</label>
-          <MarkdownTextfeld
+          <textarea
             value={einleitungstext}
-            onChange={setEinleitungstext}
-            vorschau
-            aria-label="Einleitungstext"
+            onChange={(e) => setEinleitungstext(e.target.value)}
             rows={3}
             className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
             placeholder="Erscheint vor der Positionstabelle. Leer = Standard aus den Einstellungen für diesen Dokumenttyp."
           />
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+            Markdown: <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded text-slate-600 dark:text-slate-300">**fett**</code> <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded text-slate-600 dark:text-slate-300">*kursiv*</code> · Zeilenumbruch mit Enter
+          </p>
         </div>
       )}
 
@@ -4960,15 +4774,16 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
       {typ === 'ausgang' && (
         <div>
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Schlusstext</label>
-          <MarkdownTextfeld
+          <textarea
             value={schlusstext}
-            onChange={setSchlusstext}
-            vorschau
-            aria-label="Schlusstext"
+            onChange={(e) => setSchlusstext(e.target.value)}
             rows={3}
             className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
             placeholder="Erscheint nach den Positionen/Summen. Leer = Standard aus den Einstellungen für diesen Dokumenttyp."
           />
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+            Markdown: <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded text-slate-600 dark:text-slate-300">**fett**</code> <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded text-slate-600 dark:text-slate-300">*kursiv*</code> · Zeilenumbruch mit Enter
+          </p>
         </div>
       )}
 
@@ -5052,7 +4867,7 @@ const kundeIdNum = partnerId ? parseInt(partnerId) : null
             <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Für Rechnungen, die außerhalb von RechnungsFee geschrieben und verschickt wurden – z. B. beim Umstieg
               mit Originalnummer und -datum. Maßgeblich bleibt das Original: RechnungsFee erzeugt dafür kein eigenes
-              PDF und versendet sie nicht. Zahlungen, Umsatzsteuer, offene Posten und Mahnungen laufen normal.
+              PDF, versendet und mahnt sie nicht. Zahlungen, Umsatzsteuer und offene Posten laufen normal.
               Original und ggf. Berichtigung kannst du danach als Beleg anhängen.
             </span>
           </span>
@@ -5163,14 +4978,6 @@ function PostfachDialog({
     await openUrl(`${base}${postfachDateiPfad(e.id)}`)
   }
 
-  // Issue #598: XRechnung-Anhang lesbar statt als Rohtext
-  async function lesbarAnsehen(e: PostfachEintrag) {
-    const base = import.meta.env.DEV
-      ? `${window.location.protocol}//${window.location.host}/api`
-      : await getApiBase()
-    await openUrl(`${base}/postfach/eingang/${e.id}/ansicht`)
-  }
-
   async function uebernehmen(e: PostfachEintrag) {
     setLadeId(e.id)
     try { onUebernehmen(e) } finally { setLadeId(null) }
@@ -5238,12 +5045,8 @@ function PostfachDialog({
                       </>
                     ) : (
                       <>
-                        {istXmlDatei(e.mime_type, e.original_name) && (
-                          <button onClick={() => lesbarAnsehen(e)} title="E-Rechnung lesbar anzeigen"
-                            className="px-2.5 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">Lesbar</button>
-                        )}
                         <button onClick={() => ansehen(e)}
-                          className="px-2.5 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">{istXmlDatei(e.mime_type, e.original_name) ? 'XML' : 'Ansehen'}</button>
+                          className="px-2.5 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">Ansehen</button>
                         <button onClick={() => setVerwerfenId(e.id)}
                           className="px-2.5 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">Verwerfen</button>
                         <button onClick={() => uebernehmen(e)} disabled={ladeId === e.id}
@@ -5346,15 +5149,6 @@ function ImportDialog({
     await openUrl(`${base}${ergebnis.temp_url}`)
   }
 
-  // Issue #598: strukturierte E-Rechnung lesbar anzeigen
-  async function handleLesbarOeffnen() {
-    if (!ergebnis?.temp_url) return
-    const base = import.meta.env.DEV
-      ? `${window.location.protocol}//${window.location.host}/api`
-      : await getApiBase()
-    await openUrl(`${base}${ergebnis.temp_url}/ansicht`)
-  }
-
   const formatLabel: Record<string, string> = {
     zugferd: 'ZUGFeRD',
     xrechnung: 'XRechnung',
@@ -5423,12 +5217,6 @@ function ImportDialog({
                       ? 'Felder aus PDF-Text extrahiert – bitte prüfen'
                       : 'Keine Daten erkannt – bitte manuell ausfüllen'}
                 </span>
-                {(ergebnis.format === 'zugferd' || ergebnis.format === 'xrechnung') && ergebnis.temp_url && (
-                  <button type="button" onClick={handleLesbarOeffnen}
-                    className="ml-auto text-xs text-blue-600 dark:text-blue-400 hover:underline">
-                    🧾 Lesbar anzeigen
-                  </button>
-                )}
               </div>
 
               {/* Warnungen */}
@@ -5542,7 +5330,6 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
   const { einstellungen } = useAnsicht()
   const manuell = einstellungen.splitter === 'manuell'
   const [splitterBreite, startSplitterDrag] = useSplitterBreite('rechnungen', 33)
-  const detailBreite = useDetailBreite('rechnungen')
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [typ, setTyp] = useState<'eingang' | 'ausgang'>('ausgang')
@@ -5599,8 +5386,6 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
     const typParam = searchParams.get('typ')
     if (typParam === 'eingang' || typParam === 'ausgang') {
       setTyp(typParam)
-      // ?postfach=1: Rechnungspostfach direkt öffnen (Dashboard, Issue #592)
-      if (typParam === 'eingang' && searchParams.get('postfach') === '1') setZeigPostfach(true)
       // ?vorlage=ID: Eingangsrechnung aus Buchungsvorlage vorausfüllen (Warte-auf-Beleg)
       const vorlageParam = searchParams.get('vorlage')
       if (typParam === 'eingang' && vorlageParam) {
@@ -5670,8 +5455,6 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
   const [vorKundeId, setVorKundeId] = useState<string | undefined>()
   const [fehler, setFehler] = useState<string | null>(null)
   const [sortFaellig, setSortFaellig] = useState<'asc' | 'desc' | null>(null)
-  // Issue #596: nur Dokumente, die noch nicht gedruckt oder versendet wurden
-  const [nurUnversendet, setNurUnversendet] = useState(false)
   const listContainerRef = useRef<HTMLDivElement>(null)
   const [zeigImport, setZeigImport] = useState(false)
   const [importPrefill, setImportPrefill] = useState<AnalyseErgebnis | null>(null)
@@ -5871,9 +5654,6 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
     let result = lsFilterRechnungId != null && lieferscheinModus
       ? liste.filter(r => r.lieferschein_zu_rechnung_id === lsFilterRechnungId)
       : liste
-    if (nurUnversendet) {
-      result = result.filter(r => r.typ === 'ausgang' && !r.ist_entwurf && !r.storniert && !r.letzter_versand)
-    }
     if (lieferscheinModus && lsAbrechnungFilter) {
       result = result.filter(r => {
         if (lsAbrechnungFilter === 'offen') return !r.lieferschein_zu_rechnung_id
@@ -6120,18 +5900,6 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
             ) : (
               <StatusMultiSelect value={zahlungsstatus} onChange={setZahlungsstatus} />
             )}
-
-            {typ !== 'eingang' && (
-              <label className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={nurUnversendet}
-                  onChange={(e) => setNurUnversendet(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600"
-                />
-                Noch nicht versendet
-              </label>
-            )}
           </div>
 
           {/* Fehlermeldung */}
@@ -6270,9 +6038,6 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                       </>
                     )}
                     <th className="px-5 py-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Status</th>
-                    {typ !== 'eingang' && (
-                      <th className="px-3 py-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-16" title="Zuletzt gedruckt oder versendet">Versand</th>
-                    )}
                     {typ !== 'ausgang' && (
                       <th className="px-3 py-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide w-8" title="Beleg angehängt">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 mx-auto">
@@ -6310,7 +6075,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                       )}
                       <td className="px-3 md:px-5 py-3 text-slate-500 dark:text-slate-400">{formatDatum(r.datum)}</td>
                       <td className="px-5 py-3 font-mono text-xs text-slate-400 dark:text-slate-500">
-                        {r.rechnungsnummer ?? (r.ist_entwurf ? 'Entwurf' : '—')}
+                        {r.rechnungsnummer ?? '—'}
                         {r.dokument_typ === 'Gutschrift' && <span className="ml-1.5 text-[10px] text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded px-1">Gutschrift</span>}
                         {r.dokument_typ === 'Lieferschein' && (
                           lieferscheinModus
@@ -6328,11 +6093,6 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                             aus {r.herkunft_auftrag_nr ?? r.herkunft_proforma_nr}
                           </span>
                         )}
-                        {r.dokument_typ === 'Abschlagsrechnung' && r.abschlag_zu_dokument_nr && (
-                          <span className="ml-1.5 text-[10px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1">
-                            aus {r.abschlag_zu_dokument_nr}
-                          </span>
-                        )}
                         {r.ist_entwurf && <span className="ml-1.5 text-[10px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded px-1">Entwurf</span>}
                         {r.storniert && <span className="ml-1.5 text-[10px] text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-1">Storniert</span>}
                         {r.rechnungs_kette.length > 1 && (
@@ -6344,12 +6104,6 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                           >
                             🔗 Kette anzeigen
                           </button>
-                        )}
-                        {r.typ === 'eingang' && r.externe_belegnr && (
-                          // Issue #581: Rechnungsnummer des Lieferanten sichtbar (war nur durchsuchbar)
-                          <div className="mt-0.5 font-sans text-[11px] text-slate-500 dark:text-slate-400" title="Rechnungsnummer des Lieferanten">
-                            Lief.-Nr. {r.externe_belegnr}
-                          </div>
                         )}
                       </td>
                       <td className="px-5 py-3 text-slate-700 dark:text-slate-200">
@@ -6401,11 +6155,6 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                                 ? <span className="text-xs px-2 py-0.5 rounded border bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800" title={`Verrechnet in ${r.verrechnet_in_rechnung_nr ?? ''}`}>Verrechnet</span>
                                 : <StatusBadge status={r.zahlungsstatus as 'offen' | 'teilweise' | 'bezahlt' | 'uneinbringlich'} />}
                       </td>
-                      {typ !== 'eingang' && (
-                        <td className="px-3 py-3 text-center">
-                          {r.typ === 'ausgang' && !r.ist_entwurf && <VersandSymbol eintrag={r.letzter_versand} />}
-                        </td>
-                      )}
                       {typ !== 'ausgang' && (
                         <td className="px-3 py-3 text-center">
                           {r.typ === 'eingang' && r.beleg && (
@@ -6518,6 +6267,11 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
               }}
               onLieferscheinAusRechnung={lieferscheinAktiv ? (id) => lieferscheinAusRechnungMutation.mutate(id) : undefined}
             />
+          ) : (
+            <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500 text-sm">
+              Rechnung auswählen
+            </div>
+          )}
         </div>
       )}
 

@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query'
 import { berechneZM, downloadZmCsv, getUnternehmen, type ZMErgebnis } from '../../api/client'
 import { ExportButtons } from '../../components/ExportButtons'
 import { useMxAuto } from '../../hooks/useAnsicht'
-import { useBuchungsjahre } from '../../hooks/useBuchungsjahre'
 
 const MONATE = ['', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
   'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
@@ -49,7 +48,7 @@ export function ZMPage() {
     }
   }
 
-  const jahre = useBuchungsjahre()  // Issue #589: nur Jahre mit Buchungen + aktuelles
+  const jahre = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i)
 
   if (unt?.ist_kleinunternehmer) {
     return (

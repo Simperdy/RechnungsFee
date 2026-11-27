@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { useAnsicht } from '../../hooks/useAnsicht'
 import { useSplitterBreite } from '../../hooks/useSplitterBreite'
-import { useDetailBreite } from '../../hooks/useDetailBreite'
-import { DetailTrennlinie } from '../../components/DetailTrennlinie'
 import { DateInput } from '../../components/DateInput'
 import { ExportButtons } from '../../components/ExportButtons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -11,7 +9,6 @@ import {
   getAfaPlan, getAveurPdfUrl, getAveurZusammenfassung, openUrl,
   type Anlagegut, type AnlagegutCreate, type AnlagegutTyp,
 } from '../../api/client'
-import { useBuchungsjahre } from '../../hooks/useBuchungsjahre'
 
 const AKTUELLES_JAHR = new Date().getFullYear()
 
@@ -309,9 +306,7 @@ export function AnlageverzeichnisPage() {
   const { einstellungen } = useAnsicht()
   const manuell = einstellungen.splitter === 'manuell'
   const [splitterBreite, startSplitterDrag] = useSplitterBreite('anlageverzeichnis', 50)
-  const detailBreite = useDetailBreite('anlageverzeichnis')
   const [jahr, setJahr] = useState(AKTUELLES_JAHR)
-  const buchungsjahre = useBuchungsjahre()  // Issue #589
   const [formModus, setFormModus] = useState<'neu' | 'bearbeiten' | null>(null)
   const [selId, setSelId] = useState<number | null>(null)
   const [planGut, setPlanGut] = useState<Anlagegut | null>(null)
@@ -472,7 +467,6 @@ export function AnlageverzeichnisPage() {
       )}
 
       {/* Rechte Spalte – Detail */}
-      {formModus === null && selGut && <DetailTrennlinie detail={detailBreite} />}
       {formModus === null && selGut && (
         <div className={`${selId ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0} border-l border-slate-200 dark:border-slate-700 overflow-y-auto p-5`}>
           <div className="flex items-start justify-between mb-4">

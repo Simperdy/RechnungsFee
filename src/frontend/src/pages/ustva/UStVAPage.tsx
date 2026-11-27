@@ -8,7 +8,6 @@ import {
 } from '../../api/client'
 import { useMxAuto } from '../../hooks/useAnsicht'
 import { ExportButtons } from '../../components/ExportButtons'
-import { useBuchungsjahre } from '../../hooks/useBuchungsjahre'
 
 // ---------------------------------------------------------------------------
 // KZ-Metadaten – Reihenfolge wie im amtlichen Formular USt 1 A 2026
@@ -318,7 +317,7 @@ export function UStVAPage() {
     return (ust - vst).toFixed(2)
   }
 
-  const jahre = useBuchungsjahre()  // Issue #589: nur Jahre mit Buchungen + aktuelles
+  const jahre = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i)
   const rhythmus = unt?.voranmeldungsrhythmus ?? 'quartal'
 
   // Abschnitte mit mindestens einem Nicht-Null-Wert für die Anzeige ermitteln

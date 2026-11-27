@@ -7,7 +7,6 @@ import { UstIdnrPruefung } from '../../components/UstIdnrPruefung'
 import { istEuLand } from '../../utils/laender'
 import { LandCombobox } from '../../components/LandCombobox'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { kontokorrentMailOhneSmtp } from '../../utils/mailOhneSmtp'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -267,16 +266,11 @@ function KundeKontokorrent({ kunde, debitorNr, setDebitorNr, debitorEdit, setDeb
   })
 
   const mailMut = useMutation({
-    mutationFn: async () => {
-      const daten = { an: mailAn, cc: mailCc || undefined, betreff: mailBetreff, text: mailText, von, bis }
-      // Issue #582: wie bei Rechnungen - Thunderbird hat Vorrang, ohne SMTP das Mailprogramm
-      const unt = await qc.fetchQuery({ queryKey: ['unternehmen'], queryFn: getUnternehmen, staleTime: 1000 * 60 * 10 })
-      if (unt?.thunderbird_aktiv || !unt?.smtp_aktiv) {
-        await kontokorrentMailOhneSmtp('kunden', kunde.id!, daten, !!unt?.thunderbird_aktiv)
-        return { ok: true }
-      }
-      return sendeKontokorrentMail(kunde.id!, daten)
-    },
+    mutationFn: () => sendeKontokorrentMail(kunde.id!, {
+      an: mailAn, cc: mailCc || undefined,
+      betreff: mailBetreff, text: mailText,
+      von, bis,
+    }),
     onSuccess: () => { setMailSent(true); setTimeout(() => { setShowMail(false); setMailSent(false) }, 1500) },
   })
 
@@ -659,7 +653,7 @@ function KundeDokumente({ kundeId }: { kundeId: number }) {
 function KundeRechnungen({ kunde, initialTab, onClose }: { kunde: Kunde; initialTab?: 'kontokorrent'; onClose?: () => void }) {
   const navigate = useNavigate()
   const [offeneRechnung, setOffeneRechnung] = useState<number | null>(null)
-  const [tab, setTab] = useState<'rechnungen' | 'angebote' | 'dokumente' | 'kontokorrent' | 'verlauf'>(initialTab ?? 'rechnungen')
+  const [tab, setTab] = useState<'rechnungen' | 'angebote' | 'dokumente' | 'kontokorrent'>(initialTab ?? 'rechnungen')
   const [debitorEdit, setDebitorEdit] = useState(false)
   const [debitorNr, setDebitorNr] = useState(kunde.debitor_nr ?? '')
   const qcKontokorrent = useQueryClient()
@@ -714,14 +708,9 @@ function KundeRechnungen({ kunde, initialTab, onClose }: { kunde: Kunde; initial
             className={`flex-1 text-xs py-1 rounded border transition-colors ${tab === 'kontokorrent' ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
             Kontokorrent
           </button>
-          {/* Issue #596: was wann gedruckt, gemailt oder gemahnt wurde */}
-          <button onClick={() => setTab('verlauf')}
-            className={`flex-1 text-xs py-1 rounded border transition-colors ${tab === 'verlauf' ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
-            Verlauf
-          </button>
         </div>
         {/* Aktions-Buttons – nur bei Rechnungen/Angebote-Tab */}
-        {tab !== 'dokumente' && tab !== 'kontokorrent' && tab !== 'verlauf' && (
+        {tab !== 'dokumente' && tab !== 'kontokorrent' && (
           <div className="flex flex-wrap gap-1">
             <button
               onClick={() => navigate(`/rechnungen?neue_aus_kunde=${kunde.id}`)}
@@ -760,9 +749,7 @@ function KundeRechnungen({ kunde, initialTab, onClose }: { kunde: Kunde; initial
         )}
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-3">
-        {tab === 'verlauf' ? (
-          <PartnerVerlauf art="kunde" id={kunde.id!} />
-        ) : tab === 'kontokorrent' ? (
+        {tab === 'kontokorrent' ? (
           <KundeKontokorrent kunde={kunde} debitorNr={debitorNr} setDebitorNr={setDebitorNr} debitorEdit={debitorEdit} setDebitorEdit={setDebitorEdit} qc={qcKontokorrent} />
         ) : tab === 'dokumente' ? (
           <KundeDokumente kundeId={kunde.id!} />
@@ -782,7 +769,7 @@ function KundeRechnungen({ kunde, initialTab, onClose }: { kunde: Kunde; initial
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-mono text-slate-400 dark:text-slate-500 shrink-0">{r.rechnungsnummer ?? (r.ist_entwurf ? 'Entwurf' : '—')}</span>
+                  <span className="font-mono text-slate-400 dark:text-slate-500 shrink-0">{r.rechnungsnummer ?? '—'}</span>
                   <span className="font-semibold text-slate-700 dark:text-slate-200">{formatEuro(r.brutto_gesamt)}</span>
                 </div>
                 <div className="text-slate-400 dark:text-slate-500">{formatDatum(r.datum)}</div>
@@ -892,7 +879,6 @@ export function KundenPage() {
   const { einstellungen } = useAnsicht()
   const manuell = einstellungen.splitter === 'manuell'
   const [splitterBreite, startSplitterDrag] = useSplitterBreite('kunden', 33)
-  const detailBreite = useDetailBreite('kunden')
   const [selected, setSelected] = useState<Kunde | null>(null)
   const [initialDetailTab, setInitialDetailTab] = useState<'kontokorrent' | undefined>(undefined)
   const [suche, setSuche] = useState('')
@@ -968,6 +954,7 @@ export function KundenPage() {
   })
   const watchFirmenname = useWatch({ control, name: 'firmenname' })
   const watchUstIdnr = useWatch({ control, name: 'ust_idnr' })
+  const watchZugferd = useWatch({ control, name: 'zugferd_aktiv' })
   const watchLand = useWatch({ control, name: 'land' })
   const watchUstIdnrValidiert = useWatch({ control, name: 'ust_idnr_validiert' })
   const watchUstIdnrValidierungDatum = useWatch({ control, name: 'ust_idnr_validierung_datum' })
@@ -1342,7 +1329,6 @@ export function KundenPage() {
       )}
 
       {/* ── Rechte Spalte (Rechnungen oder Formular) ─────────────────── */}
-      {!showForm && <DetailTrennlinie detail={detailBreite} />}
       {!showForm && (
         <div className={`${selected ? 'fixed inset-0 z-40 bg-white dark:bg-slate-900 md:static md:z-auto' : 'hidden md:block'} flex-1 md:flex-none w-full md:w-[28rem] shrink-0 min-h-0 overflow-y-auto`}>
           {selected ? (
@@ -1527,6 +1513,11 @@ export function KundenPage() {
                       }
                     </span>
                   </label>
+                  {zugferdOhneUstId && (
+                    <p className="text-amber-600 dark:text-amber-400 text-xs mt-1 ml-6">
+                      Hinweis: Ohne USt-IdNr. oder Steuernummer ist das ZUGFeRD-XML steuerlich unvollständig.
+                    </p>
+                  )}
                 </div>
               </div>
 
