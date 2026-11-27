@@ -102,6 +102,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   })
   if (!res.ok) {
+    // Server-Modus: Session abgelaufen/fehlend → zum OIDC-Login weiterleiten.
+    // Im Tauri-Modus (lokales Backend ohne Auth) bleibt das bisherige Werfen.
+    if (res.status === 401 && !isTauri()) {
+      window.location.assign('/api/auth/login')
+    }
     const err = await res.json().catch(() => ({ detail: res.statusText }))
     // FastAPI gibt bei 422 ein Array zurück: [{ loc, msg, type }]
     const detail = err.detail
@@ -1231,7 +1236,12 @@ export async function uploadBackupWiederherstellen(datei: File, passwort?: strin
   const res = await apiFetch(`${base}/backup/wiederherstellen`, { method: 'POST', body: form })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail ?? 'Wiederherstellung fehlgeschlagen')
+    // Proxy-Fehler (z.B. nginx 413 "Request Entity Too Large") liefern HTML statt JSON
+    if (!err.detail) {
+      if (res.status === 413) throw new Error('Backup zu groß für den Proxy (413) – client_max_body_size erhöhen')
+      throw new Error(`Wiederherstellung fehlgeschlagen (HTTP ${res.status})`)
+    }
+    throw new Error(err.detail)
   }
 }
 

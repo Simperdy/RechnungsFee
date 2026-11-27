@@ -715,7 +715,7 @@ function ZahlungsDialog({
               : nurMahngebuehr ? 'Mahngebühr/Verzugszinsen nachbuchen'
               : rechnung.typ === 'ausgang' ? 'Zahlung kassieren' : 'Zahlung buchen'}
           </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 text-xl">×</button>
+          <button onClick={onClose} aria-label="Schließen" className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 text-2xl leading-none">×</button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -1665,7 +1665,7 @@ function RechnungDetail({
           <p className="font-semibold text-slate-800 dark:text-slate-100">{rechnung.rechnungsnummer ?? (rechnung.ist_entwurf ? 'Entwurf – Nummer beim Finalisieren' : '(keine Nummer)')}</p>
           <p className="text-xs text-slate-400 dark:text-slate-500">{rechnung.typ === 'ausgang' ? 'Ausgangsrechnung' : 'Eingangsrechnung'}</p>
         </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 text-xl">×</button>
+        <button onClick={onClose} aria-label="Schließen" className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 text-2xl leading-none">×</button>
       </div>
 
       <div className="p-5 space-y-5 flex-1">
@@ -5370,7 +5370,7 @@ function ImportDialog({
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg">
         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
           <h3 className="font-semibold text-slate-800 dark:text-slate-100">Rechnung importieren</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 text-xl">×</button>
+          <button onClick={onClose} aria-label="Schließen" className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 text-2xl leading-none">×</button>
         </div>
 
         <div className="p-6">
@@ -5935,7 +5935,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
   )
 
   return (
-    <div className="flex h-full">
+    <div className="flex md:h-full">
       {zeigPostfach && (
         <PostfachDialog
           meldung={postfachMeldung}
@@ -5972,15 +5972,15 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
       )}
       {/* Linke Spalte */}
       <div
-        className={`${formModus ? (manuell ? 'shrink-0' : 'w-1/3 min-w-[260px] shrink-0') : 'flex-1'} flex flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 min-h-0 transition-all`}
+        className={`${formModus ? (manuell ? 'md:shrink-0' : 'md:w-1/3 md:min-w-[260px] md:shrink-0') : 'md:flex-1'} w-full flex flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 min-h-0 transition-all ${selectedRechnung || formModus ? 'hidden md:flex' : ''}`}
         style={formModus && manuell ? { width: splitterBreite, minWidth: '220px' } : undefined}
       >
         <div className="p-6 pb-4">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{lieferscheinModus ? 'Lieferscheine' : istAbschlagSeite ? 'Abschlagsrechnungen' : 'Rechnungen'}</h2>
-            <div className="flex gap-2">
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 max-sm:w-full">{lieferscheinModus ? 'Lieferscheine' : istAbschlagSeite ? 'Abschlagsrechnungen' : 'Rechnungen'}</h2>
+            <div className="flex flex-wrap gap-2 max-sm:w-full max-sm:[&>div]:flex-1 max-sm:[&>button]:flex-1">
               {!lieferscheinModus && (
-                <div className="flex rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600">
+                <div className="flex rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600 max-sm:flex-1 max-sm:[&>button]:min-h-11 max-sm:[&>button]:flex-1">
                   <button
                     onClick={() => handleRechnungenExport('pdf')}
                     disabled={exportLaedt}
@@ -6019,7 +6019,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
               )}
               <button
                 onClick={() => { setFormModus('neu'); setSelectedId(null); setImportPrefill(null); setImportPostfachId(null) }}
-                className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors max-sm:w-full max-sm:min-h-11"
               >
                 {lieferscheinModus ? '+ Neuer Lieferschein' : istAbschlagSeite ? '+ Neue Abschlagsrechnung' : '+ Neue Rechnung'}
               </button>
@@ -6068,14 +6068,14 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                 type="month"
                 value={monat}
                 onChange={(e) => setMonat(e.target.value)}
-                className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
               />
             )}
             {filterModus === 'datum' && (
               <DateInput
                 value={datum}
                 onChange={setDatum}
-                className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
               />
             )}
             {filterModus === 'zeitraum' && (
@@ -6083,14 +6083,14 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                 <DateInput
                   value={datumVon}
                   onChange={setDatumVon}
-                  className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
                 />
                 <span className="text-slate-400 dark:text-slate-500 text-sm">bis</span>
                 <DateInput
                   value={datumBis}
                   min={datumVon}
                   onChange={setDatumBis}
-                  className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
             )}
@@ -6102,7 +6102,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
               placeholder={lieferscheinModus ? 'Nummer, Partner oder Rechnung suchen…' : 'Nummer oder Partner suchen…'}
               value={suche}
               onChange={(e) => setSuche(e.target.value)}
-              className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 w-56"
+              className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 w-full sm:w-56"
             />
 
             {/* Status-Filter */}
@@ -6110,7 +6110,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
               <select
                 value={lsAbrechnungFilter}
                 onChange={(e) => setLsAbrechnungFilter(e.target.value as typeof lsAbrechnungFilter)}
-                className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+                className="w-full md:w-auto min-h-11 md:min-h-0 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
               >
                 <option value="">Alle Status</option>
                 <option value="offen">Nicht abgerechnet</option>
@@ -6197,7 +6197,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
         )}
 
         {/* Tabelle */}
-        <div ref={listContainerRef} tabIndex={0} className="flex-1 overflow-y-auto min-h-0 px-6 pb-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-sm">
+        <div ref={listContainerRef} tabIndex={0} className="md:flex-1 md:overflow-y-auto md:min-h-0 px-4 md:px-6 pb-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 dark:focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-sm">
           {lieferscheinModus && lsFilterRechnungId != null && (
             <div className="mb-3 flex items-center gap-3 bg-teal-50 dark:bg-teal-950 border border-teal-200 dark:border-teal-800 rounded-xl px-4 py-2.5">
               <span className="text-sm text-teal-700 dark:text-teal-300 flex-1">
@@ -6232,7 +6232,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
               </button>
             </div>
           )}
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-x-auto md:overflow-hidden">
             {isLoading ? (
               <p className="p-5 text-slate-400 dark:text-slate-500 text-sm">Lade Rechnungen…</p>
             ) : listeSortiert.length === 0 ? (
@@ -6261,12 +6261,12 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                     ) : (
                       <>
                         <th
-                          className="px-5 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200"
+                          className="hidden md:table-cell px-5 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200"
                           onClick={() => setSortFaellig(s => s === 'asc' ? 'desc' : s === 'desc' ? null : 'asc')}
                         >
                           Fällig bis {sortFaellig === 'asc' ? '↑' : sortFaellig === 'desc' ? '↓' : ''}
                         </th>
-                        <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide" title="mit MwSt">Brutto</th>
+                        <th className="hidden md:table-cell px-5 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide" title="mit MwSt">Brutto</th>
                       </>
                     )}
                     <th className="px-5 py-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Status</th>
@@ -6308,7 +6308,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                           )}
                         </td>
                       )}
-                      <td className="px-5 py-3 text-slate-500 dark:text-slate-400">{formatDatum(r.datum)}</td>
+                      <td className="px-3 md:px-5 py-3 text-slate-500 dark:text-slate-400">{formatDatum(r.datum)}</td>
                       <td className="px-5 py-3 font-mono text-xs text-slate-400 dark:text-slate-500">
                         {r.rechnungsnummer ?? (r.ist_entwurf ? 'Entwurf' : '—')}
                         {r.dokument_typ === 'Gutschrift' && <span className="ml-1.5 text-[10px] text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded px-1">Gutschrift</span>}
@@ -6365,7 +6365,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                         </td>
                       ) : (
                         <>
-                          <td className="px-5 py-3 whitespace-nowrap">
+                          <td className="hidden md:table-cell px-5 py-3 whitespace-nowrap">
                             {r.faellig_am ? (
                               <span className={`text-sm font-medium ${
                                 r.zahlungsstatus !== 'bezahlt' && !r.storniert && !r.verrechnet_in_rechnung_id && r.faellig_am < heuteIso()
@@ -6385,7 +6385,7 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
                               </span>
                             ) : <span className="text-slate-300 dark:text-slate-600">—</span>}
                           </td>
-                          <td className="px-5 py-3 text-right font-medium text-slate-800 dark:text-slate-100">
+                          <td className="hidden md:table-cell px-5 py-3 text-right font-medium text-slate-800 dark:text-slate-100">
                             {formatEuro(r.brutto_gesamt)}
                           </td>
                         </>
@@ -6475,10 +6475,16 @@ export function RechnungenPage({ modus = 'rechnungen' }: { modus?: 'rechnungen' 
         </div>
       )}
 
+<<<<<<< HEAD
       {/* Detail-Panel nur bei Auswahl, sonst Liste durchgehend (wie die übrigen Listen) */}
       {!formModus && selectedRechnung && <DetailTrennlinie detail={detailBreite} />}
       {!formModus && selectedRechnung && (
         <div className={`${detailBreite.breiteKlasse} shrink-0 h-full overflow-hidden`} style={detailBreite.style}>
+=======
+      {!formModus && (
+        <div className={`${selectedRechnung ? 'fixed inset-0 z-40 bg-white dark:bg-slate-900 md:static md:z-auto' : 'hidden md:block'} md:w-[28rem] md:shrink-0 md:h-full overflow-hidden`}>
+          {selectedRechnung ? (
+>>>>>>> feat/server-mode
             <RechnungDetail
               key={`${selectedId ?? 0}-${detailVersion}`}
               rechnung={selectedRechnung}

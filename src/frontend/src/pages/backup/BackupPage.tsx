@@ -245,7 +245,7 @@ function ExterneBackupEinstellungen() {
                       placeholder={passwortPlatzhalter(data?.backup_smb_passwort_gesetzt, smbPasswortEntfernen, 'SMB-Passwort')}
                       className={`${inputCls} pr-20`} />
                     <button type="button" onClick={() => setZeigSmbPasswort(z => !z)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2 py-1">
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2 min-h-11 md:min-h-0 py-1">
                       {zeigSmbPasswort ? 'Verbergen' : 'Anzeigen'}
                     </button>
                   </div>
@@ -273,7 +273,7 @@ function ExterneBackupEinstellungen() {
                 hatZiel ? 'Pflichtfeld – externes Backup ist immer verschlüsselt' : 'Wird benötigt sobald ein Ziel konfiguriert ist')}
               className={`${inputCls} pr-24 ${passwortFehlt ? 'border-red-400 focus:ring-red-400' : ''}`} />
             <button type="button" onClick={() => setZeigPasswort(z => !z)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2 py-1">
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2 min-h-11 md:min-h-0 py-1">
               {zeigPasswort ? 'Verbergen' : 'Anzeigen'}
             </button>
           </div>
@@ -334,13 +334,13 @@ function BackupTab() {
           {fehler && <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 text-sm text-red-700 dark:text-red-300">Fehler: {fehler}</div>}
           {erfolg && <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg px-4 py-3 text-sm text-green-700 dark:text-green-300">✓ {erfolg}</div>}
 
-          <div className="flex items-start gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
             <button onClick={handleBackup} disabled={laedt}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-medium text-sm px-5 py-2 rounded-lg transition-colors shrink-0">
+              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-medium text-sm px-5 py-2 rounded-lg transition-colors shrink-0 min-h-11 md:min-h-0">
               {laedt ? <><span className="animate-spin">⏳</span>Wird erstellt…</> : <>💾 Backup herunterladen</>}
             </button>
-            <p className="text-sm text-slate-500 dark:text-slate-400 pt-1.5">
-              Dateiname: <span className="font-mono text-slate-700 dark:text-slate-200">RechnungsFee-Backup-JJJJ-MM-TT.zip</span>
+            <p className="text-sm text-slate-500 dark:text-slate-400 pt-1.5 min-w-0">
+              Dateiname: <span className="font-mono text-slate-700 dark:text-slate-200 break-all">RechnungsFee-Backup-JJJJ-MM-TT.zip</span>
             </p>
           </div>
 
@@ -385,7 +385,7 @@ function BackupTab() {
           ].map(({ os, pfad }) => (
             <div key={os} className="flex items-center gap-2 text-sm">
               <span className="text-xs bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-medium w-16 text-center shrink-0">{os}</span>
-              <code className="text-slate-600 dark:text-slate-300 font-mono text-xs">{pfad}</code>
+              <code className="text-slate-600 dark:text-slate-300 font-mono text-xs break-all min-w-0 flex-1">{pfad}</code>
             </div>
           ))}
         </div>
@@ -469,7 +469,7 @@ function LokaleBackupListe({ onErfolg }: { onErfolg: () => void }) {
               <p className="font-medium text-slate-800 dark:text-slate-100 truncate">
                 {formatTimestamp(eintrag.timestamp)}
               </p>
-              <p className="text-xs text-slate-400 font-mono">{eintrag.dateiname} · {formatBytes(eintrag.groesse)}</p>
+              <p className="text-xs text-slate-400 font-mono break-all">{eintrag.dateiname} · {formatBytes(eintrag.groesse)}</p>
             </div>
             <button
               type="button"
@@ -596,7 +596,7 @@ function WiederherstellungTab() {
           ].map(({ os, pfad }) => (
             <div key={os} className="flex items-center gap-2 text-sm">
               <span className="text-xs bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-medium w-16 text-center shrink-0">{os}</span>
-              <code className="text-slate-600 dark:text-slate-300 font-mono text-xs">{pfad}</code>
+              <code className="text-slate-600 dark:text-slate-300 font-mono text-xs break-all min-w-0 flex-1">{pfad}</code>
             </div>
           ))}
         </div>

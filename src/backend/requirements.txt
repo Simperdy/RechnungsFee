@@ -32,3 +32,6 @@ smbprotocol
 --no-binary charset-normalizer
 charset-normalizer
 defusedxml
+authlib==1.9.10
+httpx==0.28.1
+slowapi==0.1.10

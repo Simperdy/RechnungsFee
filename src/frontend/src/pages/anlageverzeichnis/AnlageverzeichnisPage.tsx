@@ -364,21 +364,26 @@ export function AnlageverzeichnisPage() {
 
         {/* Kopf */}
         <div className="shrink-0 p-4 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <div>
               <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">Anlagenverzeichnis</h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">Anlage AVEÜR – Abschreibungsplan</p>
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center w-full sm:w-auto">
               <select value={jahr} onChange={e => setJahr(parseInt(e.target.value))}
+<<<<<<< HEAD
                 className="border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm dark:bg-slate-700 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 {buchungsjahre.map(y => (
+=======
+                className="border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm dark:bg-slate-700 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-11 md:min-h-0">
+                {Array.from({ length: 6 }, (_, i) => AKTUELLES_JAHR - i).map(y => (
+>>>>>>> feat/server-mode
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>
               <ExportButtons formats={['pdf']} onExport={handlePdf} />
               <button onClick={() => { setFormModus('neu'); setSelId(null) }}
-                className="bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-blue-700">
+                className="bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-blue-700 min-h-11 md:min-h-0">
                 + Neu
               </button>
             </div>
@@ -474,7 +479,11 @@ export function AnlageverzeichnisPage() {
       {/* Rechte Spalte – Detail */}
       {formModus === null && selGut && <DetailTrennlinie detail={detailBreite} />}
       {formModus === null && selGut && (
+<<<<<<< HEAD
         <div style={detailBreite.style} className={`${detailBreite.breiteKlasse} shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-y-auto p-5`}>
+=======
+        <div className={`${selId ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0} border-l border-slate-200 dark:border-slate-700 overflow-y-auto p-5`}>
+>>>>>>> feat/server-mode
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="font-semibold text-slate-800 dark:text-slate-100 text-sm">{selGut.bezeichnung}</h2>

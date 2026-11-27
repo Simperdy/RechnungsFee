@@ -26,7 +26,10 @@ from database.models import (
     Rechnung, Rechnungsposition, Unternehmen,
 )
 
-HEUTE = date.today()
+# CI läuft um Mitternacht: Modul-Import-HEUTE kann vom Laufzeit-Datum abweichen.
+# Deshalb wird HEUTE nicht beim Import, sondern pro Test frisch bestimmt.
+def HEUTE():  # noqa: N802 — bestehender Name, jetzt Funktion
+    return date.today()
 TX_DATUM = date(2026, 3, 5)
 
 
@@ -221,7 +224,7 @@ def test_ausbuchen_auf_aufwand_bleibt_heute_und_ohne_zahlungsart(db):
     db.refresh(f)
     assert f.status == "ausgebucht"
     e = db.query(Journaleintrag).filter(Journaleintrag.id == f.ausgleich_journal_id).one()
-    assert e.datum == HEUTE
+    assert e.datum == HEUTE()
     assert e.zahlungsart == "Keine"
     assert e.konto_id is None
     assert e.art == "Ausgabe"
@@ -260,7 +263,7 @@ def test_ausbuchen_kundenguthaben_auf_aufwand_unveraendert(db):
     forderung_ausbuchen(f.id, AusbuchenRequest(kategorie_id=_kat(db, "Forderungsverluste").id), db)
     db.refresh(f)
     e = db.query(Journaleintrag).filter(Journaleintrag.id == f.ausgleich_journal_id).one()
-    assert (e.datum, e.zahlungsart, e.konto_id) == (HEUTE, "Keine", None)
+    assert (e.datum, e.zahlungsart, e.konto_id) == (HEUTE(), "Keine", None)
 
 
 # ---------------------------------------------------------------------------
@@ -300,7 +303,7 @@ def test_ausbuchen_privat_ohne_verknuepfte_zahlung_wie_bisher(db):
     forderung_ausbuchen(f.id, AusbuchenRequest(kategorie_id=_kat(db, "Privatentnahme").id), db)
     db.refresh(f)
     e = db.query(Journaleintrag).filter(Journaleintrag.id == f.ausgleich_journal_id).one()
-    assert (e.datum, e.zahlungsart, e.konto_id) == (HEUTE, "Keine", None)
+    assert (e.datum, e.zahlungsart, e.konto_id) == (HEUTE(), "Keine", None)
 
 
 def test_ausbuchen_privat_bei_barzahlung_wie_bisher(db):
@@ -316,7 +319,7 @@ def test_ausbuchen_privat_bei_barzahlung_wie_bisher(db):
     forderung_ausbuchen(f.id, AusbuchenRequest(kategorie_id=_kat(db, "Privatentnahme").id), db)
     db.refresh(f)
     e = db.query(Journaleintrag).filter(Journaleintrag.id == f.ausgleich_journal_id).one()
-    assert (e.datum, e.zahlungsart, e.konto_id) == (HEUTE, "Keine", None)
+    assert (e.datum, e.zahlungsart, e.konto_id) == (HEUTE(), "Keine", None)
 
 
 def test_ausbuchen_als_privateinlage_abgewiesen(db):

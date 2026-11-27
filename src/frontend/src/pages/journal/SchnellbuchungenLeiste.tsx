@@ -26,7 +26,7 @@ export function SchnellbuchungenLeiste({ onAuswahl }: Props) {
     return (
       <button
         onClick={() => setShowVerwalten(true)}
-        className="border border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg px-3 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
+        className="min-h-11 md:min-h-0 border border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg px-3 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
       >
         ⚡ Schnellbuchung anlegen
       </button>
@@ -41,7 +41,7 @@ export function SchnellbuchungenLeiste({ onAuswahl }: Props) {
             key={p.id}
             onClick={() => onAuswahl(p)}
             title={`${p.kategorie_name} · ${p.zahlungsart} · ${p.beschreibung}`}
-            className="px-2.5 py-1 text-xs rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-slate-700"
+            className="min-h-11 md:min-h-0 inline-flex items-center px-3 md:px-2.5 py-1 text-xs rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-slate-700"
           >
             ⚡ {p.name}
           </button>

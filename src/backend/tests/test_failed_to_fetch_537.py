@@ -60,15 +60,30 @@ def _aufruf(app, pfad):
     return start["status"], dict(start["headers"]), body
 
 
-def test_unbehandelter_fehler_mit_cors_und_lesbarer_meldung(caplog):
+def test_unbehandelter_fehler_mit_cors_und_lesbarer_meldung(caplog, monkeypatch):
+    # Desktop-Pfad: RECHNUNGSFEE_SERVER_MODE muss aus der Umgebung raus,
+    # sonst liefert die Middleware die generische Server-Modus-Meldung.
+    monkeypatch.delenv("RECHNUNGSFEE_SERVER_MODE", raising=False)
     with caplog.at_level(logging.ERROR, logger="rechnungsfee.fehler"):
         status, header, body = _aufruf(_app(), "/crash")
     assert status == 500
     assert header.get(b"access-control-allow-origin") == b"http://tauri.localhost"
     detail = json.loads(body)["detail"]
+    # Desktop (kein RECHNUNGSFEE_SERVER_MODE): lesbare Meldung mit Exception-Typ;
+    # im Server-Modus waere der Text generisch (kein Leak) — siehe eigener Test.
     assert "UnicodeEncodeError" in detail and "backend.log" in detail
     # Traceback landet im Root-Logging (→ backend.log)
     assert any(r.exc_info for r in caplog.records)
+
+
+def test_server_modus_kein_exception_leak(monkeypatch):
+    """Im Server-Modus darf die 500-Antwort keine Exception-Details enthalten."""
+    monkeypatch.setenv("RECHNUNGSFEE_SERVER_MODE", "1")
+    status, header, body = _aufruf(_app(), "/crash")
+    assert status == 500
+    detail = json.loads(body)["detail"]
+    assert "UnicodeEncodeError" not in detail
+    assert "Interner Fehler" in detail
 
 
 def test_bekannte_fehler_unveraendert():

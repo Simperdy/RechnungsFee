@@ -276,19 +276,19 @@ export function JournalPage() {
   const saldo = sumEinnahmen - sumAusgaben
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Kopf + Filter – bleibt stehen */}
-      <div className="shrink-0 px-6 pt-6 pb-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Journal</h2>
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="md:h-full md:flex md:flex-col">
+      {/* Kopf + Filter – auf Mobile Teil des Seitenflusses, damit die ganze Seite scrollt */}
+      <div className="md:shrink-0 px-4 md:px-6 pt-4 md:pt-6 pb-3 md:pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 max-sm:w-full">Journal</h2>
+        <div className="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:[&>button]:flex-1">
           {/* Journal-Export immer sichtbar */}
           <div className="flex rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600">
             <button
               onClick={() => handleJournalExport('pdf')}
               disabled={exportLaedt}
               title="Journal als PDF exportieren"
-              className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+              className="min-h-11 md:min-h-0 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
             >
               {exportLaedt ? '⏳' : '📄'} PDF
             </button>
@@ -297,7 +297,7 @@ export function JournalPage() {
               onClick={() => handleJournalExport('csv')}
               disabled={exportLaedt}
               title="Journal als CSV exportieren"
-              className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+              className="min-h-11 md:min-h-0 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
             >
               CSV
             </button>
@@ -308,7 +308,7 @@ export function JournalPage() {
                 onClick={() => handleKassenbuchExport('pdf')}
                 disabled={kassenbuchLaedt}
                 title="Kassenbuch als PDF exportieren"
-                className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+                className="min-h-11 md:min-h-0 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
               >
                 {kassenbuchLaedt ? '⏳' : '📒'} Kassenbuch PDF
               </button>
@@ -317,7 +317,7 @@ export function JournalPage() {
                 onClick={() => handleKassenbuchExport('csv')}
                 disabled={kassenbuchLaedt}
                 title="Kassenbuch als CSV exportieren"
-                className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+                className="min-h-11 md:min-h-0 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
               >
                 CSV
               </button>
@@ -325,13 +325,13 @@ export function JournalPage() {
           )}
           <button
             onClick={() => setShowAbschluss(true)}
-            className="border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
+            className="border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 max-sm:flex-1 max-sm:min-h-11"
           >
             Tagesabschluss
           </button>
           <button
             onClick={() => setShowBuchung(true)}
-            className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700"
+            className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 max-sm:flex-1 max-sm:min-h-11"
           >
             + Neue Buchung
           </button>
@@ -349,7 +349,7 @@ export function JournalPage() {
           onChange={(e) => setSuche(e.target.value)}
           placeholder="Suchen: Text, Belegnr., Betrag…"
           aria-label="Journal durchsuchen"
-          className={`min-w-[200px] rounded-lg px-3 py-1.5 text-sm focus:outline-none border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 placeholder:text-slate-400 ${
+          className={`w-full sm:min-w-[200px] rounded-lg px-3 py-1.5 text-sm focus:outline-none border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 placeholder:text-slate-400 ${
             suche ? 'ring-2 ring-blue-500' : 'focus:ring-2 focus:ring-blue-500'
           }`}
         />
@@ -431,11 +431,11 @@ export function JournalPage() {
         </select>
 
         {/* Kategorie + Nur-bebuchte-Toggle als Button-Group */}
-        <div className="flex">
+        <div className="flex max-sm:w-full max-sm:[&>select]:flex-1">
           <select
             value={kategorieId}
             onChange={(e) => setKategorieId(e.target.value)}
-            className={`rounded-l-lg px-3 py-1.5 text-sm focus:outline-none border border-r-0 border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 transition-shadow ${
+            className={`rounded-l-lg px-2 py-1.5 text-xs sm:text-sm w-full sm:w-auto focus:outline-none border border-r-0 border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 transition-shadow ${
               kategorieId !== ''
                 ? 'ring-2 ring-blue-500'
                 : 'focus:ring-2 focus:ring-blue-500'
@@ -449,7 +449,7 @@ export function JournalPage() {
           <button
             onClick={() => { setNurBebuchte(!nurBebuchte); setKategorieId('') }}
             title="Nur Kategorien anzeigen, die mindestens eine Buchung haben"
-            className={`rounded-r-lg px-3 py-1.5 text-sm border transition-colors whitespace-nowrap ${
+            className={`rounded-r-lg px-2 py-1.5 text-xs sm:text-sm border transition-colors shrink-0 ${
               nurBebuchte
                 ? 'bg-blue-600 text-white border-blue-600'
                 : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -552,9 +552,9 @@ export function JournalPage() {
         </div>
       )}
 
-      {/* Tabelle – scrollbar */}
-      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+      {/* Liste – mobil normaler Fluss (Seite scrollt in AppLayout), Desktop eigener Scroller */}
+      <div className="md:flex-1 md:overflow-y-auto md:min-h-0 px-4 md:px-6 pb-6 max-md:pb-24">
+      <div className="md:bg-white md:dark:bg-slate-800 md:rounded-xl md:border md:border-slate-200 md:dark:border-slate-700 md:overflow-hidden">
         {isLoading ? (
           <p className="text-slate-400 dark:text-slate-500 text-sm p-5">Lade…</p>
         ) : !eintraegeSichtbar?.length ? (
@@ -566,7 +566,62 @@ export function JournalPage() {
               : 'Keine Buchungen gefunden.'}
           </p>
         ) : (
-          <table className="w-full text-sm">
+          <>
+          {/* Mobil: Karten statt enger Tabelle */}
+          <div className="md:hidden space-y-2">
+            {eintraegeGefiltert!.map((e) => {
+              const istAktiv = aktiverEintragId === e.id
+              const bereitsStorniert = !!e.storniert
+              return (
+                <div key={e.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggleEintrag(e.id)}
+                    className={`w-full text-left min-h-11 px-4 py-3 rounded-xl border transition-colors ${
+                      istAktiv
+                        ? 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 active:bg-slate-50 dark:active:bg-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="min-w-0 text-sm text-slate-700 dark:text-slate-200">
+                        {e.beschreibung}
+                        {e.steuerbefreiung_grund && (
+                          <span className="block text-xs text-slate-400 dark:text-slate-500">({e.steuerbefreiung_grund})</span>
+                        )}
+                        {e.storniert && (
+                          <span className="ml-1.5 text-xs bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 rounded px-1">storniert</span>
+                        )}
+                      </span>
+                      <span className={`shrink-0 text-sm font-semibold ${e.art === 'Einnahme' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {e.art === 'Einnahme' ? '+' : '−'}{formatEuro(e.brutto_betrag)}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-slate-400 dark:text-slate-500">
+                      <span>{formatDatum(e.datum)}</span>
+                      <span className="font-mono">{e.belegnr}</span>
+                      <span>{e.zahlungsart}</span>
+                    </div>
+                  </button>
+                  {istAktiv && (
+                    <div className="mt-1">
+                      <BuchungDetail
+                        eintrag={e}
+                        bereitsStorniert={bereitsStorniert}
+                        onClose={() => setAktiverEintragId(null)}
+                        onBearbeiten={(eintrag) => {
+                          setAktiverEintragId(null)
+                          setBearbeitenEintrag(eintrag)
+                          setShowBuchung(true)
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <table className="hidden md:table w-full text-sm">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-left">
                 <th
@@ -631,9 +686,6 @@ export function JournalPage() {
                           >
                             🧾 {e.rechnung_nr} ↗
                           </button>
-                        )}
-                        {e.kategorie_name && (
-                          <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">· {e.kategorie_name}</span>
                         )}
                         {e.steuerbefreiung_grund && (
                           <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">({e.steuerbefreiung_grund})</span>
@@ -701,6 +753,8 @@ export function JournalPage() {
               })}
             </tbody>
           </table>
+          </>
+
         )}
       </div>
       </div>{/* Ende Tabellen-Wrapper */}

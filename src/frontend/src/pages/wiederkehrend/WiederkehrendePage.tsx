@@ -1088,7 +1088,11 @@ export function WiederkehrendePage() {
       {/* Rechts: Detail-Panel */}
       {selVorlage && formModus === null && <DetailTrennlinie detail={detailBreite} />}
       {selVorlage && formModus === null && (
+<<<<<<< HEAD
         <div style={detailBreite.style} className={`${detailBreite.breiteKlasse} shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col`}>
+=======
+        <div className={`${selId ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0} border-l border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col`}>
+>>>>>>> feat/server-mode
           <VorlageDetail
             vorlage={selVorlage}
             onClose={() => setSelId(null)}

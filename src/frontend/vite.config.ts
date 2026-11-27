@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 import { execSync } from 'child_process'
 
 function getAppVersion(): string {
@@ -27,7 +28,48 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(getAppVersion()),
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    // PWA (Server-Modus): App-Shell offline cachen, API/Uploads NIE cachen.
+    // GoBD/Datenschutz: Buchungs- und Belegdaten dürfen nicht in Browser-Caches landen.
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.png', 'logo.svg', 'apple-touch-icon.png', 'theme-init.js'],
+      manifest: {
+        name: 'RechnungsFee',
+        short_name: 'RechnungsFee',
+        description: 'Buchhaltung, Rechnungen und Kassenbuch in einer App.',
+        lang: 'de',
+        display: 'standalone',
+        start_url: '/',
+        scope: '/',
+        // Design-Sprache: Indigo-Akzent #4F46E5, Seitenhintergrund Slate-50 #F8FAFC
+        theme_color: '#4F46E5',
+        background_color: '#F8FAFC',
+        icons: [
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{html,js,css,png,svg,ico,woff2}'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        navigateFallback: '/index.html',
+        // /api/auth/login darf nicht auf die SPA umgeleitet werden (OIDC-Redirect)
+        navigateFallbackDenylist: [/^\/api\//],
+        runtimeCaching: [
+          {
+            urlPattern: /\/api\//,
+            handler: 'NetworkOnly',
+            method: 'GET',
+          },
+        ],
+      },
+    }),
+  ],
   server: {
     host: '0.0.0.0',
     proxy: {

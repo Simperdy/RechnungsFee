@@ -1468,7 +1468,11 @@ export function ProformaPage() {
       {/* Detail-Panel */}
       {!formModus && selected && <DetailTrennlinie detail={detailBreite} />}
       {!formModus && selected && (
+<<<<<<< HEAD
         <div style={detailBreite.style} className={`${detailBreite.breiteKlasse} shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-y-auto`}>
+=======
+        <div className={`${selectedId ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0} border-l border-slate-200 dark:border-slate-700 overflow-y-auto`}>
+>>>>>>> feat/server-mode
           <ProformaDetail
             proforma={selected}
             onEdit={() => setFormModus('bearbeiten')}

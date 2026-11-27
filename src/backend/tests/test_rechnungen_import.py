@@ -5,6 +5,7 @@ Der Import muss Original-Nummern und Original-Daten erhalten und Zahlungen
 über den regulären Zahlungspfad (signaturierter Journaleintrag, Zuflussprinzip)
 buchen. Fehlerhafte Zeilen werden übersprungen, nicht teilweise gebucht.
 """
+import io
 from datetime import date
 from decimal import Decimal
 
@@ -42,10 +43,16 @@ def db():
 
 
 class _FakeUpload:
-    """Minimaler Ersatz für fastapi.UploadFile (nur .file.read wird benutzt)."""
+    """Minimaler Ersatz für fastapi.UploadFile (lies_upload nutzt .read/.headers)."""
     def __init__(self, content: bytes):
-        import io
         self.file = io.BytesIO(content)
+        self.headers: dict[str, str] = {}
+
+    async def read(self, n: int = -1) -> bytes:
+        return self.file.read(n)
+
+    async def close(self) -> None:
+        self.file.close()
 
 
 RECHNUNGEN_CSV = (

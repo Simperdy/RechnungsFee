@@ -142,7 +142,8 @@ async def upload_logo(file: UploadFile = File(...), db: Session = Depends(get_db
     if not unternehmen:
         raise HTTPException(status_code=404, detail="Unternehmensdaten noch nicht angelegt.")
 
-    inhalt = await file.read()
+    from utils.upload_guard import lies_upload
+    inhalt = await lies_upload(file, max_bytes=MAX_LOGO_BYTES)
     if len(inhalt) > MAX_LOGO_BYTES:
         raise HTTPException(status_code=400, detail="Logo darf maximal 2 MB groß sein.")
 

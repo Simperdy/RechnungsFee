@@ -30,6 +30,7 @@ const buchhaltungNavOptional: { to: string; label: string; icon: string; zeigen:
 ]
 
 import type { Unternehmen, ZMPruefung } from '../api/client'
+import { MobileBottomNav } from './MobileBottomNav'
 
 // Issue #451: Postfach-Abruf beim Start nur einmal pro App-Sitzung
 let postfachStartAbrufErledigt = false
@@ -182,6 +183,7 @@ function CollapsibleSection({
           ))}
         </div>
       )}
+
     </div>
   )
 }
@@ -572,9 +574,9 @@ export function AppLayout() {
       </aside>
 
       {/* Hauptinhalt */}
-      <main ref={mainRef} className="flex-1 min-w-0 overflow-auto flex flex-col">
-        <div className="md:hidden flex items-center gap-3 border-b border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-          <button type="button" aria-label="Navigation öffnen" aria-controls="app-navigation" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen(true)} className="rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-600">☰ Menü</button>
+      <main ref={mainRef} className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden flex flex-col pb-16 md:pb-0 md:overflow-hidden">
+        {/* Mobile Header: nur Titel — Navigation läuft über die Bottom-Nav (4 Hauptpunkte) */}
+        <div className="md:hidden flex items-center justify-center border-b border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
           <span className="text-sm font-semibold">RechnungsFee</span>
         </div>
         {/* Update-Banner */}
@@ -690,12 +692,16 @@ export function AppLayout() {
           </div>
         )}
 
-        <div className="flex-1 min-h-0 flex">
-          <div ref={inhaltRef} className="flex-1 overflow-y-auto h-full">
+        <div className="flex-1 min-h-0 flex min-w-0">
+          {/* Mobil: Seite scrollt in <main> (voller Fluss inkl. Header); Desktop: eigener Scroller */}
+          <div ref={inhaltRef} className="flex-1 min-w-0 md:overflow-y-auto md:h-full">
             <Outlet />
           </div>
         </div>
       </main>
+
+      {/* Bottom-Navigation nur auf Smartphones — Desktop hat die Sidebar */}
+      <MobileBottomNav />
 
       {/* Tagesabschluss-Dialog */}
       {abschlussDialog && (

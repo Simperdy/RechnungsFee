@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from database.connection import Base, engine, SessionLocal, DB_PATH, APP_DATA_DIR
+import server_mode
 from utils import geheimnisse
 
 # ── Backend-Datei-Logging ─────────────────────────────────────────────────────
@@ -40,13 +41,16 @@ from api import unternehmen, konten, kategorien, setup, journal, kunden, liefera
 SCHEMA_VERSION = 203
 
 # Security-Audit F10: API-Dokumentation (komplette Endpunktliste) nur im Entwicklungsmodus,
-# nicht im ausgelieferten PyInstaller-Sidecar (sys.frozen).
+# nicht im ausgelieferten PyInstaller-Sidecar (sys.frozen) und nicht im
+# Docker-Server-Modus: dort haette die API-Doku ohne Login erreichbar sein.
+import os as _os
 _IST_RELEASE = getattr(sys, "frozen", False)
+_DOCS_OFFEN = not _IST_RELEASE and not _os.environ.get("RECHNUNGSFEE_SERVER_MODE")
 app = FastAPI(
     title="RechnungsFee API", version="0.1.0",
-    docs_url=None if _IST_RELEASE else "/docs",
-    redoc_url=None if _IST_RELEASE else "/redoc",
-    openapi_url=None if _IST_RELEASE else "/openapi.json",
+    docs_url="/docs" if _DOCS_OFFEN else None,
+    redoc_url="/redoc" if _DOCS_OFFEN else None,
+    openapi_url="/openapi.json" if _DOCS_OFFEN else None,
 )
 
 # Issue #537: vor CORS registriert = innere Schicht → auch Fehlerantworten tragen CORS-Header,
@@ -54,26 +58,11 @@ app = FastAPI(
 from utils.fehler_middleware import FehlerMiddleware  # noqa: E402
 app.add_middleware(FehlerMiddleware)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "tauri://localhost", "http://tauri.localhost"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=[
-        "Content-Disposition",
-        "X-Datev-Eintraege",
-        "X-Datev-Uebersprungen",
-        # fehlten bis Issue #502: in der installierten App (anderer Origin als das Backend)
-        # waren sie für das Frontend unlesbar - „ohne Sachkonto“ zeigte immer 0
-        "X-Datev-LeerKonto",
-        "X-Datev-Belege",
-        "X-Datev-Verrechnung",
-        "X-Datev-Verrechnung-Belege",
-        "X-Buchhalter-Eintraege",
-        "X-GoBD-Buchungen",
-        "X-GoBD-Belege",
-    ],
-)
+# Server-Modus (Docker, same-origin SPA + API): kein CORS noetig - der Desktop-Modus
+# (Tauri/Vite-Devserver) braucht es und behaelt es unveraendert.
+_cors = server_mode.cors_middleware_kwargs()
+if _cors is not None:
+    app.add_middleware(CORSMiddleware, **_cors)
 
 # Issue #476: angehängten Dateinamen ("/_datei/<name>") vor dem Routing entfernen
 from utils.pdf_dateiname_pfad import PdfDateinameMiddleware  # noqa: E402
@@ -111,7 +100,11 @@ app.include_router(eks.router)
 app.include_router(ustva.router)
 app.include_router(zm.router)
 app.include_router(euer.router)
-app.include_router(system.router)
+# Desktop-only: system.router enthaelt Host-Interaktion (pkexec/apt/winget/brew,
+# OCR-Debug) — im Server-Modus gar nicht erst registrieren.
+import server_mode as _sm
+if not _sm.SERVER_MODE:
+    app.include_router(system.router)
 app.include_router(dokumentenpakete.router)
 app.include_router(mail.router)
 app.include_router(postfach.router)
@@ -136,10 +129,36 @@ app.include_router(mahnwesen.router)
 app.include_router(rechnungen_import.router)
 app.include_router(verlauf.router)
 
+# OIDC-Auth (nur Server-Modus; im Desktop-Modus keine Import-/Laufzeitwirkung)
+if server_mode.SERVER_MODE:
+    from api import auth as auth_router
+    app.include_router(auth_router.router)
+
+# SPA-Auslieferung ganz zuletzt (Fallback-Route mit niedrigster Prioritaet).
+# Ohne RECHNUNGSFEE_SERVER_MODE no-op -> Desktop-Verhalten byte-identisch.
+server_mode.mount_spa(app)
+
+# Server-Modus: OIDC-Pflicht-Env pruefen (Startup-Fehler), Rate-Limit, Auth-Guard,
+# Security-Header. Im Desktop-Modus no-op.
+server_mode.initialisiere(app)
+
+
+def _startup_auth_tabelle() -> None:
+    """Legt im Server-Modus nur die Session-Tabelle an. Getrennt von
+    Base.metadata.create_all, damit die GoBD-Modelle unberuehrt bleiben."""
+    from auth_sessions import AuthSession
+    Base.metadata.create_all(bind=engine, tables=[AuthSession.__table__])
+
 
 @app.post("/api/shutdown")
 def shutdown():
-    """Graceful Shutdown – Tauri ruft diesen Endpoint vor dem Update-Installer auf."""
+    """Graceful Shutdown – Tauri ruft diesen Endpoint vor dem Update-Installer auf.
+
+    Im Server-Modus (Docker) deaktiviert: os._exit wuerde den Container killen;
+    Stop/Start ist Aufgabe von Docker/Dockhand."""
+    import server_mode
+    if server_mode.SERVER_MODE:
+        raise HTTPException(status_code=404, detail="Not Found")
     def _exit():
         import time
         time.sleep(0.15)   # Antwort zuerst senden, dann beenden
@@ -402,8 +421,10 @@ async def backup_wiederherstellen(
     """Nimmt .zip (unverschlüsselt) oder .zip.enc (AES-256) entgegen, validiert und speichert als Pending-Marker."""
     import io
     import zipfile
+    from utils.upload_guard import lies_upload
     filename = datei.filename or ""
-    content  = await datei.read()
+    # Server-Modus: Restore-Uploads sind gross (Belege+DB), aber nicht unbegrenzt.
+    content  = await lies_upload(datei, max_bytes=_BACKUP_MAX_GROESSE)
 
     if filename.endswith(".zip.enc"):
         if not passwort:
@@ -435,7 +456,47 @@ _BACKUP_MAX_EINTRAEGE = 100_000
 _BACKUP_MAX_GROESSE   = 10 * 1024 ** 3   # 10 GB entpackt
 
 
-def _pruefe_backup_eintraege(zf, uploads_dir: Path) -> list[tuple[str, Path]]:
+
+def _zaehle_entpackt(zf, info, limit: int) -> int:
+    """Entpackt einen ZIP-Eintrag gestueckelt und zaehlt die echten Bytes.
+
+    Schuetzt gegen ZIP-Bomben mit gelogenen file_size-Metadaten: Abbruch, sobald
+    mehr als ``limit`` Bytes entpackt wurden."""
+    import shutil
+    zaehler = _LimitCounter(limit)
+    with zf.open(info) as quelle, open(os.devnull, "wb") as _sink:
+        shutil.copyfileobj(quelle, _SinkMitZaehler(_sink, zaehler), 1024 * 1024)
+    return zaehler.count
+
+
+class _LimitCounter:
+    def __init__(self, limit: int):
+        self.limit = limit
+        self.count = 0
+
+
+class _SinkMitZaehler:
+    """write()-Wrapper, der nach ``limit`` Bytes ValueError wirft."""
+    def __init__(self, ziel, zaehler: _LimitCounter):
+        self._ziel = ziel
+        self._zaehler = zaehler
+
+    def write(self, daten: bytes) -> int:
+        self._zaehler.count += len(daten)
+        if self._zaehler.count > self._zaehler.limit:
+            raise ValueError("entpackte Größe überschreitet Limit (ZIP-Bomb?)")
+        return self._ziel.write(daten)
+
+
+def _kopiere_gestueckelt(zf, name: str, ziel: Path, limit: int) -> None:
+    """Kopiert einen ZIP-Eintrag chunkweise auf Platte — nie komplett in den RAM."""
+    import shutil
+    zaehler = _LimitCounter(limit)
+    with zf.open(name) as quelle, open(ziel, "wb") as out:
+        shutil.copyfileobj(quelle, _SinkMitZaehler(out, zaehler), 1024 * 1024)
+
+
+def _pruefe_backup_eintraege(zf, uploads_dir: Path, max_groesse: int = _BACKUP_MAX_GROESSE) -> list[tuple[str, Path]]:
     """Prüft alle Einträge eines Backup-ZIPs und liefert (Name, Zielpfad) der Belege.
 
     Security-Audit F1 (ZIP-Slip): Ein Eintrag wie „uploads/../../.config/autostart/x.desktop“
@@ -446,7 +507,11 @@ def _pruefe_backup_eintraege(zf, uploads_dir: Path) -> list[tuple[str, Path]]:
     infos = zf.infolist()
     if len(infos) > _BACKUP_MAX_EINTRAEGE:
         raise ValueError(f"zu viele Einträge ({len(infos)})")
-    if sum(i.file_size for i in infos) > _BACKUP_MAX_GROESSE:
+    # ZIP-Metadaten (file_size) sind lügnerisch — zusätzlich real entpackt zählen:
+    gesamt = 0
+    for info in infos:
+        gesamt += _zaehle_entpackt(zf, info, max_groesse)
+    if gesamt > max_groesse:
         raise ValueError("entpackte Größe überschreitet 10 GB")
 
     basis = uploads_dir.resolve()
@@ -470,7 +535,7 @@ def _pruefe_backup_datenbank(zf) -> None:
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
         pfad = Path(tmp) / "pruefung.db"
-        pfad.write_bytes(zf.read("rechnungsfee.db"))
+        _kopiere_gestueckelt(zf, "rechnungsfee.db", pfad, _BACKUP_MAX_GROESSE)
         try:
             con = sqlite3.connect(str(pfad))
             try:
@@ -649,6 +714,17 @@ def _prüfe_wiederherstellung() -> None:
     import zipfile
     print("[Wiederherstellung] Pending-Marker gefunden – stelle wieder her …")
     try:
+        # WICHTIG: Vor dem DB-Austausch die alte DB sauber checkpointen und die
+        # Engine-Verbindungen schliessen, sonst bleiben WAL/SHM der alten DB liegen
+        # (sqlite liest danach einen WAL, der nicht zur neuen DB gehoert ->
+        # "database disk image is malformed" beim naechsten Start).
+        try:
+            from database.connection import engine as _engine
+            with _engine.connect() as _c:
+                _c.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
+            _engine.dispose()
+        except Exception as _e:
+            print(f"[Wiederherstellung] WAL-Checkpoint der alten DB fehlgeschlagen (faellt nicht ins Gewicht): {_e}")
         _backup_datenbank()  # Sicherheitsbackup der aktuellen DB
 
         if marker_zip.exists():
@@ -659,6 +735,15 @@ def _prüfe_wiederherstellung() -> None:
                 # und könnte nach dem Upload ausgetauscht worden sein (Security-Audit F1).
                 upload_entries = _pruefe_backup_eintraege(zf, uploads_dir)
                 if "rechnungsfee.db" in names:
+                    # WICHTIG: stale WAL/SHM der ALTEN DB zuerst entfernen, sonst liest
+                    # SQLite nach dem Ersetzen einen WAL, der nicht zur neuen DB gehoert
+                    # -> "database disk image is malformed" beim naechsten Start. Die DB
+                    # selbst ist ein sauberer Snapshot (backup-API nutzt sqlite .backup()).
+                    for suffix in ("-wal", "-shm"):
+                        alt = DB_PATH.with_name(DB_PATH.name + suffix)
+                        if alt.exists():
+                            alt.unlink()
+                            print(f"[Wiederherstellung] stale {suffix}-Datei entfernt")
                     zf.extract("rechnungsfee.db", APP_DATA_DIR)
                     print("[Wiederherstellung] Datenbank (ZIP) wiederhergestellt")
                 if upload_entries:
@@ -666,15 +751,27 @@ def _prüfe_wiederherstellung() -> None:
                         shutil.rmtree(uploads_dir)
                     for name, ziel in upload_entries:
                         ziel.parent.mkdir(parents=True, exist_ok=True)
-                        ziel.write_bytes(zf.read(name))
+                        _kopiere_gestueckelt(zf, name, ziel, _BACKUP_MAX_GROESSE)
                     print(f"[Wiederherstellung] {len(upload_entries)} Belege wiederhergestellt")
             marker_zip.unlink()
 
         elif marker_db.exists():
+            for suffix in ("-wal", "-shm"):
+                alt = DB_PATH.with_name(DB_PATH.name + suffix)
+                if alt.exists():
+                    alt.unlink()
             shutil.copy2(str(marker_db), str(DB_PATH))
             marker_db.unlink()
             print("[Wiederherstellung] Datenbank (lokales Backup) wiederhergestellt")
 
+        # Restore ersetzt die komplette DB — alle bisherigen Server-Sessions
+        # sind damit ungueltig (Cookies im Browser zeigen auf fremde sid_hash).
+        try:
+            with engine.begin() as conn:
+                conn.execute(text("DELETE FROM auth_sessions"))
+            print("[Wiederherstellung] auth_sessions geleert (alle Logins ungueltig)")
+        except Exception as e:
+            print(f"[Wiederherstellung] auth_sessions leeren fehlgeschlagen: {e}")
         print("[Wiederherstellung] Abgeschlossen")
     except Exception as e:
         print(f"[Wiederherstellung] Fehler: {e}")
@@ -5195,6 +5292,8 @@ def startup():
     profil_zugang.initialisiere()   # Issue #593: Freigabeschein verbrauchen, ggf. sperren
     _prüfe_wiederherstellung()   # Vor create_all – DB muss ggf. erst ersetzt werden
     Base.metadata.create_all(bind=engine)
+    if server_mode.SERVER_MODE:
+        _startup_auth_tabelle()
     _run_migrations()
     try:
         _migrate_geheimnisse()   # Security-Audit F6: Klartext-Passwörter → Schlüsselbund

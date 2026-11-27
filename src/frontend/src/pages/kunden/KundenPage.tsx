@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react'
 import { ImportDialog } from '../../components/ImportDialog'
 import { useAnsicht } from '../../hooks/useAnsicht'
 import { useSplitterBreite } from '../../hooks/useSplitterBreite'
+<<<<<<< HEAD
 import { useDetailBreite } from '../../hooks/useDetailBreite'
 import { DetailTrennlinie } from '../../components/DetailTrennlinie'
 import { DsgvoMailButton } from '../../components/DsgvoMailButton'
 import { PartnerVerlauf } from '../../components/DokumentVerlauf'
 import { leitwegIdFehler } from '../../utils/leitwegId'
+=======
+>>>>>>> feat/server-mode
 import { DateInput } from '../../components/DateInput'
 import { UstIdnrPruefung } from '../../components/UstIdnrPruefung'
 import { istEuLand } from '../../utils/laender'
@@ -50,7 +53,7 @@ function KundeLieferadressen({ kundeId }: { kundeId: number }) {
   const qc = useQueryClient()
   const [editId, setEditId] = useState<number | 'neu' | null>(null)
   const [form, setForm] = useState<Omit<KundeLieferadresse, 'id' | 'kunde_id'>>({
-    bezeichnung: '', name: '', z_hd: '', email: '', strasse: '', hausnummer: '', plz: '', ort: '', land: 'DE', ist_standard: false,
+    bezeichnung: '', z_hd: '', strasse: '', hausnummer: '', plz: '', ort: '', land: 'DE', ist_standard: false,
   })
 
   const { data: adressen = [] } = useQuery({
@@ -69,11 +72,10 @@ function KundeLieferadressen({ kundeId }: { kundeId: number }) {
     mutationFn: (id: number) => deleteLieferadresse(kundeId, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['lieferadressen', kundeId] }),
   })
-  const loeschFehler = delMut.error instanceof Error ? delMut.error.message : null
 
   function startEdit(la: KundeLieferadresse) {
     setEditId(la.id!)
-    setForm({ bezeichnung: la.bezeichnung ?? '', name: la.name ?? '', z_hd: la.z_hd ?? '', email: la.email ?? '', strasse: la.strasse ?? '',
+    setForm({ bezeichnung: la.bezeichnung ?? '', z_hd: la.z_hd ?? '', strasse: la.strasse ?? '',
       hausnummer: la.hausnummer ?? '', plz: la.plz ?? '', ort: la.ort ?? '', land: la.land, ist_standard: la.ist_standard })
   }
 
@@ -82,25 +84,17 @@ function KundeLieferadressen({ kundeId }: { kundeId: number }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Weitere Adressen (Filialen, Lieferadressen)</span>
-        <button type="button" onClick={() => { setEditId('neu'); setForm({ bezeichnung: '', name: '', z_hd: '', email: '', strasse: '', hausnummer: '', plz: '', ort: '', land: 'DE', ist_standard: false }) }}
+        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Lieferadressen</span>
+        <button type="button" onClick={() => { setEditId('neu'); setForm({ bezeichnung: '', z_hd: '', strasse: '', hausnummer: '', plz: '', ort: '', land: 'DE', ist_standard: false }) }}
           className="text-xs text-blue-600 hover:text-blue-700 font-medium">+ Hinzufügen</button>
       </div>
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        Nutzbar als Empfänger, Rechnungs- oder Lieferadresse in Angebot, Auftrag, Proforma, Lieferschein und Rechnung.
-      </p>
-      {loeschFehler && (
-        <p role="alert" className="text-xs text-red-600 dark:text-red-400">{loeschFehler}</p>
-      )}
 
       {adressen.map(la => (
         <div key={la.id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm">
           {editId === la.id ? (
             <div className="space-y-2">
               <input placeholder="Bezeichnung (z.B. Lager Nord)" value={form.bezeichnung ?? ''} onChange={e => setForm(f => ({ ...f, bezeichnung: e.target.value }))} className={`${inp} w-full`} />
-              <input placeholder="Firma / Name (leer = aus den Stammdaten)" value={form.name ?? ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={`${inp} w-full`} />
               <input placeholder="z.Hd." value={form.z_hd ?? ''} onChange={e => setForm(f => ({ ...f, z_hd: e.target.value }))} className={`${inp} w-full`} />
-              <input type="email" placeholder="E-Mail (wird beim Versand vorgeschlagen)" value={form.email ?? ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={`${inp} w-full`} />
               <div className="grid grid-cols-3 gap-2">
                 <input placeholder="Straße" value={form.strasse ?? ''} onChange={e => setForm(f => ({ ...f, strasse: e.target.value }))} className={`${inp} col-span-2`} />
                 <input placeholder="Nr." value={form.hausnummer ?? ''} onChange={e => setForm(f => ({ ...f, hausnummer: e.target.value }))} className={inp} />
@@ -122,11 +116,9 @@ function KundeLieferadressen({ kundeId }: { kundeId: number }) {
           ) : (
             <div className="flex items-start justify-between gap-2">
               <div>
-                {la.ist_standard && <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded px-1 mr-1">Standard-Lieferadresse</span>}
-                <span className="font-medium text-slate-800 dark:text-slate-100">{la.bezeichnung || 'Adresse'}</span>
-                {la.name && <div className="text-slate-600 dark:text-slate-300 text-xs">{la.name}</div>}
+                {la.ist_standard && <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded px-1 mr-1">Standard</span>}
+                <span className="font-medium text-slate-800 dark:text-slate-100">{la.bezeichnung || 'Lieferadresse'}</span>
                 {la.z_hd && <div className="text-slate-500 dark:text-slate-400 text-xs">z.Hd. {la.z_hd}</div>}
-                {la.email && <div className="text-slate-500 dark:text-slate-400 text-xs">{la.email}</div>}
                 <div className="text-slate-600 dark:text-slate-300 text-xs">{[la.strasse, la.hausnummer].filter(Boolean).join(' ')}</div>
                 <div className="text-slate-600 dark:text-slate-300 text-xs">{[la.plz, la.ort].filter(Boolean).join(' ')}</div>
               </div>
@@ -142,9 +134,7 @@ function KundeLieferadressen({ kundeId }: { kundeId: number }) {
       {editId === 'neu' && (
         <div className="border border-blue-300 dark:border-blue-700 rounded-lg p-3 space-y-2">
           <input placeholder="Bezeichnung (z.B. Lager Nord)" value={form.bezeichnung ?? ''} onChange={e => setForm(f => ({ ...f, bezeichnung: e.target.value }))} className={`${inp} w-full`} />
-          <input placeholder="Firma / Name (leer = aus den Stammdaten)" value={form.name ?? ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={`${inp} w-full`} />
           <input placeholder="z.Hd." value={form.z_hd ?? ''} onChange={e => setForm(f => ({ ...f, z_hd: e.target.value }))} className={`${inp} w-full`} />
-          <input type="email" placeholder="E-Mail (wird beim Versand vorgeschlagen)" value={form.email ?? ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={`${inp} w-full`} />
           <div className="grid grid-cols-3 gap-2">
             <input placeholder="Straße" value={form.strasse ?? ''} onChange={e => setForm(f => ({ ...f, strasse: e.target.value }))} className={`${inp} col-span-2`} />
             <input placeholder="Nr." value={form.hausnummer ?? ''} onChange={e => setForm(f => ({ ...f, hausnummer: e.target.value }))} className={inp} />
@@ -202,7 +192,7 @@ function KundeMahnstatus({ kundeId }: { kundeId: number }) {
             <button
               key={m.id}
               type="button"
-              onClick={async () => { const url = await getMahnungPdfUrl(m.id, false, m.mahnnummer); await openUrl(url) }}
+              onClick={async () => { const url = await getMahnungPdfUrl(m.id); await openUrl(url) }}
               title={`${m.mahnnummer ?? ''} – ${formatDatum(m.erstellt_am.slice(0, 10))}`}
               className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900"
             >
@@ -377,8 +367,7 @@ function KundeKontokorrent({ kunde, debitorNr, setDebitorNr, debitorEdit, setDeb
             className="text-xs border border-slate-300 dark:border-slate-600 rounded px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200" />
         </div>
         <button
-          onClick={() => downloadKontokorrentPdf(kunde.id!, von, bis,
-            kunde.firmenname || [kunde.vorname, kunde.nachname].filter(Boolean).join(' ') || undefined)}
+          onClick={() => downloadKontokorrentPdf(kunde.id!, von, bis)}
           className="text-xs px-2 py-1 rounded border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
           ↓ PDF
         </button>
@@ -564,7 +553,7 @@ function KundeDokumente({ kundeId }: { kundeId: number }) {
 
   async function handleOpen(kb: KundeBeleg) {
     const url = await getKundeBelegDownloadUrl(kundeId, kb.id)
-    await openUrl(url)
+    window.open(url, '_blank')
   }
 
   function fileIcon(mime?: string) {
@@ -675,7 +664,7 @@ function KundeDokumente({ kundeId }: { kundeId: number }) {
 // Rechts: Rechnungspanel
 // ---------------------------------------------------------------------------
 
-function KundeRechnungen({ kunde, initialTab }: { kunde: Kunde; initialTab?: 'kontokorrent' }) {
+function KundeRechnungen({ kunde, initialTab, onClose }: { kunde: Kunde; initialTab?: 'kontokorrent'; onClose?: () => void }) {
   const navigate = useNavigate()
   const [offeneRechnung, setOffeneRechnung] = useState<number | null>(null)
   const [tab, setTab] = useState<'rechnungen' | 'angebote' | 'dokumente' | 'kontokorrent' | 'verlauf'>(initialTab ?? 'rechnungen')
@@ -709,6 +698,10 @@ function KundeRechnungen({ kunde, initialTab }: { kunde: Kunde; initialTab?: 'ko
   return (
     <div className="h-full flex flex-col">
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 shrink-0 space-y-2">
+        <div className="flex items-center gap-2 md:hidden">
+          <button onClick={onClose} aria-label="Zurück" className="min-h-11 min-w-11 flex items-center justify-center rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-lg leading-none">←</button>
+          <span className="font-semibold text-slate-800 dark:text-slate-100 truncate">{kundeName(kunde)}</span>
+        </div>
         {/* Tabs */}
         <div className="flex gap-1">
           <button onClick={() => setTab('rechnungen')}
@@ -876,11 +869,10 @@ const schema = z.object({
   ist_verein: z.boolean().optional(),
   ist_gemeinnuetzig: z.boolean().optional(),
   zugferd_aktiv: z.boolean().optional(),
-  oeffentlicher_auftraggeber: z.boolean().optional(),
-  leitweg_id: z.string().optional(),
   skonto_prozent: z.number().min(0).max(100).nullable().optional(),
   skonto_tage: z.number().int().min(1).max(365).nullable().optional(),
 }).superRefine((data, ctx) => {
+<<<<<<< HEAD
   // Issue #530: Pflichtangaben für die XRechnung an öffentliche Auftraggeber
   if (data.oeffentlicher_auftraggeber) {
     const fehler = leitwegIdFehler(data.leitweg_id)
@@ -894,6 +886,10 @@ const schema = z.object({
   if (!data.firmenname?.trim() && !(data.vorname?.trim() && data.nachname?.trim())) {
     ctx.addIssue({ code: 'custom', path: ['firmenname'], message: 'Für ZUGFeRD Firmenname oder Vor- und Nachname angeben' })
   }
+=======
+  if (!data.zugferd_aktiv) return
+  if (!data.firmenname?.trim()) ctx.addIssue({ code: 'custom', path: ['firmenname'], message: 'Pflichtfeld für ZUGFeRD' })
+>>>>>>> feat/server-mode
   if (!data.strasse?.trim()) ctx.addIssue({ code: 'custom', path: ['strasse'], message: 'Pflichtfeld für ZUGFeRD' })
   if (!data.plz?.trim()) ctx.addIssue({ code: 'custom', path: ['plz'], message: 'Pflichtfeld für ZUGFeRD' })
   if (!data.ort?.trim()) ctx.addIssue({ code: 'custom', path: ['ort'], message: 'Pflichtfeld für ZUGFeRD' })
@@ -906,7 +902,6 @@ const EMPTY: FormValues = {
   plz: '', ort: '', land: 'DE', ust_idnr: '', ust_idnr_validiert: false, ust_idnr_validierung_datum: null,
   steuernummer_ausland: '', email: '', telefon: '',
   kundennummer: '', z_hd: '', notizen: '', ist_verein: false, ist_gemeinnuetzig: false, zugferd_aktiv: false,
-  oeffentlicher_auftraggeber: false, leitweg_id: '',
   skonto_prozent: null, skonto_tage: null,
 }
 
@@ -1000,11 +995,16 @@ export function KundenPage() {
   const watchLand = useWatch({ control, name: 'land' })
   const watchUstIdnrValidiert = useWatch({ control, name: 'ust_idnr_validiert' })
   const watchUstIdnrValidierungDatum = useWatch({ control, name: 'ust_idnr_validierung_datum' })
+<<<<<<< HEAD
   const watchOeffentlich = useWatch({ control, name: 'oeffentlicher_auftraggeber' })
   const { data: unternehmenStamm } = useQuery({ queryKey: ['unternehmen'], queryFn: getUnternehmen, staleTime: 1000 * 60 * 5 })
   // Issue #530: Schalter nur sichtbar, wenn die Funktion an ist – oder der Kunde schon so markiert ist
   const zeigOeffentlich = !!unternehmenStamm?.oeffentliche_auftraggeber_aktiv || !!editKunde?.oeffentlicher_auftraggeber
   const zugferdAutoAktiv = !!(watchFirmenname?.trim() && watchUstIdnr?.trim()) || !!watchOeffentlich
+=======
+  const zugferdAutoAktiv = !!(watchFirmenname?.trim() && watchUstIdnr?.trim())
+  const zugferdOhneUstId = !!(watchZugferd && !watchUstIdnr?.trim())
+>>>>>>> feat/server-mode
   // Drittland: weder Deutschland noch EU-Mitglied (Issue #315) - dort gilt keine USt-IdNr.,
   // sondern je nach Land eine andere Steuer-/Unternehmens-ID
   const istDrittland = !!watchLand && watchLand !== 'DE' && !istEuLand(watchLand)
@@ -1037,7 +1037,6 @@ export function KundenPage() {
       email: k.email ?? '', telefon: k.telefon ?? '', kundennummer: k.kundennummer ?? '',
       z_hd: k.z_hd ?? '', notizen: k.notizen ?? '', ist_verein: k.ist_verein, ist_gemeinnuetzig: k.ist_gemeinnuetzig,
       zugferd_aktiv: k.zugferd_aktiv ?? false,
-      oeffentlicher_auftraggeber: k.oeffentlicher_auftraggeber ?? false, leitweg_id: k.leitweg_id ?? '',
       skonto_prozent: (k as any).skonto_prozent ?? null,
       skonto_tage: (k as any).skonto_tage ?? null,
     })
@@ -1079,29 +1078,47 @@ export function KundenPage() {
   const isPending = createMutation.isPending || updateMutation.isPending
   const mutationError = createMutation.error || updateMutation.error
 
+  // Status-Badges für die mobile Kartenansicht (gleiche Farben wie in der Tabelle)
+  function mwBadges(k: Kunde) {
+    const mw = k.id != null ? mahnwesenByKundeId.get(k.id) : undefined
+    const badges: { text: string; cls: string; title?: string }[] = []
+    if (mw?.mahnsperre_bis) badges.push({ text: '⏸ pausiert', cls: 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300', title: mw.mahnsperre_grund ?? undefined })
+    if (!mw?.mahnsperre_bis && mw && (mw.aktionsfaellig || mw.anzahl_zahlungserinnerung_faellig > 0)) badges.push({ text: '⚠ überfällig', cls: 'bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300' })
+    if (k.mahnung_gesperrt) badges.push({ text: '🔒 gesperrt', cls: 'bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300' })
+    if (k.mahnung_warnung && !k.mahnung_gesperrt) badges.push({ text: '⚠️ Mahnwarnung', cls: 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300' })
+    if (!badges.length) return null
+    return (
+      <div className="flex flex-wrap gap-1 shrink-0">
+        {badges.map((b) => (
+          <span key={b.text} title={b.title} className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${b.cls}`}>{b.text}</span>
+        ))}
+      </div>
+    )
+  }
+
   return (
-    <div className="flex h-full">
+    <div className="flex flex-col md:flex-row h-full">
 
       {/* ── Linke Spalte (breit) ─────────────────────────────────────── */}
       <div
-        className={`${showForm ? (manuell ? 'shrink-0' : 'w-1/3 min-w-[260px] shrink-0') : 'flex-1'} flex flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 transition-all`}
+        className={`${showForm ? (manuell ? 'shrink-0 md:shrink-0' : 'w-full md:w-1/3 md:min-w-[260px] shrink-0') : 'flex-1'} w-full md:w-auto flex flex-col border-e border-slate-200 dark:border-slate-700 min-w-0 transition-all`}
         style={showForm && manuell ? { width: splitterBreite, minWidth: '220px' } : undefined}
       >
 
         {/* Header */}
-        <div className="p-6 pb-4 shrink-0">
+        <div className="p-4 md:p-6 md:pb-4 pb-3 shrink-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Kunden</h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setImportOffen(true)}
                 title="CSV importieren"
-                className="p-2 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
+                className="min-h-11 min-w-11 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
               >
                 <span className="material-symbols-outlined text-xl">upload_file</span>
               </button>
-              <button onClick={openCreate} className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700">
-                + Neu
+              <button onClick={openCreate} className="min-h-11 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700 max-sm:w-full">
+                + Neue Kunden
               </button>
             </div>
           </div>
@@ -1111,13 +1128,46 @@ export function KundenPage() {
             placeholder="Suchen…"
             value={suche}
             onChange={(e) => setSuche(e.target.value)}
-            className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
+            className="w-full min-h-11 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
           />
         </div>
 
-        {/* Tabelle */}
-        <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        {/* Tabelle (ab md:) / Karten (mobil) */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-4 md:px-6 pb-6">
+          {/* Mobil: Karten mit großen Touch-Zielen */}
+          {!isLoading && gefiltert.length === 0 && (
+            <p className="md:hidden text-slate-400 dark:text-slate-500 text-sm p-5">{suche ? 'Keine Treffer.' : 'Noch keine Kunden.'}</p>
+          )}
+          {!isLoading && gefiltert.length > 0 && (
+            <div className="md:hidden space-y-2">
+              {gefiltert.map((k) => (
+                <div key={k.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-medium text-slate-800 dark:text-slate-100 min-w-0">{kundeName(k)}</span>
+                    {mwBadges(k)}
+                  </div>
+                  {(k.email || k.ort || k.kundennummer) && (
+                    <div className="mt-1 text-xs text-slate-500 dark:text-slate-400 space-y-0.5">
+                      {k.email && <p className="truncate">{k.email}</p>}
+                      {k.ort && <p>{[k.plz, k.ort].filter(Boolean).join(' ')}</p>}
+                      {k.kundennummer && <p className="font-mono">{k.kundennummer}</p>}
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" data-testid="kunde-details" onClick={(e) => { e.stopPropagation(); setSelected(selected?.id === k.id ? null : k); }}
+                      className="flex-1 min-h-11 text-sm font-medium border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
+                      Details
+                    </button>
+                    <button type="button" data-testid="kunde-bearbeiten" onClick={(e) => { e.stopPropagation(); openEdit(k); }}
+                      className="flex-1 min-h-11 text-sm font-medium border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
+                      Bearbeiten
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
           {isLoading ? (
             <p className="text-slate-400 dark:text-slate-500 text-sm p-5">Lade…</p>
           ) : !gefiltert.length ? (
@@ -1291,7 +1341,7 @@ export function KundenPage() {
                                   <div className="flex gap-1.5 flex-wrap">
                                     {k.ist_verein && <span className="px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">Verein</span>}
                                     {k.ist_gemeinnuetzig && <span className="px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">Gemeinnützig</span>}
-                                    {k.zugferd_aktiv && <span className="px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300">{k.oeffentlicher_auftraggeber ? 'XRechnung' : 'ZUGFeRD'}</span>}
+                                    {k.zugferd_aktiv && <span className="px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300">ZUGFeRD</span>}
                                   </div>
                                 </div>
                               )}
@@ -1326,9 +1376,13 @@ export function KundenPage() {
       {/* ── Rechte Spalte (Rechnungen oder Formular) ─────────────────── */}
       {!showForm && <DetailTrennlinie detail={detailBreite} />}
       {!showForm && (
+<<<<<<< HEAD
         <div style={detailBreite.style} className={`${detailBreite.breiteKlasse} shrink-0`}>
+=======
+        <div className={`${selected ? 'fixed inset-0 z-40 bg-white dark:bg-slate-900 md:static md:z-auto' : 'hidden md:block'} flex-1 md:flex-none w-full md:w-[28rem] shrink-0 min-h-0 overflow-y-auto`}>
+>>>>>>> feat/server-mode
           {selected ? (
-            <KundeRechnungen key={selected.id} kunde={selected} initialTab={initialDetailTab} />
+            <KundeRechnungen key={selected.id} kunde={selected} initialTab={initialDetailTab} onClose={() => setSelected(null)} />
           ) : (
             <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500 text-sm">
               Kunden auswählen
@@ -1339,7 +1393,7 @@ export function KundenPage() {
 
       {/* ── Formular-Panel ───────────────────────────────────────────── */}
       {showForm && (
-        <div className="flex-1 border-l border-slate-200 dark:border-slate-700 overflow-y-auto">
+        <div className="fixed inset-0 z-40 bg-white dark:bg-slate-900 md:static md:z-auto w-full flex-1 border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-700 overflow-y-auto">
           <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0">
             <h3 className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               {editKunde ? 'Kunde bearbeiten' : 'Neuer Kunde'}
@@ -1370,9 +1424,9 @@ export function KundenPage() {
                 </button>
               )}
             </h3>
-            <button onClick={closeForm} className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 text-xl leading-none">×</button>
+            <button onClick={closeForm} aria-label="Schließen" className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 text-xl leading-none">×</button>
           </div>
-          <div className="p-6 max-w-lg">
+          <div className="p-4 md:p-6 max-w-lg">
             {deleteFehlgeschlagen && (
               <div className="mb-4 bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-800 rounded-lg px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
                 <p className="font-medium">Löschen nicht möglich</p>
@@ -1380,17 +1434,17 @@ export function KundenPage() {
               </div>
             )}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Firmenname</label>
                   <input type="text" {...register('firmenname')} className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 ${errors.firmenname ? 'border-red-400 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'}`} />
                   {errors.firmenname && <p className="text-red-500 text-xs mt-0.5">{errors.firmenname.message}</p>}
                 </div>
                 <div className="col-span-2">
-                  <div className="flex gap-3">
+                  <div className="flex flex-col md:flex-row gap-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Anrede</label>
-                      <select {...register('anrede')} className="w-40 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100">
+                      <select {...register('anrede')} className="w-full md:w-40 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100">
                         <option value="">– keine Angabe –</option>
                         <option value="frau">Frau</option>
                         <option value="herr">Herr</option>
@@ -1416,12 +1470,12 @@ export function KundenPage() {
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Adresse</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <input type="text" {...register('strasse')} placeholder="Straße" className={`col-span-2 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 ${errors.strasse ? 'border-red-400 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'}`} />
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    <input type="text" {...register('strasse')} placeholder="Straße" className={`md:col-span-2 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 ${errors.strasse ? 'border-red-400 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'}`} />
                     <input type="text" {...register('hausnummer')} placeholder="Nr." className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
                     <input type="text" {...register('plz')} placeholder="PLZ" className={`border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 ${errors.plz ? 'border-red-400 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'}`} />
                     <input type="text" {...register('ort')} placeholder="Ort" className={`col-span-2 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100 ${errors.ort ? 'border-red-400 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'}`} />
-                    <div className="col-span-3">
+                    <div className="col-span-2 md:col-span-3">
                       <LandCombobox value={watchLand ?? ''} onChange={(code) => setValue('land', code)} />
                     </div>
                   </div>
@@ -1504,34 +1558,12 @@ export function KundenPage() {
                     <span>
                       ZUGFeRD / E-Rechnung
                       {zugferdAutoAktiv
-                        ? <span className="ml-1 text-xs text-blue-500 dark:text-blue-400">(automatisch aktiv – {watchOeffentlich ? 'öffentlicher Auftraggeber' : 'Firma + USt-IdNr./Steuernummer vorhanden'})</span>
+                        ? <span className="ml-1 text-xs text-blue-500 dark:text-blue-400">(automatisch aktiv – Firma + USt-IdNr./Steuernummer vorhanden)</span>
                         : <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">PDF enthält maschinenlesbares XML für B2B-Empfänger</span>
                       }
                     </span>
                   </label>
                 </div>
-                {zeigOeffentlich && (
-                  <div className="col-span-2 space-y-2">
-                    <label className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
-                      <input type="checkbox" {...register('oeffentlicher_auftraggeber')} className="rounded mt-0.5" />
-                      <span>
-                        Öffentlicher Auftraggeber
-                        <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">Behörde, Kommune o. Ä. – Rechnung als XRechnung (XML) mit Leitweg-ID</span>
-                      </span>
-                    </label>
-                    {watchOeffentlich && (
-                      <div className="ml-6">
-                        <label htmlFor="kunde-leitweg-id" className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Leitweg-ID *</label>
-                        <input id="kunde-leitweg-id" {...register('leitweg_id')} placeholder="z. B. 991-33333TEST-33"
-                          aria-invalid={!!errors.leitweg_id}
-                          className="w-64 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100" />
-                        {errors.leitweg_id
-                          ? <p className="text-red-500 text-xs mt-1">{errors.leitweg_id.message}</p>
-                          : <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Teilt dir der Auftraggeber mit (meist in der Bestellung). E-Mail-Adresse ist ebenfalls Pflicht.</p>}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               {mutationError && <p className="text-red-600 text-sm">{(mutationError as Error).message}</p>}
@@ -1545,8 +1577,8 @@ export function KundenPage() {
 
 
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={closeForm} className="flex-1 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700">Abbrechen</button>
-                <button type="submit" disabled={isPending} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                <button type="button" onClick={closeForm} className="flex-1 min-h-11 md:min-h-0 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700">Abbrechen</button>
+                <button type="submit" disabled={isPending} className="flex-1 min-h-11 md:min-h-0 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
                   {isPending ? 'Speichert…' : 'Speichern'}
                 </button>
               </div>
@@ -1555,21 +1587,17 @@ export function KundenPage() {
                 <div className="border-t border-slate-200 dark:border-slate-700 pt-3 space-y-2">
                   <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Datenschutz (DSGVO)</p>
                   {!showDsgvoBestaetigung ? (
-                    <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => dsgvoExportKundePdf(editKunde.id!,
-                        [editKunde.firmenname, editKunde.vorname, editKunde.nachname].filter(Boolean).join(' ') || undefined)}
-                        className="flex-1 text-xs border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700">
+                    <div className="flex flex-col md:flex-row gap-2">
+                      <button type="button" onClick={() => dsgvoExportKundePdf(editKunde.id!)}
+                        className="flex-1 min-h-11 md:min-h-0 text-xs border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700">
                         📄 Datenauskunft (PDF)
                       </button>
                       <button type="button" onClick={() => dsgvoExportKunde(editKunde.id!)}
-                        className="flex-1 text-xs border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700">
+                        className="flex-1 min-h-11 md:min-h-0 text-xs border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700">
                         📥 Datenauskunft (JSON)
                       </button>
-                      <DsgvoMailButton art="kunde" id={editKunde.id!}
-                        name={[editKunde.firmenname, editKunde.vorname, editKunde.nachname].filter(Boolean).join(' ')}
-                        email={editKunde.email} />
                       <button type="button" onClick={() => setShowDsgvoBestaetigung(true)}
-                        className="flex-1 text-xs border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg py-1.5 hover:bg-red-50 dark:hover:bg-red-950">
+                        className="flex-1 min-h-11 md:min-h-0 text-xs border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg py-1.5 hover:bg-red-50 dark:hover:bg-red-950">
                         🗑 Anonymisieren (Art. 17)
                       </button>
                     </div>

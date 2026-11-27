@@ -73,6 +73,30 @@ function AppRoutes() {
   })
   const isLoading = startLaedt || (!!start && !startOffen && statusLaedt)
 
+  // Server-Modus (Web, nicht Tauri): ohne gültige Session direkt zum OIDC-Login –
+  // auch vor dem Setup, sonst sieht man den Wizard ohne Auth.
+  const { data: authStatus } = useQuery({
+    queryKey: ['auth-status'],
+    queryFn: async () => {
+      const res = await fetch('/api/auth/status')
+      // Nur eine eindeutige 200-Antwort mit authenticated:false heisst "nicht angemeldet".
+      // 5xx/HTML/Netzwerkfehler sind echte Fehler - ein Redirect zurueck in den Login wuerde
+      // sonst eine Redirect-Schleife bis zum Rate-Limit (429) erzeugen.
+      if (!res.ok) return { authenticated: true }  // Fehlerpfad: Status nicht auswertbar
+      const json = (await res.json().catch(() => null)) as { authenticated?: boolean } | null
+      if (!json || typeof json.authenticated !== 'boolean') return { authenticated: true }
+      return json as { authenticated: boolean }
+    },
+    enabled: !isTauri(),
+    retry: false,
+    staleTime: 0,
+  })
+  useEffect(() => {
+    if (!isTauri() && authStatus && !authStatus.authenticated) {
+      window.location.assign('/api/auth/login')
+    }
+  }, [authStatus])
+
   // Zeigt nach 8 s einen Hinweis: erster Start nach einem Update dauert länger
   const [longWait, setLongWait] = useState(false)
   useEffect(() => {

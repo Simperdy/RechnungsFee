@@ -904,7 +904,11 @@ export default function BuchungsvorlagenPage() {
       {/* Rechte Spalte – Detail (schmal) */}
       {formModus === null && selVorlage && <DetailTrennlinie detail={detailBreite} />}
       {formModus === null && selVorlage && (
+<<<<<<< HEAD
         <div style={detailBreite.style} className={`${detailBreite.breiteKlasse} shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-y-auto p-6`}>
+=======
+        <div className={`${selVorlage ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0} border-l border-slate-200 dark:border-slate-700 overflow-y-auto p-6`}>
+>>>>>>> feat/server-mode
           <VorlageDetail
             vorlage={selVorlage}
             onBearbeiten={() => setFormModus('bearbeiten')}

@@ -39,11 +39,17 @@ class FehlerMiddleware:
             logger.exception("Unbehandelter Fehler bei %s %s", scope.get("method"), scope.get("path"))
             if antwort_gestartet:
                 raise
-            text = str(e).strip()
-            detail = (
-                f"Interner Fehler im Backend ({type(e).__name__}{': ' + text[:300] if text else ''}). "
-                "Details stehen in der Protokolldatei backend.log."
-            )
+            # Im Server-Modus (oeffentliche API) keine Exception-Details an den
+            # Client — die koennen Pfade/SQL/Tabellennamen leaken. Voller Text nur ins Log.
+            import os as _os
+            if _os.environ.get("RECHNUNGSFEE_SERVER_MODE") == "1":
+                detail = "Interner Fehler — Details stehen in backend.log."
+            else:
+                text = str(e).strip()
+                detail = (
+                    f"Interner Fehler im Backend ({type(e).__name__}{': ' + text[:300] if text else ''}). "
+                    "Details stehen in der Protokolldatei backend.log."
+                )
             body = json.dumps({"detail": detail}, ensure_ascii=False).encode("utf-8")
             await send({
                 "type": "http.response.start",

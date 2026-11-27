@@ -1484,7 +1484,11 @@ export function AngebotePage() {
       )}
       {selected && !formModus && <DetailTrennlinie detail={detailBreite} />}
       {selected && !formModus && (
+<<<<<<< HEAD
         <div style={detailBreite.style} className={`${detailBreite.breiteKlasse} shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col`}>
+=======
+        <div className={`${selectedId ? 'flex' : 'hidden md:flex'} flex-col md:block w-full md:w-[28rem] shrink-0 border-l border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col`}>
+>>>>>>> feat/server-mode
           <AngebotDetail
             angebot={selected}
             onEdit={() => setFormModus('bearbeiten')}

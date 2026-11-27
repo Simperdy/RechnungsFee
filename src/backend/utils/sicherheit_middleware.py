@@ -25,8 +25,14 @@ durchlaufen.
 """
 from urllib.parse import urlsplit
 
-from utils import profil_zugang, sitzungstoken
 
+import server_mode
+from utils import sitzungstoken
+ feat/server-mode
+
+# Desktop-Modus: nur localhost-Hosts. Server-Modus (Docker hinter TLS-Proxy):
+# der Proxy setzt den Host auf die öffentliche Domain – die erlauben wir,
+# solange der Request über den Proxy kam (X-Forwarded-Proto gesetzt).
 ERLAUBTE_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
 
 # Eigene Oberflächen: Tauri (macOS/Linux), Tauri unter Windows (WebView2), Vite-Dev-Server
@@ -57,7 +63,56 @@ def _hostname(host_header: str) -> str:
     return host.rsplit(":", 1)[0] if ":" in host else host
 
 
-def origin_erlaubt(origin: str) -> bool:
+
+# Vertrauensbereich für Forwarded-Header — muss zu RECHNUNGSFEE_PROXY_NETZE
+# (Env, Default siehe Dockerfile) passen. Komma-separierte IPs/CIDRs.
+import os as _os
+_DEFAULT_PROXY_NETZE = "127.0.0.1,172.16.15.0/24,172.16.16.0/24"  # Loopback + NPM-Netze (proxy_sensitive/proxy_public); fuer gekettete Proxys
+
+
+def _proxy_netze_aus_env() -> tuple:
+    """RECHNUNGSFEE_PROXY_NETZE (komma-separiert) oder Default — muss zu
+    --forwarded-allow-ips im Dockerfile passen (dort expandiert die Shell)."""
+    roh = _os.environ.get("RECHNUNGSFEE_PROXY_NETZE", _DEFAULT_PROXY_NETZE)
+    return tuple(n.strip() for n in roh.split(",") if n.strip())
+
+
+_PROXY_NETZE = _proxy_netze_aus_env()
+
+
+def _ist_proxy_peer(scope: dict) -> bool:
+    """True, wenn der Request nachweislich ueber den vertrauten Proxy kam.
+
+    uvicorn ersetzt scope['client'] bei --proxy-headers durch den linken XFF-
+    Eintrag (echte Client-IP) — der TCP-Peer ist dann nicht mehr sichtbar.
+    NPM haengt mit $proxy_add_x_forwarded_for genau EINEN Hop an (die Client-IP),
+    deshalb gilt: XFF mit genau einem Hop = direkter Proxy-Request (NPM).
+    Mehrere Hops (gekettete Proxys): der rechte Hop muss in RECHNUNGSFEE_PROXY_NETZE
+    liegen. Kein XFF: nur Loopback (lokaler Healthcheck)."""
+    import ipaddress
+    headers = dict(scope.get("headers") or [])
+    xff = headers.get(b"x-forwarded-for", b"").decode("latin-1").strip()
+    if not xff:
+        peer = (scope.get("client") or ("", 0))[0]
+        try:
+            return ipaddress.ip_address(peer) in ipaddress.ip_network("127.0.0.1/32")
+        except ValueError:
+            return False
+    hops = [h.strip() for h in xff.split(",") if h.strip()]
+    if len(hops) == 1:
+        return True  # genau ein Hop = NPM hat den Client angehängt
+    letzter = hops[-1]
+    try:
+        ip = ipaddress.ip_address(letzter)
+    except ValueError:
+        return False
+    return any(ip in ipaddress.ip_network(n) for n in _PROXY_NETZE)
+
+
+# Alias fuer bestehende Aufrufer
+_ist_proxy_client = _ist_proxy_peer
+
+def origin_erlaubt(origin: str, scope: dict | None = None) -> bool:
     origin = origin.strip().lower()
     if origin in _ERLAUBTE_ORIGINS:
         return True
@@ -68,7 +123,20 @@ def origin_erlaubt(origin: str) -> bool:
     if teile.scheme not in ("http", "https"):
         return False
     host = teile.hostname or ""
-    return host in ("127.0.0.1", "localhost", "::1")
+    if host in ("127.0.0.1", "localhost", "::1"):
+        return True
+    # Server-Modus (Docker, same-origin SPA hinter TLS-Proxy): der Browser schickt
+    # die öffentliche Origin (z.B. https://host:8443) – erlaubt, wenn der Request
+    # selbst vom Proxy kam (X-Forwarded-Proto), dann ist same-origin garantiert.
+    # Server-Modus: fremde Origin nur erlauben, wenn der Request nachweislich
+    # vom eigenen Proxy kam — X-Forwarded-Proto allein ist spoofbar, deshalb
+    # zusaetzlich die echte Client-IP aus scope['client'] gegen das private
+    # Proxy-Netz pruefen (siehe _ist_proxy_client).
+    if server_mode.SERVER_MODE and scope is not None:
+        headers = scope.get("headers") or {}
+        if any(k.lower() == b"x-forwarded-proto" for k, _ in headers) and _ist_proxy_client(scope):
+            return True
+    return False
 
 
 async def _abweisen(send, status: int, text: str) -> None:
@@ -96,12 +164,20 @@ class SicherheitMiddleware:
 
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
 
-        if _hostname(headers.get("host", "")) not in ERLAUBTE_HOSTS:
-            await _abweisen(send, 421, "Unzulässiger Host-Header.")
-            return
+        host_ok = _hostname(headers.get("host", "")) in ERLAUBTE_HOSTS
+        # Server-Modus hinter TLS-Proxy: Host ist die oeffentliche Domain. Vertraut
+        # wird X-Forwarded-Proto nur, wenn der Aufrufer selbst aus dem Proxy-Netz
+        # kommt (uvicorn loest mit --proxy-headers/--forwarded-allow-ips die echte
+        # Client-IP in scope['client'] auf) — ein direkter LAN-Zugriff auf :8000
+        # kann den Header sonst spoofen und den Host-Check aushebeln.
+        if not host_ok:
+            _proxy = _ist_proxy_client(scope)
+            if not (server_mode.SERVER_MODE and _proxy and headers.get("x-forwarded-proto")):
+                await _abweisen(send, 421, "Unzulässiger Host-Header.")
+                return
 
         origin = headers.get("origin")
-        if scope.get("method", "GET") not in _LESEND and origin is not None and not origin_erlaubt(origin):
+        if scope.get("method", "GET") not in _LESEND and origin is not None and not origin_erlaubt(origin, scope):
             await _abweisen(send, 403, "Anfrage von fremder Herkunft abgelehnt.")
             return
 

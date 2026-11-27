@@ -33,6 +33,7 @@ from database.models import (
 )
 from api.rechnungen import APP_DATA_DIR, BELEG_DIR, ERLAUBTE_MIME_TYPES
 from api.nummernkreise import naechste_nummer
+from utils.upload_guard import lies_upload
 
 router = APIRouter(prefix="/api/wiederkehrend", tags=["Wiederkehrend"])
 
@@ -608,7 +609,7 @@ async def upload_vertrag(vorlage_id: int, datei: UploadFile = File(...), db: Ses
     mime = datei.content_type or ""
     if mime not in ERLAUBTE_MIME_TYPES:
         raise HTTPException(422, f"Dateityp '{mime}' nicht erlaubt. Erlaubt: PDF, JPEG, PNG, TIFF.")
-    inhalt = await datei.read()
+    inhalt = await lies_upload(datei)
     sha256 = hashlib.sha256(inhalt).hexdigest()
     jetzt = datetime.now()
     ziel_dir = BELEG_DIR / str(jetzt.year) / jetzt.strftime("%m")

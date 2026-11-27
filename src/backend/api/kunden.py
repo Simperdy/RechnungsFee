@@ -535,7 +535,8 @@ async def upload_kunde_beleg(
     if mime not in _ERLAUBTE_MIME:
         raise HTTPException(422, f"Dateityp '{mime}' nicht erlaubt.")
 
-    inhalt = await datei.read()
+    from utils.upload_guard import lies_upload
+    inhalt = await lies_upload(datei)
     sha256 = hashlib.sha256(inhalt).hexdigest()
     jetzt = _datetime.now()
     ziel_dir = _BELEG_DIR / str(jetzt.year) / jetzt.strftime("%m")

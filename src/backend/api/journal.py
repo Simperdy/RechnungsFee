@@ -557,7 +557,8 @@ async def _beleg_datei_speichern(datei: UploadFile, db: Session) -> Beleg:
     mime = datei.content_type or ""
     if mime not in ERLAUBTE_MIME_TYPES:
         raise HTTPException(status_code=422, detail=f"Dateityp '{mime}' nicht erlaubt. Erlaubt: PDF, JPEG, PNG, TIFF.")
-    inhalt = await datei.read()
+    from utils.upload_guard import lies_upload
+    inhalt = await lies_upload(datei)
     return beleg_aus_bytes_speichern(inhalt, datei.filename or "beleg", mime, db)
 
 

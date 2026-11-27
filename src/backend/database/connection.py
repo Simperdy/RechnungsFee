@@ -146,8 +146,14 @@ def _ermittle_aktives_profil_verzeichnis(base_dir: Path) -> Path:
 if os.name == "posix":
     os.umask(0o077)
 
-# Plattformübergreifender Basis-Datenpfad (unverändert wie bisher)
-_BASE_DIR_ROH = _resolve_app_data_dir(platform.system(), Path.home())
+# Plattformübergreifender Basis-Datenpfad (unverändert wie bisher).
+# Server-Modus (Docker): RECHNUNGSFEE_BASE_DIR überschreibt den Plattformpfad,
+# damit alle Daten (DB, Uploads, Backups, Logs, Profile) im Container-Volume /data liegen.
+_env_base_dir = os.environ.get("RECHNUNGSFEE_BASE_DIR")
+if _env_base_dir:
+    _BASE_DIR_ROH = Path(_env_base_dir)
+else:
+    _BASE_DIR_ROH = _resolve_app_data_dir(platform.system(), Path.home())
 _BASE_DIR_ROH.mkdir(parents=True, exist_ok=True)
 if os.name == "posix":
     try:
@@ -179,10 +185,11 @@ def set_sqlite_pragma(dbapi_conn, _connection_record):
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
     cursor.close()
 
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=engine)
 
 
 class Base(DeclarativeBase):
